@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How It Works | SerbisyoBurgos</title>
+    <link rel="icon" type="image/png" href="asset/SB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-green: #043d2e;
+            --hover-green: #16a34a;
+            --text-dark: #1a202c;
+            --glass-green: #f0fdf4;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            background: var(--primary-green); 
+            color: var(--text-dark); 
+            height: 100vh; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Removes the scrollbar */
+        }
+        
+        /* Header Navigation */
+        .navbar {
+            padding: 1rem 4rem;
+            background: #ffffff; 
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            z-index: 1000;
+        }
+        .logo-nav { height: 45px; width: auto; }
+        .nav-buttons { display: flex; gap: 15px; align-items: center; }
+        .btn-nav { text-decoration: none; font-weight: 600; font-size: 0.95rem; color: var(--primary-green); padding: 8px 0; }
+        .btn-residents { background: var(--primary-green); color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+        .btn-admins { background: white; color: var(--primary-green); border: 2px solid var(--primary-green); padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+
+        /* Main Content Centering */
+        .content-container { 
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .glass-card { 
+            background: var(--glass-green); 
+            border-radius: 24px; 
+            padding: 2.5rem 2rem; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3); 
+            width: 100%;
+            max-width: 550px; /* Small Container */
+            text-align: center;
+        }
+
+        h1 { color: var(--primary-green); font-size: 2rem; margin: 0 0 1.5rem; font-weight: 800; }
+        
+        .step-item {
+            text-align: left;
+            background: rgba(255, 255, 255, 0.4);
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            border: 1px solid rgba(4, 61, 46, 0.1);
+        }
+
+        .step-num {
+            background: var(--primary-green);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            flex-shrink: 0;
+            font-size: 0.9rem;
+        }
+
+        .step-info h3 { margin: 0; font-size: 1rem; color: var(--primary-green); }
+        .step-info p { margin: 0; color: #4a5568; font-size: 0.85rem; line-height: 1.4; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="index.html"><img src="asset/SB.png" alt="SB Logo" class="logo-nav"></a>
+        <div class="nav-buttons">
+            <a href="how-it-works.html" class="btn-nav">How It Works</a>
+            <a href="contact-us.html" class="btn-nav">Contact Us</a>
+            <a href="resident-login.html" class="btn-residents">Residents</a>
+            <a href="admin-login.html" class="btn-admins">Admins</a>
+        </div>
+    </nav>
+
+    <div class="content-container">
+        <div class="glass-card">
+            <h1>How It Works</h1>
+            
+            <div class="step-item">
+                <div class="step-num">1</div>
+                <div class="step-info">
+                    <h3>Create Your Account</h3>
+                    <p>Register on the Resident Login with your basic informations.</p>
+                </div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-num">2</div>
+                <div class="step-info">
+                    <h3>Login to Dashboard</h3>
+                    <p>Access your personalized portal to add requests and book appointments.</p>
+                </div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-num">3</div>
+                <div class="step-info">
+                    <h3>Explore Services</h3>
+                    <p>Track request status, set appointments, and use the SB Assistant chatbot.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

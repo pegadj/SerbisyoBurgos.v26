@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointments | SerbisyoBurgos</title>
+    <link rel="icon" type="image/png" href="../asset/SB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand-green: #16a34a;
+            --brand-dark: #043d2e;
+            --bg-light: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-width: 260px;
+            --white: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); color: var(--text-main); display: flex; min-height: 100vh; }
+
+        /* SIDEBAR NAVIGATION */
+        aside {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--white);
+            border-right: 1px solid #e2e8f0;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            color: var(--brand-dark);
+            font-size: 1.25rem;
+        }
+
+        nav { flex-grow: 1; padding: 1rem; }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.85rem 1rem;
+            text-decoration: none;
+            color: var(--text-muted);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+
+        .nav-link:hover { background: #f8fafc; color: var(--brand-green); }
+        .nav-link.active { background: #f0fdf4; color: var(--brand-green); font-weight: 600; }
+
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #f1f5f9;
+            margin-top: auto;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: #f0fdf4;
+            color: var(--brand-green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .user-info { display: flex; flex-direction: column; }
+        .user-name { font-size: 0.9rem; font-weight: 600; }
+        .user-role { font-size: 0.75rem; color: var(--text-muted); }
+
+        .logout-btn {
+            width: 100%;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff1f2;
+            color: #e11d48;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            border: none;
+            margin-top: 10px;
+        }
+
+        .logout-btn:hover { background: #ffe4e6; }
+
+        /* Resident sidebar branding */
+        aside {
+            background: #5f9632;
+            border-right: 1px solid rgba(4, 61, 46, 0.18);
+        }
+        .sidebar-header {
+            padding: 1.75rem 1.25rem 1.25rem;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.75rem;
+            color: white;
+            font-weight: 800;
+            text-align: center;
+        }
+        .sidebar-header img {
+            width: 54px !important;
+            height: 54px;
+            object-fit: contain;
+            border-radius: 50%;
+            background: white;
+            padding: 3px;
+            border: 3px solid var(--brand-dark);
+        }
+        .nav-link { color: rgba(255, 255, 255, 0.9); }
+        .nav-link:hover { background: #4f7f29; color: white; }
+        .nav-link.active { background: #426c22; color: white; }
+        .logout-btn { background: rgba(255, 255, 255, 0.14); color: white; }
+        .logout-btn:hover,
+        .logout-btn:focus-visible { background: #b91c1c; }
+        .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.18); }
+        .user-profile { color: white; }
+        .user-avatar { color: var(--brand-dark); }
+        .user-role { color: rgba(255, 255, 255, 0.75); }
+
+        /* MAIN CONTENT */
+        main {
+            margin-left: var(--sidebar-width);
+            flex-grow: 1;
+            padding: 2.5rem;
+        }
+
+        .welcome-section {
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            border-left: 6px solid #5f9632;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .welcome-icon-wrapper {
+            width: 56px;
+            height: 56px;
+            background-color: #5f9632;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .welcome-icon-wrapper svg {
+            color: white;
+            width: 28px;
+            height: 28px;
+        }
+
+        .welcome-text h1 {
+            font-size: 1.5rem;
+            color: var(--brand-dark);
+            font-weight: 700;
+            margin-bottom: 4px;
+            margin-top: 0;
+        }
+
+        .welcome-text p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 0;
+        }
+
+        .header-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 4px;
+        }
+
+        .btn-primary {
+            background: #5f9632;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover { background: #4d7a28; }
+
+        .section-heading {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--brand-dark);
+            margin-bottom: 1.25rem;
+            display: block;
+        }
+
+        /* TABLE STYLES */
+        .content-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .appointments-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .appointments-table th { padding: 1.2rem 1rem; text-align: left; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; border-bottom: 2px solid #f8fafc; }
+        .appointments-table td { padding: 1.2rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+
+        /* STATUS BADGES */
+        .status-badge { padding: 6px 14px; border-radius: 30px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+        .status-confirmed { background: #f0fdf4; color: #16a34a; }
+        .status-pending { background: #fff7ed; color: #ea580c; }
+        .status-approved { background: #d1fae5; color: #065f46; }
+        .status-revision { background: #fef3c7; color: #92400e; }
+        .status-revisions { background: #fef3c7; color: #92400e; }
+        .status-ready { background: #f0fdf4; color: #16a34a; }
+        .status-completed { background: #f1f5f9; color: #475569; }
+        .status-rejected { background: #fee2e2; color: #991b1b; }
+
+        /* ACTION BUTTONS */
+        .btn-delete {
+            background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; border-radius: 50%; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center;
+        }
+        .btn-delete:hover { background: #fee2e2; color: #ef4444; }
+
+        /* MODAL STYLES */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        #bookingModal.modal-overlay { z-index: 5000; }
+        .modal { background: white; padding: 2.5rem; border-radius: 24px; width: 100%; max-width: 850px; }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.9rem; }
+        .form-group select, .form-group input { width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 10px; outline: none; }
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--brand-dark);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            margin-bottom: 1.25rem;
+            outline: none;
+            font-family: inherit;
+            background-color: white;
+        }
+
+        .form-input:focus {
+            border-color: var(--brand-green);
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+        }
+
+        optgroup {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            padding: 5px;
+        }
+        /* AI CHATBOT STYLES */
+        #chatToggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: var(--brand-green);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 2000;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .chat-window {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 350px;
+            height: 480px;
+            background: white;
+            border-radius: 20px;
+            display: none;
+            flex-direction: column;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.2);
+            z-index: 2001;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .chat-header { background: var(--brand-dark); color: white; padding: 1.2rem; display: flex; justify-content: space-between; align-items: center; }
+        .chat-body { flex-grow: 1; padding: 1rem; overflow-y: auto; background: #f1f5f9; display: flex; flex-direction: column; gap: 12px; }
+        .msg { max-width: 85%; padding: 10px 14px; border-radius: 15px; font-size: 0.88rem; line-height: 1.5; }
+        .msg-ai { background: white; align-self: flex-start; border: 1px solid #e2e8f0; }
+        .msg-user { background: var(--brand-green); color: white; align-self: flex-end; }
+        .chat-footer { padding: 1rem; display: flex; gap: 8px; border-top: 1px solid #e2e8f0; background: white; }
+        .chat-footer input { flex-grow: 1; padding: 0.7rem; border: 1.5px solid #e2e8f0; border-radius: 10px; outline: none; }
+        .chat-footer button { background: var(--brand-green); color: white; border: none; padding: 0 15px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="sidebar-header">
+            <img src="../asset/SB.png" alt="Logo" style="width: 32px;">
+            <span>SerbisyoBurgos</span>
+        </div>
+        <nav>
+            <a href="dashboard.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                Dashboard
+            </a>
+            <a href="service-requests.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Service Requests
+            </a>
+            <a href="appointments.html" class="nav-link active">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                Appointments
+            </a>
+            <a href="notifications.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                Bulletin Board
+            </a>
+            <a href="request-history.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                Request History
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-profile" id="residentProfileBtn" style="cursor: pointer;">
+                <div class="user-avatar" id="residentSidebarAvatar" aria-hidden="true">?</div>
+                <div class="user-info">
+                    <span class="user-name" id="residentSidebarName">Resident</span>
+                    <span class="user-role">View Profile</span>
+                </div>
+            </div>
+            <a href="landing.html" class="logout-btn" onclick="handleLogout(event)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+<main>
+        <section class="welcome-section">
+            <div class="welcome-icon-wrapper">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+            </div>
+            <div class="welcome-text">
+                <h1>Appointments</h1>
+                <p>Schedule and manage your appointments</p>
+            </div>
+        </section>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+<h2 class="section-heading" style="margin-bottom: 0; color: #6b7280; font-size: 1.25rem;">Your Appointments</h2>
+            <button class="btn-primary" onclick="openModal()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Book New Appointment
+            </button>
+        </div>
+
+<div class="content-card">
+            <table class="appointments-table">
+                <thead>
+                    <tr>
+                        <th>Reference ID</th>
+                        <th>Request Title</th>
+                        <th>Date Submitted</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="appointmentsTableBody">
+                    <!-- Populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div id="bookingModal" class="modal-overlay">
+        <div class="modal">
+            <h2 style="margin-bottom:1.5rem;">Schedule Appointment</h2>
+            <form id="bookingAppointmentForm" action="#" method="post">
+                <div class="form-group">
+                    <label class="form-label">Purpose of Appointment</label>
+                    <select class="form-input" id="appointmentPurpose" name="purpose" required>
+                        <option value="" disabled selected>Loading purposes…</option>
+                    </select>
+
+                    <div style="display:flex; gap:1.25rem;">
+                        <div style="flex:1;">
+                            <label class="form-label">Select Date</label>
+                            <input type="date" class="form-input" id="aptDate" name="appointmentDate" required autocomplete="off">
+                        </div>
+                        <div style="flex:1;">
+                            <label class="form-label">Available Time Slots</label>
+                            <select class="form-input" id="aptTime" name="slotId" required>
+                                <option value="" disabled selected>Select Time...</option>
+                                <optgroup label="Afternoon">
+                                    <option value="1">01:00 PM - 02:00 PM</option>
+                                    <option value="2">02:00 PM - 03:00 PM</option>
+                                    <option value="3">03:00 PM - 04:00 PM</option>
+                                    <option value="4">04:00 PM - 05:00 PM</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary" style="width:100%; justify-content:center;">Book Appointment</button>
+                </div>
+            </form>
+            <button type="button" onclick="closeModal()" style="width:100%; background:none; border:none; color:var(--text-muted); margin-top:10px; cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+    <div id="chatToggle" onclick="toggleChat()">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </div>
+
+    <div id="chatWindow" class="chat-window">
+        <div class="chat-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:10px; height:10px; background:#22c55e; border-radius:50%;"></div>
+                <span>SB Assistant</span>
+            </div>
+            <button onclick="toggleChat()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+        <div id="chatBody" class="chat-body"></div>
+        <div class="chat-footer">
+            <input type="text" id="chatInput" placeholder="Type here...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <div id="logoutModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+        <div class="modal">
+            <h2 id="logoutModalTitle" style="margin-bottom:0.75rem; font-size:1.1rem;">Confirm Logout</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.25rem;">Are you sure you want to logout from your resident portal?</p>
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+                <button id="logoutCancelBtn" type="button" style="padding:0.65rem 1rem; border-radius:10px; border:none; background:#f1f5f9; color:#334155; cursor:pointer;">Cancel</button>
+                <button id="logoutConfirmBtn" type="button" style="padding:0.65rem 1rem; border-radius:10px; border:none; background:#e11d48; color:white; cursor:pointer;">Logout</button>
+            </div>
+        </div>
+    </div>
+<div id="feedbackModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
+        <div class="modal">
+            <h2 id="feedbackModalTitle" style="margin-bottom:0.75rem; font-size:1.1rem;">Notice</h2>
+            <p id="feedbackModalText" style="color: var(--text-muted); margin-bottom: 1.25rem;">Operation completed.</p>
+            <div style="display:flex; justify-content:flex-end;">
+                <button id="feedbackModalOkBtn" type="button" style="padding:0.65rem 1rem; border-radius:10px; border:none; background:var(--brand-green); color:white; cursor:pointer;">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+        <div class="modal">
+            <div style="width: 64px; height: 64px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </div>
+            <h2 id="deleteModalTitle" style="text-align:center; margin-bottom:0.75rem; font-size:1.1rem;">Confirm Deletion</h2>
+            <p style="color: var(--text-muted); text-align:center; margin-bottom: 1.5rem;">Are you sure you want to delete this appointment? This action cannot be undone.</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button id="cancelDeleteBtn" type="button" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; cursor: pointer;">Cancel</button>
+                <button id="confirmDeleteBtn" type="button" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: none; background: #ef4444; color: white; font-weight: 600; cursor: pointer;">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/routes.js"></script>
+    <script src="../shared/maintenance-check.js"></script>
+    <script src="../shared/resident-auth-guard.js"></script>
+    <script src="../shared/resident-sidebar-profile.js"></script>
+    <script src="../shared/resident-profile-modal.js"></script>
+    <script>
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+        const RESIDENT_CONTEXT_KEY = "residentContext";
+        const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "landing.html" };
+        const RESIDENT_ROUTES = window.APP_ROUTES?.resident || {};
+        /** Must match `resident/request-history.html` — prefills booking after "Request again" on an appointment row. */
+        const RESIDENT_APPOINTMENT_REPEAT_KEY = "sb_resident_appointment_repeat_v1";
+        const logoutModal = document.getElementById("logoutModal");
+        const logoutCancelBtn = document.getElementById("logoutCancelBtn");
+        const logoutConfirmBtn = document.getElementById("logoutConfirmBtn");
+        const feedbackModal = document.getElementById("feedbackModal");
+        const feedbackModalTitle = document.getElementById("feedbackModalTitle");
+        const feedbackModalText = document.getElementById("feedbackModalText");
+        const feedbackModalOkBtn = document.getElementById("feedbackModalOkBtn");
+        function applyResidentRouteLinks() {
+            const hrefMap = {
+                "dashboard.html": RESIDENT_ROUTES.dashboard || "dashboard.html",
+                "service-requests.html": RESIDENT_ROUTES.serviceRequests || "service-requests.html",
+                "appointments.html": RESIDENT_ROUTES.appointments || "appointments.html",
+                "notifications.html": RESIDENT_ROUTES.notifications || "notifications.html",
+                "request-history.html": RESIDENT_ROUTES.requestHistory || "request-history.html",
+                "landing.html": COMMON_ROUTES.landing
+            };
+            Object.entries(hrefMap).forEach(([from, to]) => {
+                document.querySelectorAll(`a[href="${from}"]`).forEach((link) => {
+                    link.href = to;
+                });
+            });
+        }
+        applyResidentRouteLinks();
+        function localDateISO() {
+            const d = new Date();
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+        }
+
+        function applyAppointmentDateMin() {
+            const aptDateEl = document.getElementById("aptDate");
+            if (!aptDateEl) return;
+            const today = localDateISO();
+            aptDateEl.min = today;
+            if (aptDateEl.value && aptDateEl.value < today) {
+                aptDateEl.value = "";
+            }
+        }
+
+        function openModal() {
+            const modal = document.getElementById('bookingModal');
+            if (modal) modal.style.display = 'flex';
+            applyAppointmentDateMin();
+            const aptDateEl = document.getElementById("aptDate");
+            if (aptDateEl?.value) {
+                void refreshAppointmentSlotsForDate(aptDateEl.value);
+            }
+        }
+
+        function applyPurposeSelectionFromDraft(draft) {
+            const purposeEl = document.getElementById("appointmentPurpose");
+            const want = String(draft?.purpose || "").trim();
+            if (!purposeEl || !want) return false;
+            const opts = [...purposeEl.options].filter((o) => String(o.value || "").trim());
+            if (!opts.length) return false;
+            const wantLower = want.toLowerCase();
+            let match = opts.find((o) => String(o.value).trim() === want);
+            if (!match) match = opts.find((o) => String(o.value).trim().toLowerCase() === wantLower);
+            if (!match) match = opts.find((o) => String(o.textContent || "").trim().toLowerCase() === wantLower);
+            if (!match) {
+                match = opts.find(
+                    (o) =>
+                        String(o.value).toLowerCase().includes(wantLower) ||
+                        String(o.textContent || "").toLowerCase().includes(wantLower)
+                );
+            }
+            if (match) {
+                purposeEl.value = match.value;
+                return true;
+            }
+            return false;
+        }
+
+        async function applyRepeatAppointmentDraft(draft) {
+            if (!draft || typeof draft !== "object") return;
+            const aptDateEl = document.getElementById("aptDate");
+            const aptTimeEl = document.getElementById("aptTime");
+            if (aptDateEl) aptDateEl.value = "";
+            if (aptTimeEl) {
+                aptTimeEl.innerHTML = `<option value="" disabled selected>Select Time...</option>`;
+            }
+            openModal();
+            if (!applyPurposeSelectionFromDraft(draft)) {
+                await loadAppointmentPurposeOptions();
+                applyPurposeSelectionFromDraft(draft);
+            }
+        }
+
+        function stripRepeatQueryParamIfPresent() {
+            try {
+                const search = window.location.search || "";
+                const p = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+                if (!p.has("repeat")) return;
+                p.delete("repeat");
+                const qs = p.toString();
+                const next = window.location.pathname + (qs ? `?${qs}` : "");
+                history.replaceState(null, "", next);
+            } catch (_e) {
+                /* ignore */
+            }
+        }
+
+        /** Draft is stored in sessionStorage right before navigation (see request-history). Do not rely on ?repeat= — it can be dropped by redirects or open modes. */
+        async function tryConsumeRepeatAppointmentDraft() {
+            let draft = null;
+            try {
+                const raw = sessionStorage.getItem(RESIDENT_APPOINTMENT_REPEAT_KEY);
+                if (raw) draft = JSON.parse(raw);
+            } catch (_e) {
+                draft = null;
+            }
+            if (!draft || typeof draft !== "object") return;
+            sessionStorage.removeItem(RESIDENT_APPOINTMENT_REPEAT_KEY);
+            stripRepeatQueryParamIfPresent();
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            await applyRepeatAppointmentDraft(draft);
+        }
+        function closeModal() { document.getElementById('bookingModal').style.display = 'none'; }
+        function formatAppointmentDate(value) {
+            const dateObj = new Date(value || 0);
+            if (Number.isNaN(dateObj.getTime())) return "Unknown date";
+            return dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        }
+
+        function escapeHtmlText(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+function statusBadgeClass(status) {
+            const normalized = String(status || "").toLowerCase();
+            if (normalized === "processing" || normalized === "in progress") return "status-approved";
+            if (normalized === "confirmed") return "status-confirmed";
+            if (normalized === "approved") return "status-approved";
+            if (normalized === "revisions" || normalized === "revision requested") return "status-revisions";
+            if (normalized === "ready for pickup" || normalized === "ready") return "status-ready";
+            if (normalized === "completed") return "status-completed";
+            if (normalized === "rejected") return "status-rejected";
+            return "status-pending";
+        }
+        let purposeLabelByCode = {
+            "in-person": "In-person Document Processing",
+            pickup: "Document / ID Pickup",
+            consultation: "Face-to-Face Consultation"
+        };
+
+        async function loadAppointmentPurposeOptions() {
+            const sel = document.getElementById("appointmentPurpose");
+            try {
+                const response = await residentApiFetch(`${API_BASE_URL}/resident/appointment-purpose-types`);
+                const result = await response.json();
+                if (!response.ok || !result?.ok || !Array.isArray(result.purposes)) {
+                    throw new Error(result?.message || "bad response");
+                }
+                const map = {};
+                const opts = ['<option value="" disabled selected>Select appointment...</option>'];
+                for (const p of result.purposes) {
+                    const code = String(p.purposeCode || "").trim();
+                    if (!code) continue;
+                    const label = String(p.label || code).trim() || code;
+                    map[code] = label;
+                    opts.push(`<option value="${escapeHtmlText(code)}">${escapeHtmlText(label)}</option>`);
+                }
+                purposeLabelByCode = map;
+                if (sel) sel.innerHTML = opts.join("");
+            } catch (_e) {
+                if (sel) {
+                    sel.innerHTML = `
+                        <option value="" disabled selected>Select appointment...</option>
+                        <option value="in-person">In-person Document Processing</option>
+                        <option value="pickup">Document / ID Pickup</option>
+                        <option value="consultation">Face-to-Face Consultation</option>`;
+                }
+            }
+        }
+
+        function getPurposeLabel(value) {
+            const key = String(value || "").trim();
+            if (purposeLabelByCode[key]) return purposeLabelByCode[key];
+            const normalized = key.toLowerCase();
+            if (normalized === "in-person") return "In-person Document Processing";
+            if (normalized === "pickup") return "Document / ID Pickup";
+            if (normalized === "consultation") return "Face-to-Face Consultation";
+            return key || "Appointment";
+        }
+        async function getResidentUserId() {
+            try {
+                const cached = JSON.parse(sessionStorage.getItem(RESIDENT_CONTEXT_KEY) || "{}");
+                const cachedId = cached?.residentUserId ? String(cached.residentUserId) : null;
+                if (cachedId) return cachedId;
+            } catch (_e) {
+                // Ignore invalid cached context and resolve from backend.
+            }
+            const response = await residentApiFetch(`${API_BASE_URL}/resident/context`);
+            const result = await response.json();
+            if (!response.ok || !result?.ok || !result.residentUserId) {
+                throw new Error(result?.message || "Unable to resolve resident context.");
+            }
+            const residentUserId = String(result.residentUserId);
+            sessionStorage.setItem(RESIDENT_CONTEXT_KEY, JSON.stringify({ residentUserId }));
+            return residentUserId;
+        }
+let appointmentIdToDelete = null;
+
+function renderAppointments(appointments) {
+            const tableBody = document.getElementById("appointmentsTableBody");
+            if (!tableBody) return;
+            if (!Array.isArray(appointments) || !appointments.length) {
+                tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:2rem;">No appointments yet. Book your first appointment.</td></tr>`;
+                return;
+            }
+            tableBody.innerHTML = appointments.map((appointment) => `
+                <tr>
+                    <td><b>#${appointment.referenceNo || "—"}</b></td>
+                    <td>${getPurposeLabel(appointment.purpose)}</td>
+                    <td>${formatAppointmentDate(appointment.appointmentDate)}</td>
+                    <td><span class="status-badge ${statusBadgeClass(appointment.status)}">${appointment.status || "Pending"}</span></td>
+                    <td style="text-align: right;">
+                        <button class="btn-delete" onclick="openDeleteModal('${appointment.id}')" title="Delete appointment">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </button>
+                    </td>
+                </tr>
+            `).join("");
+        }
+        async function loadAppointments() {
+            try {
+                const residentUserId = await getResidentUserId();
+                const response = await residentApiFetch(`${API_BASE_URL}/appointments?residentUserId=${encodeURIComponent(residentUserId)}`);
+                const result = await response.json();
+                if (!response.ok || !result?.ok || !Array.isArray(result.appointments)) {
+                    throw new Error(result?.message || "Unable to load appointments.");
+                }
+                renderAppointments(result.appointments);
+            } catch (_error) {
+                const tableBody = document.getElementById("appointmentsTableBody");
+                if (tableBody) {
+                    tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#b91c1c; padding:2rem;">Unable to load appointments. Make sure backend is running.</td></tr>`;
+                }
+            }
+        }
+
+        document.getElementById("aptDate")?.addEventListener("change", (event) => {
+            const v = String(event.target?.value || "").trim();
+            const todayISO = localDateISO();
+            if (v && v < todayISO) {
+                openFeedbackModal("Invalid date", "Appointments can only be scheduled for today or a future date.");
+                event.target.value = "";
+                return;
+            }
+            refreshAppointmentSlotsForDate(v);
+        });
+        document.getElementById("bookingAppointmentForm")?.addEventListener("submit", (event) => {
+            void submitBooking(event);
+        });
+        
+        function resetBookingFormAfterSuccess() {
+            const purposeEl = document.getElementById("appointmentPurpose");
+            const aptDateEl = document.getElementById("aptDate");
+            const aptTimeEl = document.getElementById("aptTime");
+            if (aptDateEl) aptDateEl.value = "";
+            if (aptTimeEl) aptTimeEl.value = "";
+            if (purposeEl && purposeEl.options.length) {
+                let set = false;
+                for (let i = 0; i < purposeEl.options.length; i++) {
+                    if (purposeEl.options[i].value) {
+                        purposeEl.selectedIndex = i;
+                        set = true;
+                        break;
+                    }
+                }
+                if (!set) purposeEl.selectedIndex = 0;
+            }
+        }
+
+        async function submitBooking(event) {
+            event?.preventDefault?.();
+            const purposeEl = document.getElementById("appointmentPurpose");
+            const aptDateEl = document.getElementById("aptDate");
+            const aptTimeEl = document.getElementById("aptTime");
+            const purpose = purposeEl?.value;
+            const appointmentDate = aptDateEl?.value;
+            const slotId = aptTimeEl?.value;
+
+            if (!purpose || !appointmentDate || !slotId) {
+                openFeedbackModal("Missing Information", "Please select a purpose, date, and time slot.");
+                return;
+            }
+            const todayISO = localDateISO();
+            if (appointmentDate < todayISO) {
+                openFeedbackModal("Invalid date", "Please choose today or a future date for your appointment.");
+                applyAppointmentDateMin();
+                return;
+            }
+
+            try {
+                const response = await residentApiFetch(`${API_BASE_URL}/appointments`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ purpose, appointmentDate, slotId })
+                });
+                const result = await response.json();
+                if (!response.ok || !result?.ok) {
+                    throw new Error(result?.message || "Unable to submit booking.");
+                }
+
+                openFeedbackModal(
+                    "Booking Submitted",
+                    "Booking submitted successfully. Awaiting office confirmation."
+                );
+                closeModal();
+                resetBookingFormAfterSuccess();
+                await loadAppointments();
+            } catch (error) {
+                openFeedbackModal("Booking Failed", error?.message || "Unable to submit booking right now. Please try again.");
+            }
+        }
+
+        async function refreshAppointmentSlotsForDate(dateValue) {
+            const aptTimeEl = document.getElementById("aptTime");
+            if (!aptTimeEl) return;
+            const appointmentDate = String(dateValue || "").trim();
+            if (!appointmentDate) return;
+
+            aptTimeEl.innerHTML = `<option value="" disabled selected>Loading slots...</option>`;
+
+            try {
+                const response = await residentApiFetch(`${API_BASE_URL}/appointment-slots?date=${encodeURIComponent(appointmentDate)}`);
+                const result = await response.json();
+                if (!response.ok || !result?.ok || !Array.isArray(result.slots)) {
+                    throw new Error(result?.message || "Unable to load slots.");
+                }
+
+                const afternoonCodes = new Set(["0100", "0300", "0400"]);
+                const afternoon = result.slots.filter((s) => afternoonCodes.has(String(s?.code || "")));
+                const options = afternoon.map((slot) => {
+                    const disabled = slot.isFull ? "disabled" : "";
+                    const suffix = slot.isFull ? " (Full)" : "";
+                    return `<option value="${String(slot.id)}" ${disabled}>${escapeHtmlText(slot.label || "Time")}${suffix}</option>`;
+                });
+
+                aptTimeEl.innerHTML = `<option value="" disabled selected>Select Time...</option><optgroup label="Afternoon">${options.join("")}</optgroup>`;
+            } catch (_error) {
+                aptTimeEl.innerHTML = `<option value="" disabled selected>Select Time...</option>`;
+            }
+        }
+        function openLogoutModal() {
+            if (logoutModal) logoutModal.style.display = 'flex';
+        }
+        function closeLogoutModal() {
+            if (logoutModal) logoutModal.style.display = 'none';
+        }
+        function openFeedbackModal(title, message) {
+            if (feedbackModalTitle) feedbackModalTitle.textContent = title;
+            if (feedbackModalText) feedbackModalText.textContent = message;
+            if (feedbackModal) feedbackModal.style.display = 'flex';
+        }
+function closeFeedbackModal() {
+            if (feedbackModal) feedbackModal.style.display = 'none';
+        }
+
+        /* DELETE MODAL FUNCTIONS */
+        const deleteModal = document.getElementById("deleteModal");
+        const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
+        const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
+
+        function openDeleteModal(appointmentId) {
+            appointmentIdToDelete = appointmentId;
+            if (deleteModal) deleteModal.style.display = 'flex';
+        }
+
+        function closeDeleteModal() {
+            if (deleteModal) deleteModal.style.display = 'none';
+            appointmentIdToDelete = null;
+        }
+
+        async function deleteAppointment() {
+            if (!appointmentIdToDelete) return;
+
+            try {
+                const response = await residentApiFetch(`${API_BASE_URL}/appointments/${appointmentIdToDelete}`, {
+                    method: "DELETE"
+                });
+                const result = await response.json();
+                if (!response.ok || !result?.ok) {
+                    throw new Error(result?.message || "Unable to delete appointment.");
+                }
+
+                openFeedbackModal(
+                    "Appointment Deleted",
+                    "The appointment has been successfully deleted."
+                );
+                closeDeleteModal();
+                await loadAppointments();
+            } catch (_error) {
+                openFeedbackModal("Delete Failed", "Unable to delete appointment right now. Please try again.");
+            }
+        }
+
+        function handleLogout(event) {
+            event.preventDefault();
+            openLogoutModal();
+        }
+        logoutCancelBtn?.addEventListener("click", closeLogoutModal);
+        logoutModal?.addEventListener("click", (event) => {
+            if (event.target === logoutModal) closeLogoutModal();
+        });
+feedbackModal?.addEventListener("click", (event) => {
+            if (event.target === feedbackModal) closeFeedbackModal();
+        });
+        feedbackModalOkBtn?.addEventListener("click", closeFeedbackModal);
+        
+        /* DELETE MODAL EVENT LISTENERS */
+        cancelDeleteBtn?.addEventListener("click", closeDeleteModal);
+        confirmDeleteBtn?.addEventListener("click", deleteAppointment);
+        deleteModal?.addEventListener("click", (event) => {
+            if (event.target === deleteModal) closeDeleteModal();
+        });
+
+        logoutConfirmBtn?.addEventListener("click", () => {
+            if (window.APP_NAV?.logout) {
+                window.APP_NAV.logout();
+                return;
+            }
+            window.location.href = COMMON_ROUTES.landing;
+        });
+        applyAppointmentDateMin();
+        (async () => {
+            await loadAppointmentPurposeOptions();
+            await loadAppointments();
+            await tryConsumeRepeatAppointmentDraft();
+        })();
+    </script>
+    <script src="../shared/resident-faq-chat.js"></script>
+</body>
+</html>

@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | SerbisyoBurgos</title>
+    <link rel="icon" type="image/png" href="../asset/SB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand-green: #16a34a;
+            --brand-dark: #043d2e;
+            --brand-blue: #2563eb;
+            --brand-purple: #9333ea;
+            --bg-light: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-width: 260px;
+            --white: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* SIDEBAR NAVIGATION */
+        aside {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            position: fixed;
+            display: flex;           /* Added */
+            flex-direction: column;  /* Added */
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            color: var(--brand-dark);
+            font-size: 1.25rem;
+        }
+
+        .sidebar-header img { width: 32px; }
+
+        nav {
+            flex-grow: 1;
+            padding: 1rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.85rem 1rem;
+            text-decoration: none;
+            color: var(--text-muted);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+
+        .nav-link:hover {
+            background: #f8fafc;
+            color: var(--brand-green);
+        }
+
+        .nav-link.active {
+            background: #f0fdf4;
+            color: var(--brand-green);
+            font-weight: 600;
+        }
+
+        /* Sidebar Footer Layout */
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #f1f5f9;
+            margin-top: auto; /* This pushes the footer to the bottom of the sidebar */
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: #f0fdf4;
+            color: var(--brand-green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .user-role {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Logout Button Style */
+        .logout-btn {
+            width: 100%;
+            height: 45px; /* Added specific height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff1f2;
+            color: #e11d48;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.95rem; /* Slightly larger text */
+            transition: all 0.2s ease;
+            border: none;
+            margin-top: 10px;
+        }
+
+        .logout-btn:hover {
+            background: #ffe4e6;
+        }
+
+        /* Resident sidebar branding */
+        aside {
+            background: #5f9632;
+            border-right: 1px solid rgba(4, 61, 46, 0.18);
+        }
+        .sidebar-header {
+            padding: 1.75rem 1.25rem 1.25rem;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.75rem;
+            color: white;
+            font-weight: 800;
+            text-align: center;
+        }
+        .sidebar-header img {
+            width: 54px !important;
+            height: 54px;
+            object-fit: contain;
+            border-radius: 50%;
+            background: white;
+            padding: 3px;
+            border: 3px solid var(--brand-dark);
+        }
+        .nav-link { color: rgba(255, 255, 255, 0.9); }
+        .nav-link:hover { background: #4f7f29; color: white; }
+        .nav-link.active { background: #426c22; color: white; }
+        .logout-btn { background: rgba(255, 255, 255, 0.14); color: white; }
+        .logout-btn:hover,
+        .logout-btn:focus-visible { background: #b91c1c; }
+        .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.18); }
+        .user-profile { color: white; }
+        .user-avatar { color: var(--brand-dark); }
+        .user-role { color: rgba(255, 255, 255, 0.75); }
+
+        /* MAIN CONTENT */
+        main {
+            margin-left: var(--sidebar-width);
+            flex-grow: 1;
+            padding: 2.5rem;
+        }
+
+        .welcome-section {
+            background: var(--white);
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            border-left: 6px solid #5f9632; /* The green accent bar from the image */
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 2.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .welcome-icon-wrapper {
+            width: 56px;
+            height: 56px;
+            background-color: #5f9632;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .welcome-icon-wrapper svg {
+            color: white;
+            width: 28px;
+            height: 28px;
+        }
+
+        .welcome-text h1 {
+            font-size: 1.5rem;
+            color: var(--brand-dark);
+            font-weight: 700;
+            margin-bottom: 4px;
+            margin-top: 0; /* Ensures text stays centered with icon */
+        }
+
+        .welcome-text p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 0;
+        }
+
+        /* CLICKABLE OVERVIEW CARDS */
+        .overview-sections {
+            display: table;
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            margin-bottom: 1.5rem;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .overview-row {
+            display: table-row;
+        }
+
+        .overview-row:nth-child(1) { display: table; table-layout: fixed; width: 100%; }
+        .overview-row:nth-child(2) { display: table; table-layout: fixed; width: 100%; }
+        .overview-row:nth-child(3) { display: table; table-layout: fixed; width: 100%; }
+
+        .overview-card {
+            display: table-cell;
+            background: var(--white);
+            padding: 1.25rem 1.5rem;
+            border: 1px solid #94a3b8;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            vertical-align: middle;
+            text-align: center;
+        }
+
+        .overview-row-1 .overview-card { width: 33.333%; }
+        .overview-row-2 .overview-card { width: 33.333%; }
+        .overview-row-3 .overview-card { width: 33.333%; }
+
+        .overview-card:first-child { border-left: none; border-top-left-radius: 18px; border-bottom-left-radius: 18px; }
+        .overview-card:last-child { border-right: none; border-top-right-radius: 18px; border-bottom-right-radius: 18px; }
+        .overview-row:first-child .overview-card { border-top: none; border-top-left-radius: 18px; border-top-right-radius: 18px; }
+        .overview-row:last-child .overview-card { border-bottom: none; border-bottom-left-radius: 18px; border-bottom-right-radius: 18px; }
+
+        .overview-card:hover {
+            background: #f8fafc;
+            border-color: var(--brand-green);
+        }
+
+        .overview-card h3 { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-bottom: 0.25rem; }
+        .overview-card .value { font-size: 1.5rem; font-weight: 700; margin: 0.15rem 0; }
+        .overview-card .trend { font-size: 0.7rem; font-weight: 600; display: block; }
+
+        @media (max-width: 900px) {
+            .overview-sections { display: flex; flex-wrap: wrap; }
+            .overview-row { display: flex; flex-wrap: wrap; width: 100%; }
+            .overview-card { flex: 1 1 calc(50% - 1px); min-width: calc(50% - 1px); border-radius: 10px !important; }
+            .overview-card:first-child { border-left: 1px solid #e2e8f0; }
+            .overview-card:last-child { border-right: 1px solid #e2e8f0; }
+            .overview-row:first-child .overview-card { border-top: 1px solid #e2e8f0; }
+            .overview-row:last-child .overview-card { border-bottom: 1px solid #e2e8f0; }
+        }
+        @media (max-width: 500px) {
+            .overview-card { flex: 1 1 100%; min-width: 100%; }
+        }
+
+        /* Navigation Option Modal */
+        .nav-option-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2500;
+            padding: 1rem;
+        }
+
+        .nav-option-modal.show { display: flex; }
+
+        .nav-option-content {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 20px 40px rgba(2, 6, 23, 0.15);
+        }
+
+        .nav-option-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--brand-dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-option-desc {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .nav-option-buttons {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .nav-option-btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .nav-option-btn-service {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .nav-option-btn-service:hover { background: #bfdbfe; }
+
+        .nav-option-btn-appointments {
+            background: #f3e8ff;
+            color: #7c3aed;
+        }
+        .nav-option-btn-appointments:hover { background: #e9d5ff; }
+
+        .nav-option-btn-cancel {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+        .nav-option-btn-cancel:hover { background: #e2e8f0; }
+
+        /* DASHBOARD GRID */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1.5rem;
+        }
+        @media (max-width: 1100px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            padding: 1.5rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .activity-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .activity-item:last-child { border-bottom: none; }
+        .item-hidden { display: none; }
+        .item-hidden.show { display: flex; }
+        .activity-item-text { flex: 1; min-width: 0; }
+        .appointment-purpose-full {
+            font-weight: 600;
+            white-space: normal;
+            word-break: break-word;
+            line-height: 1.4;
+        }
+
+        /* AI CHATBOT STYLES */
+        #chatToggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: var(--brand-green);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 2000;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .chat-window {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 350px;
+            height: 480px;
+            background: white;
+            border-radius: 20px;
+            display: none;
+            flex-direction: column;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.2);
+            z-index: 2001;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .chat-header { background: var(--brand-dark); color: white; padding: 1.2rem; display: flex; justify-content: space-between; align-items: center; }
+        .chat-body { flex-grow: 1; padding: 1rem; overflow-y: auto; background: #f1f5f9; display: flex; flex-direction: column; gap: 12px; }
+        .msg { max-width: 85%; padding: 10px 14px; border-radius: 15px; font-size: 0.88rem; line-height: 1.5; }
+        .msg-ai { background: white; align-self: flex-start; border: 1px solid #e2e8f0; }
+        .msg-user { background: var(--brand-green); color: white; align-self: flex-end; }
+        .chat-footer { padding: 1rem; display: flex; gap: 8px; border-top: 1px solid #e2e8f0; background: white; }
+        .chat-footer input { flex-grow: 1; padding: 0.7rem; border: 1.5px solid #e2e8f0; border-radius: 10px; outline: none; }
+        .chat-footer button { background: var(--brand-green); color: white; border: none; padding: 0 15px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+        
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: none; /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            padding: 1rem;
+        }
+
+        .modal-overlay.active {
+            display: flex; /* Shown when 'active' class is added */
+        }
+
+        .modal-content {
+            width: 100%;
+            max-width: 420px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px rgba(2, 6, 23, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="sidebar-header">
+            <img src="../asset/SB.png" alt="Logo">
+            <span>SerbisyoBurgos</span>
+        </div>
+        <nav>
+            <a href="dashboard.html" class="nav-link active">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                Dashboard
+            </a>
+            <a href="service-requests.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Service Requests
+            </a>
+            <a href="appointments.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                Appointments
+            </a>
+            <a href="notifications.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                Bulletin Board
+            </a>
+            <a href="request-history.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                Request History
+            </a>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="user-profile" id="residentProfileBtn" style="cursor: pointer;">
+                <div class="user-avatar" id="residentSidebarAvatar" aria-hidden="true">?</div>
+                <div class="user-info">
+                    <span class="user-name" id="residentSidebarName">Resident</span>
+                    <span class="user-role">View Profile</span>
+                </div>
+            </div>
+            <a href="landing.html" class="logout-btn" onclick="handleLogout(event)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <main>
+        <section class="welcome-section">
+            <div class="welcome-icon-wrapper">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+            </div>
+
+            <div class="welcome-text">
+                <h1 id="residentWelcomeHeading">Welcome back!</h1>
+                <p>Here's an overview of your requests and appointments</p>
+            </div>
+        </section>
+
+        <div class="overview-sections">
+            <div class="overview-row overview-row-1">
+                <div class="overview-card" onclick="goToResidentPage('serviceRequests')">
+                    <h3>Total Request</h3>
+                    <p class="value" id="countTotalRequest" style="color: #2563eb;">0</p>
+                    <span class="trend" style="color: #2563eb;">View all</span>
+                </div>
+                <div class="overview-card" onclick="goToResidentPage('appointments')">
+                    <h3>Total Appointments</h3>
+                    <p class="value" id="countTotalAppointments" style="color: #9333ea;">0</p>
+                    <span class="trend" style="color: #9333ea;">View all</span>
+                </div>
+                <div class="overview-card" onclick="showNavOptionModal('completed')">
+                    <h3>Completed</h3>
+                    <p class="value" id="countCompleted" style="color: #047857;">0</p>
+                    <span class="trend" style="color: #047857;">View</span>
+                </div>
+            </div>
+
+            <div class="overview-row overview-row-2">
+                <div class="overview-card" onclick="goToResidentPage('serviceRequests')">
+                    <h3>Pending</h3>
+                    <p class="value" id="countPending" style="color: #ea580c;">0</p>
+                    <span class="trend" style="color: #ea580c;">Awaiting review</span>
+                </div>
+                <div class="overview-card" onclick="goToResidentPage('serviceRequests')">
+                    <h3>Processing</h3>
+                    <p class="value" id="countProcessing" style="color: #16a34a;">0</p>
+                    <span class="trend" style="color: #16a34a;">In progress</span>
+                </div>
+                <div class="overview-card" onclick="showNavOptionModal('ready')">
+                    <h3>Ready for Pickup</h3>
+                    <p class="value" id="countReadyPickup" style="color: #0891b2;">0</p>
+                    <span class="trend" style="color: #0891b2;">View</span>
+                </div>
+            </div>
+
+            <div class="overview-row overview-row-3">
+                <div class="overview-card" onclick="goToResidentPage('appointments')">
+                    <h3>Approved</h3>
+                    <p class="value" id="countApproved" style="color: #0284c7;">0</p>
+                    <span class="trend" style="color: #0284c7;">View</span>
+                </div>
+                <div class="overview-card" onclick="goToResidentPage('appointments')">
+                    <h3>Revisions</h3>
+                    <p class="value" id="countRevisions" style="color: #d97706;">0</p>
+                    <span class="trend" style="color: #d97706;">View</span>
+                </div>
+                <div class="overview-card" onclick="showNavOptionModal('rejected')">
+                    <h3>Rejected</h3>
+                    <p class="value" id="countRejected" style="color: #dc2626;">0</p>
+                    <span class="trend" style="color: #dc2626;">View</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="navOptionModal" class="nav-option-modal" role="dialog" aria-modal="true">
+            <div class="nav-option-content">
+                <h3 class="nav-option-title" id="navOptionTitle">Choose where to view</h3>
+                <p class="nav-option-desc" id="navOptionDesc">Select which page you want to view this data on:</p>
+                <div class="nav-option-buttons">
+                    <button class="nav-option-btn nav-option-btn-service" onclick="navigateToSelected('service')">Service Requests</button>
+                    <button class="nav-option-btn nav-option-btn-appointments" onclick="navigateToSelected('appointments')">Appointments</button>
+                </div>
+                <button class="nav-option-btn nav-option-btn-cancel" onclick="closeNavOptionModal()" style="width:100%; margin-top:0.75rem;">Cancel</button>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Recent Service Requests</h2>
+                    <button onclick="toggleCardViewAll(this, '#recentRequestList')" style="background:none; border:none; color:var(--brand-green); font-weight:600; cursor:pointer;">View all</button>
+                </div>
+                <div id="recentRequestList"></div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h2>Upcoming Appointments</h2>
+                    <button onclick="toggleCardViewAll(this, '#upcomingAppointmentList')" style="background:none; border:none; color:var(--brand-green); font-weight:600; cursor:pointer;">View all</button>
+                </div>
+                <div id="upcomingAppointmentList"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="chatToggle" onclick="toggleChat()">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </div>
+
+    <div id="chatWindow" class="chat-window">
+        <div class="chat-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:10px; height:10px; background:#22c55e; border-radius:50%;"></div>
+                <span>SB Assistant</span>
+            </div>
+            <button onclick="toggleChat()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+        <div id="chatBody" class="chat-body"></div>
+        <div class="chat-footer">
+            <input type="text" id="chatInput" placeholder="Type here...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <div id="logoutModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+        <div class="modal-content delete-modal" style="max-width:420px;">
+            <h2 id="logoutModalTitle" style="font-size:1.1rem; color:var(--brand-dark); margin-bottom:0.75rem;">Confirm Logout</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.25rem;">Are you sure you want to logout from your resident portal?</p>
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+                <button id="logoutCancelBtn" type="button" style="padding:0.65rem 1rem; border-radius:10px; border:none; background:#f1f5f9; color:#334155; cursor:pointer;">Cancel</button>
+                <button id="logoutConfirmBtn" type="button" style="padding:0.65rem 1rem; border-radius:10px; border:none; background:#e11d48; color:white; cursor:pointer;">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/routes.js"></script>
+    <script src="../shared/maintenance-check.js"></script>
+    <script src="../shared/resident-auth-guard.js"></script>
+    <script src="../shared/resident-sidebar-profile.js"></script>
+    <script src="../shared/resident-profile-modal.js"></script>
+    <script>
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+        const RESIDENT_CONTEXT_KEY = "residentContext";
+        const RESIDENT_ROUTES = window.APP_ROUTES?.resident || {
+            serviceRequests: "service-requests.html",
+            appointments: "appointments.html"
+        };
+        const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "landing.html" };
+        const logoutModal = document.getElementById("logoutModal");
+        const logoutCancelBtn = document.getElementById("logoutCancelBtn");
+        const logoutConfirmBtn = document.getElementById("logoutConfirmBtn");
+        function applyResidentRouteLinks() {
+            const hrefMap = {
+                "dashboard.html": RESIDENT_ROUTES.dashboard || "dashboard.html",
+                "service-requests.html": RESIDENT_ROUTES.serviceRequests || "service-requests.html",
+                "appointments.html": RESIDENT_ROUTES.appointments || "appointments.html",
+                "notifications.html": RESIDENT_ROUTES.notifications || "notifications.html",
+                "request-history.html": RESIDENT_ROUTES.requestHistory || "request-history.html",
+                "landing.html": COMMON_ROUTES.landing
+            };
+            Object.entries(hrefMap).forEach(([from, to]) => {
+                document.querySelectorAll(`a[href="${from}"]`).forEach((link) => {
+                    link.href = to;
+                });
+            });
+        }
+        applyResidentRouteLinks();
+
+        function goToResidentPage(routeKey) {
+            const target = RESIDENT_ROUTES[routeKey];
+            if (target) {
+                window.location.href = target;
+            }
+        }
+
+        // Navigation Option Modal for "both" destinations
+        let currentNavType = '';
+        const navOptionModal = document.getElementById('navOptionModal');
+
+        function showNavOptionModal(navType) {
+            currentNavType = navType;
+            const titleEl = document.getElementById('navOptionTitle');
+            const descEl = document.getElementById('navOptionDesc');
+            
+            if (navType === 'ready') {
+                titleEl.textContent = 'Ready for Pickup';
+                descEl.textContent = 'Choose where to view items ready for pickup:';
+            } else if (navType === 'completed') {
+                titleEl.textContent = 'Completed';
+                descEl.textContent = 'Choose where to view completed items:';
+            } else if (navType === 'rejected') {
+                titleEl.textContent = 'Rejected';
+                descEl.textContent = 'Choose where to view rejected items:';
+            }
+            
+            if (navOptionModal) navOptionModal.classList.add('show');
+        }
+
+        function closeNavOptionModal() {
+            if (navOptionModal) navOptionModal.classList.remove('show');
+            currentNavType = '';
+        }
+
+        function navigateToSelected(destination) {
+            closeNavOptionModal();
+            if (destination === 'service') {
+                window.location.href = RESIDENT_ROUTES.serviceRequests;
+            } else if (destination === 'appointments') {
+                window.location.href = RESIDENT_ROUTES.appointments;
+            }
+        }
+
+        // Close nav modal on outside click
+        navOptionModal?.addEventListener('click', (event) => {
+            if (event.target === navOptionModal) closeNavOptionModal();
+        });
+
+        function openLogoutModal() {
+            if (logoutModal) logoutModal.style.display = "flex";
+        }
+        function closeLogoutModal() {
+            if (logoutModal) logoutModal.style.display = "none";
+        }
+        function statusColor(status) {
+            const normalized = String(status || "").toLowerCase();
+            if (normalized === "in progress" || normalized === "processing") return "#16a34a";
+            if (normalized === "pending") return "#ea580c";
+            if (normalized === "approved" || normalized === "ready for pickup") return "#2563eb";
+            if (normalized === "rejected") return "#dc2626";
+            return "#64748b";
+        }
+
+        function formatDateForActivity(value) {
+            const dateObj = new Date(value || 0);
+            if (Number.isNaN(dateObj.getTime())) return "Unknown date";
+            return dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        function getAppointmentPurposeLabel(value) {
+            const normalized = String(value || "").toLowerCase();
+            if (normalized === "in-person") return "In-person Document Processing";
+            if (normalized === "pickup") return "Document / ID Pickup";
+            if (normalized === "consultation") return "Face-to-Face Consultation";
+            return String(value || "Appointment").trim() || "Appointment";
+        }
+
+        async function getResidentUserId() {
+            try {
+                const cached = JSON.parse(sessionStorage.getItem(RESIDENT_CONTEXT_KEY) || "{}");
+                const cachedId = cached?.residentUserId ? String(cached.residentUserId) : null;
+                if (cachedId) return cachedId;
+            } catch (_e) {
+                // Ignore invalid cached context and resolve from backend.
+            }
+            const response = await residentApiFetch(`${API_BASE_URL}/resident/context`);
+            const result = await response.json();
+            if (!response.ok || !result?.ok || !result.residentUserId) {
+                throw new Error(result?.message || "Unable to resolve resident context.");
+            }
+            const residentUserId = String(result.residentUserId);
+            sessionStorage.setItem(RESIDENT_CONTEXT_KEY, JSON.stringify({ residentUserId }));
+            return residentUserId;
+        }
+
+        async function syncDashboardData() {
+            const recentRequestList = document.getElementById('recentRequestList');
+            const upcomingAppointmentList = document.getElementById('upcomingAppointmentList');
+
+            // Row 1 element IDs
+            const countTotalRequestEl = document.getElementById('countTotalRequest');
+            const countTotalAppointmentsEl = document.getElementById('countTotalAppointments');
+
+            // Row 2 element IDs
+            const countPendingEl = document.getElementById('countPending');
+            const countProcessingEl = document.getElementById('countProcessing');
+            const countReadyPickupEl = document.getElementById('countReadyPickup');
+            const countCompletedEl = document.getElementById('countCompleted');
+
+            // Row 3 element IDs
+            const countApprovedEl = document.getElementById('countApproved');
+            const countRevisionsEl = document.getElementById('countRevisions');
+            const countRejectedEl = document.getElementById('countRejected');
+
+            if (recentRequestList) recentRequestList.innerHTML = `<p style="color:var(--text-muted); font-size:0.9rem;">Loading recent requests...</p>`;
+            if (upcomingAppointmentList) upcomingAppointmentList.innerHTML = `<p style="color:var(--text-muted); font-size:0.9rem;">Loading appointments...</p>`;
+
+            try {
+                const residentUserId = await getResidentUserId();
+                const [requestResponse, appointmentResponse] = await Promise.all([
+                    residentApiFetch(`${API_BASE_URL}/requests?residentUserId=${encodeURIComponent(residentUserId)}`),
+                    residentApiFetch(`${API_BASE_URL}/appointments?residentUserId=${encodeURIComponent(residentUserId)}`)
+                ]);
+                const requestResult = await requestResponse.json();
+                const appointmentResult = await appointmentResponse.json();
+
+                if (!requestResponse.ok || !requestResult?.ok || !Array.isArray(requestResult.requests)) {
+                    throw new Error(requestResult?.message || "Unable to load dashboard data.");
+                }
+                if (!appointmentResponse.ok || !appointmentResult?.ok || !Array.isArray(appointmentResult.appointments)) {
+                    throw new Error(appointmentResult?.message || "Unable to load appointment data.");
+                }
+
+                const requests = requestResult.requests.slice();
+                const appointments = appointmentResult.appointments.slice();
+                const now = new Date();
+                now.setHours(0, 0, 0, 0);
+
+                // Row 1 counts
+                const totalRequestCount = requests.length;
+                const totalAppointmentsCount = appointments.length;
+
+                // Row 2 counts (from requests)
+                const pendingCount = requests.filter((r) => String(r.status || "").toLowerCase() === "pending").length;
+                const processingCount = requests.filter((r) => {
+                    const status = String(r.status || "").toLowerCase();
+                    return status === "in progress" || status === "processing";
+                }).length;
+                const readyPickupCountRequests = requests.filter((r) => String(r.status || "").toLowerCase() === "ready for pickup").length;
+                const readyPickupCountAppts = appointments.filter((a) => String(a.status || "").toLowerCase() === "ready for pickup").length;
+                const readyPickupCount = readyPickupCountRequests + readyPickupCountAppts;
+                const completedCountRequests = requests.filter((r) => String(r.status || "").toLowerCase() === "completed").length;
+                const completedCountAppts = appointments.filter((a) => String(a.status || "").toLowerCase() === "completed").length;
+                const completedCount = completedCountRequests + completedCountAppts;
+
+                // Row 3 counts (from appointments)
+                const approvedCount = appointments.filter((a) => String(a.status || "").toLowerCase() === "approved").length;
+                const revisionsCount = appointments.filter((a) => String(a.status || "").toLowerCase() === "revisions").length;
+                const rejectedCountRequests = requests.filter((r) => String(r.status || "").toLowerCase() === "rejected").length;
+                const rejectedCountAppts = appointments.filter((a) => String(a.status || "").toLowerCase() === "rejected").length;
+                const rejectedCount = rejectedCountRequests + rejectedCountAppts;
+
+                // Update Row 1
+                if (countTotalRequestEl) countTotalRequestEl.innerText = String(totalRequestCount).padStart(2, "0");
+                if (countTotalAppointmentsEl) countTotalAppointmentsEl.innerText = String(totalAppointmentsCount).padStart(2, "0");
+
+                // Update Row 2
+                if (countPendingEl) countPendingEl.innerText = String(pendingCount).padStart(2, "0");
+                if (countProcessingEl) countProcessingEl.innerText = String(processingCount).padStart(2, "0");
+                if (countReadyPickupEl) countReadyPickupEl.innerText = String(readyPickupCount).padStart(2, "0");
+                if (countCompletedEl) countCompletedEl.innerText = String(completedCount).padStart(2, "0");
+
+                // Update Row 3
+                if (countApprovedEl) countApprovedEl.innerText = String(approvedCount).padStart(2, "0");
+                if (countRevisionsEl) countRevisionsEl.innerText = String(revisionsCount).padStart(2, "0");
+                if (countRejectedEl) countRejectedEl.innerText = String(rejectedCount).padStart(2, "0");
+
+                const sortedByRecent = requests.slice().sort((a, b) => {
+                    const aTime = new Date(a.createdAt || a.preferredDate || 0).getTime();
+                    const bTime = new Date(b.createdAt || b.preferredDate || 0).getTime();
+                    return bTime - aTime;
+                });
+                const sortedUpcomingAppointments = appointments
+                    .filter((appointment) => {
+                        const preferredDate = new Date(appointment.appointmentDate || 0);
+                        const status = String(appointment.status || "").toLowerCase();
+                        return (
+                            !Number.isNaN(preferredDate.getTime()) &&
+                            preferredDate >= now &&
+                            status !== "rejected" &&
+                            status !== "completed" &&
+                            status !== "cancelled"
+                        );
+                    })
+                    .sort((a, b) => {
+                        const aTime = new Date(a.appointmentDate || 0).getTime();
+                        const bTime = new Date(b.appointmentDate || 0).getTime();
+                        return aTime - bTime;
+                    });
+
+                if (recentRequestList) {
+                    if (!sortedByRecent.length) {
+                        recentRequestList.innerHTML = `<p style="color:var(--text-muted); font-size:0.9rem;">No recent requests yet.</p>`;
+                    } else {
+                        recentRequestList.innerHTML = sortedByRecent.map((req, index) => {
+                            const isHidden = index > 1 ? "item-hidden" : "";
+                            const title = escapeHtml(req.title || req.serviceType || "Service Request");
+                            const reference = escapeHtml(req.referenceNo || "—");
+                            const submittedOn = formatDateForActivity(req.createdAt || req.preferredDate);
+                            const rawStatus = req.status || "Pending";
+                            const currentStatus = escapeHtml(rawStatus);
+                            return `
+                                <div class="activity-item ${isHidden}">
+                                    <div class="activity-item-text">
+                                        <p style="font-weight:600;">${title}</p>
+                                        <p style="font-size:0.8rem; color:var(--text-muted);">#${reference} • ${submittedOn}</p>
+                                    </div>
+                                    <span style="color:${statusColor(rawStatus)}; font-weight:600; font-size:0.85rem;">${currentStatus}</span>
+                                </div>
+                            `;
+                        }).join("");
+                    }
+                }
+
+                if (upcomingAppointmentList) {
+                    if (!sortedUpcomingAppointments.length) {
+                        upcomingAppointmentList.innerHTML = `<p style="color:var(--text-muted); font-size:0.9rem;">No upcoming appointments.</p>`;
+                    } else {
+                        upcomingAppointmentList.innerHTML = sortedUpcomingAppointments.map((req, index) => {
+                        const isHidden = index > 1 ? "item-hidden" : "";
+                        const purposeFull = escapeHtml(getAppointmentPurposeLabel(req.purpose));
+                        const reference = escapeHtml(req.referenceNo || "—");
+                        const appointmentDate = formatDateForActivity(req.appointmentDate);
+                        const slot = escapeHtml(req.timeLabel || "Time slot pending");
+                        const rawStatus = req.status || "Pending Review";
+                        const currentStatus = escapeHtml(rawStatus);
+                        return `
+                            <div class="activity-item ${isHidden}">
+                                <div class="activity-item-text">
+                                    <p class="appointment-purpose-full">${purposeFull}</p>
+                                    <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">#${reference} • ${appointmentDate} • ${slot}</p>
+                                </div>
+                                <span style="color:${statusColor(rawStatus)}; font-weight:600; font-size:0.85rem; flex-shrink:0; margin-left:0.75rem;">${currentStatus}</span>
+                            </div>
+                        `;
+                    }).join("");
+                    }
+                }
+            } catch (_error) {
+                if (countTotalRequestEl) countTotalRequestEl.innerText = "00";
+                if (countTotalAppointmentsEl) countTotalAppointmentsEl.innerText = "00";
+                if (countPendingEl) countPendingEl.innerText = "00";
+                if (countProcessingEl) countProcessingEl.innerText = "00";
+                if (countReadyPickupEl) countReadyPickupEl.innerText = "00";
+                if (countCompletedEl) countCompletedEl.innerText = "00";
+                if (countApprovedEl) countApprovedEl.innerText = "00";
+                if (countRevisionsEl) countRevisionsEl.innerText = "00";
+                if (countRejectedEl) countRejectedEl.innerText = "00";
+                if (recentRequestList) recentRequestList.innerHTML = `<p style="color:#b91c1c; font-size:0.9rem;">Unable to load requests. Make sure backend is running.</p>`;
+                if (upcomingAppointmentList) upcomingAppointmentList.innerHTML = `<p style="color:#b91c1c; font-size:0.9rem;">Unable to load appointments. Make sure backend is running.</p>`;
+            }
+        }
+
+        function toggleCardViewAll(btn, containerSelector) {
+            const container = document.querySelector(containerSelector);
+            if (!container) return;
+            const extra = container.querySelectorAll('.item-hidden');
+            extra.forEach(item => item.classList.toggle('show'));
+            btn.innerText = btn.innerText === 'View all' ? 'Show less' : 'View all';
+        }
+
+        window.onload = syncDashboardData;
+
+        function handleLogout(event) {
+            event.preventDefault();
+            openLogoutModal();
+        }
+        logoutCancelBtn?.addEventListener("click", closeLogoutModal);
+        logoutModal?.addEventListener("click", (event) => {
+            if (event.target === logoutModal) closeLogoutModal();
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") closeLogoutModal();
+        });
+        logoutConfirmBtn?.addEventListener("click", () => {
+            if (window.APP_NAV?.logout) {
+                window.APP_NAV.logout();
+                return;
+            }
+            window.location.href = COMMON_ROUTES.landing;
+        });
+    </script>
+    <script src="../shared/resident-faq-chat.js"></script>
+</body>
+</html>

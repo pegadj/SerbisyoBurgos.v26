@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Under Maintenance | SerbisyoBurgos</title>
+    <link rel="icon" type="image/png" href="asset/SB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-green: #043d2e;
+            --accent: #16a34a;
+            --muted: #64748b;
+            --bg: #f8fafc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "Inter", sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1.25rem;
+            background: var(--bg);
+            color: #1e293b;
+        }
+        .card {
+            max-width: 440px;
+            width: 100%;
+            background: #fff;
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+        }
+        .card img { width: 64px; height: 64px; margin-bottom: 1.25rem; }
+        h1 {
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: var(--primary-green);
+            margin-bottom: 0.75rem;
+            line-height: 1.25;
+        }
+        p {
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1.75rem;
+        }
+        .actions { display: flex; flex-direction: column; gap: 0.65rem; }
+        a.btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.85rem 1.25rem;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+        a.btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        a.btn-primary:hover { opacity: 0.92; }
+        a.btn-ghost {
+            background: #f1f5f9;
+            color: #334155;
+        }
+        a.btn-ghost:hover { background: #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <img src="asset/SB.png" alt="SerbisyoBurgos">
+        <h1>We are under maintenance</h1>
+        <p>
+            The resident and barangay portals are temporarily unavailable while we perform updates.
+            Please check back later, or return to the home page.
+        </p>
+        <div class="actions">
+            <a class="btn btn-primary" id="homeLink" href="index.html">Back to home</a>
+            <a class="btn btn-ghost" id="logoutResidentBtn" href="#" style="display:none;">Log out (resident)</a>
+            <a class="btn btn-ghost" id="logoutAdminPortalBtn" href="#" style="display:none;">Log out (admin portal)</a>
+        </div>
+    </div>
+    <script src="shared/routes.js"></script>
+    <script>
+        const LANDING = window.APP_ROUTES?.common?.landing || "index.html";
+        const homeLink = document.getElementById("homeLink");
+        if (homeLink) homeLink.href = LANDING;
+
+        const logoutBtn = document.getElementById("logoutResidentBtn");
+        try {
+            const raw = sessionStorage.getItem("residentAuth");
+            if (raw && logoutBtn) {
+                logoutBtn.style.display = "inline-flex";
+                logoutBtn.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    sessionStorage.removeItem("residentAuth");
+                    sessionStorage.removeItem("residentContext");
+                    window.location.href = LANDING;
+                });
+            }
+        } catch (_e) {
+            /* ignore */
+        }
+
+        const logoutAdminBtn = document.getElementById("logoutAdminPortalBtn");
+        try {
+            const adminRaw = sessionStorage.getItem("adminAuth");
+            if (adminRaw && logoutAdminBtn) {
+                logoutAdminBtn.style.display = "inline-flex";
+                logoutAdminBtn.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    if (window.APP_NAV?.logout) {
+                        window.APP_NAV.logout();
+                        return;
+                    }
+                    sessionStorage.removeItem("adminAuth");
+                    window.location.href = LANDING;
+                });
+            }
+        } catch (_e) {
+            /* ignore */
+        }
+    </script>
+</body>
+</html>

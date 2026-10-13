@@ -1,0 +1,29 @@
+{
+  "name": "sb-draft-backend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "check:env": "node scripts/check-env.js",
+    "check:mongodb": "node scripts/test-mongodb.js",
+    "seed:defaults": "node scripts/seed-defaults.js",
+    "seed:sample": "node scripts/seed-sample.js",
+    "smoke:health": "node scripts/smoke-health.js"
+  },
+  "dependencies": {
+    "mongoose": "^8.9.0",
+    "bcrypt": "^5.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.4.1",
+    "helmet": "^8.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

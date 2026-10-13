@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us | SerbisyoBurgos</title>
+    <link rel="icon" type="image/png" href="asset/SB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-green: #043d2e;
+            --hover-green: #16a34a;
+            --text-dark: #1a202c;
+            --glass-green: #f0fdf4;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            background: var(--primary-green); 
+            color: var(--text-dark); 
+            height: 100vh; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Removes the scrollbar */
+        }
+        
+        /* Header Navigation */
+        .navbar {
+            padding: 1rem 4rem;
+            background: #ffffff; 
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .logo-nav { height: 45px; width: auto; }
+        .nav-buttons { display: flex; gap: 15px; align-items: center; }
+        .btn-nav { text-decoration: none; font-weight: 600; font-size: 0.95rem; color: var(--primary-green); padding: 8px 0; }
+        .btn-residents { background: var(--primary-green); color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+        .btn-admins { background: white; color: var(--primary-green); border: 2px solid var(--primary-green); padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+
+        /* Main Content Centering */
+        .content-container { 
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .glass-card { 
+            background: var(--glass-green); 
+            border-radius: 24px; 
+            padding: 3rem 2rem; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3); 
+            width: 100%;
+            max-width: 550px; /* Small Container */
+            text-align: center;
+        }
+
+        h1 { color: var(--primary-green); font-weight: 800; font-size: 2rem; margin: 0 0 2rem; }
+
+        .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .info-item { text-align: center; }
+        .symbol-icon { width: 28px; height: 28px; color: var(--primary-green); margin-bottom: 0.5rem; }
+        .info-item h3 { font-size: 1rem; color: var(--primary-green); margin-bottom: 0.25rem; font-weight: 800; }
+        .info-item p { font-size: 0.85rem; line-height: 1.4; color: #4a5568; margin: 0; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="index.html"><img src="asset/SB.png" alt="SB Logo" class="logo-nav"></a>
+        <div class="nav-buttons">
+            <a href="how-it-works.html" class="btn-nav">How It Works</a>
+            <a href="contact-us.html" class="btn-nav">Contact Us</a>
+            <a href="resident-login.html" class="btn-residents">Residents</a>
+            <a href="admin-login.html" class="btn-admins">Admins</a>
+        </div>
+    </nav>
+
+    <div class="content-container">
+        <div class="glass-card">
+            <h1>Contact Us</h1>
+            <div class="contact-grid">
+                <div class="info-item">
+                    <svg class="symbol-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                    <h3>Contact No.</h3>
+                    <p>09489454674</p>
+                </div>
+                <div class="info-item">
+                    <svg class="symbol-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <h3>Office Hours</h3>
+                    <p>Mon-Fri<br>9AM - 5PM</p>
+                </div>
+                <div class="info-item" style="grid-column: span 2; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 1rem;">
+                    <svg class="symbol-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    <h3>Location</h3>
+                    <p>353 National Highway, Barangay Burgos,<br>Covered Court, San Marcelino, Zambales</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User & Role Management | SerbisyoBurgos</title>
+    <link rel="icon" type="image/png" href="../asset/SB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand-green: #16a34a;
+            --brand-dark: #043d2e;
+            --bg-light: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-width: 260px;
+            --white: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); color: var(--text-main); display: flex; min-height: 100vh; }
+
+        /* SIDEBAR NAVIGATION */
+        aside {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            color: var(--brand-dark);
+            font-size: 1.25rem;
+        }
+
+        .sidebar-header img {
+            width: 32px;
+            border-radius: 50%;
+            background: white;
+            padding: 3px;
+            border: 3px solid var(--brand-dark);
+        }
+        nav { flex-grow: 1; padding: 1rem; }
+
+        .nav-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 2.5rem; text-decoration: none; }
+        .nav-logo img { height: 35px; }
+        .nav-logo span { font-weight: 700; color: var(--brand-dark); font-size: 1.25rem; }
+
+        nav { flex: 1; }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: var(--text-muted);
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: #f0fdf4;
+            color: var(--brand-green);
+        }
+
+        .nav-item svg { width: 20px; height: 20px; }
+
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #f1f5f9;
+            margin-top: auto;
+        }
+
+        .logout-btn {
+            width: 100%;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff1f2;
+            color: #e11d48;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            border: none;
+            margin-top: 10px;
+        }
+
+        .logout-btn:hover {
+            background: #ffe4e6;
+        }
+
+        /* Sidebar theme */
+        aside {
+            background: #5f9632;
+            border-right: 1px solid rgba(4, 61, 46, 0.18);
+        }
+        .sidebar-header {
+            padding: 1.75rem 1.25rem 1.25rem;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.75rem;
+            color: white;
+            font-weight: 800;
+            text-align: center;
+        }
+        .sidebar-header img {
+            width: 54px !important;
+            height: 54px !important;
+            object-fit: contain;
+        }
+        .nav-item { color: rgba(255, 255, 255, 0.9); }
+        .nav-item:hover, .nav-item.active { background: #426c22; color: white; }
+        .nav-item:hover:not(.active) { background: #4f7f29; }
+        .logout-btn { background: rgba(255, 255, 255, 0.14); color: white; }
+        .logout-btn:hover,
+        .logout-btn:focus-visible { background: #b91c1c; }
+        .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.18); }
+
+        /* MAIN CONTENT AREA */
+        main {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 2.5rem;
+        }
+
+        /* HEADER & USER PROFILE */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--white);
+            padding: 6px 16px 6px 6px;
+            border-radius: 30px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            background: var(--brand-green);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        /* WHITE CONTAINER (CARD) */
+        .card {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-bar {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-bar:focus {
+            border-color: var(--brand-green);
+        }
+
+        /* TABLE STYLING */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            padding: 12px;
+            border-bottom: 2px solid #f1f5f9;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        td {
+            padding: 16px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.95rem;
+        }
+
+        tr.archived-row {
+            opacity: 0.72;
+            background: #fafafa;
+        }
+        tr.archived-row td {
+            color: #64748b;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: #f0fdf4;
+            color: var(--brand-green);
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show { display: flex; }
+
+        /* Modal Content Box */
+        .user-modal {
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; }
+
+.permission-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .permission-grid-staff {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: #f0fdf4;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #16a34a;
+        }
+
+        .permission-grid-resident {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: #e0f2fe;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #0ea5e9;
+        }
+
+        .permission-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .modal-card {
+            width: 100%;
+            max-width: 420px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px rgba(2, 6, 23, 0.2);
+        }
+        .modal-title { font-size: 1.1rem; font-weight: 700; color: var(--brand-dark); margin-bottom: 0.6rem; }
+        .modal-text { font-size: 0.92rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.25rem; }
+        .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+        .modal-btn {
+            border: none;
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .modal-btn-cancel { background: #f1f5f9; color: #334155; }
+        .modal-btn-confirm { background: #e11d48; color: white; }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="sidebar-header">
+            <img src="../asset/SB.png" alt="Logo">
+            <span>SerbisyoBurgos</span>
+        </div>
+        <nav>
+            <a href="service-mngmt.html" class="nav-item">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                Dashboard
+            </a>
+            <a href="user-role.html" class="nav-item active">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                User & Roles
+            </a>
+            <a href="reports-analytics.html" class="nav-item">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Analytics
+            </a>
+            <a href="announcements.html" class="nav-item">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                Announcements
+            </a>
+        </nav>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="../index.html" class="logout-btn" onclick="handleLogout(event)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <main>
+        <div class="top-bar">
+            <div>
+                <h1 style="color: var(--brand-dark); font-weight: 800; font-size: 1.75rem;">User and Role Management</h1>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Manage accounts of residents and staff, assign roles and permissions.</p>
+            </div>
+
+            <div class="user-profile">
+                <div class="user-avatar">AD</div>
+                <div style="line-height: 1.2;">
+                    <p style="font-weight: 700; font-size: 0.85rem;">Administrator</p>
+                    <p style="font-size: 0.75rem; color: var(--text-muted);">Kagawad/Secretary</p>
+                </div>
+            </div>
+        </div>
+
+<div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+<div style="position: relative; display: flex; align-items: center;">
+                    <svg style="position: absolute; left: 10px; width: 16px; height: 16px; color: #64748b;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="searchStaff" class="search-bar" placeholder="Search by name or email..." style="max-width: 300px; padding-left: 36px;" onkeyup="searchStaff()">
+                </div>
+                <button onclick="openCreateStaffModal()" style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--brand-green); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <!-- Person icon -->
+                        <circle cx="12" cy="8" r="4"></circle>
+                        <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"></path>
+                        <!-- Plus symbol beside head -->
+                        <circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"></circle>
+                        <line x1="18" y1="3" x2="18" y2="9" stroke="white" stroke-width="2"></line>
+                        <line x1="15" y1="6" x2="21" y2="6" stroke="white" stroke-width="2"></line>
+                    </svg>
+                    Create New Staff
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+<tr>
+                            <th>User Name</th>
+                            <th>Email Address</th>
+                            <th>Permissions</th>
+                            <th>Account Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td colspan="5" style="color: var(--text-muted); font-size: 0.9rem;">Loading users…</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="userManageModal">
+            <div class="user-modal">
+                <div class="modal-header">
+                    <h2 id="manageUserTitle" style="color: var(--brand-dark);">Manage User</h2>
+                    <button onclick="closeUserModal()" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">&times;</button>
+                </div>
+
+<div class="form-group">
+                    <label>Account Status</label>
+                    <select id="userStatusSelect" style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+                        <option value="Active" title="Resident can log in and use the resident portal">Active</option>
+                        <option value="Suspended" title="Resident cannot log in or use the resident portal">Suspended</option>
+                        <option value="Deactivated" title="Resident cannot log in or use the resident portal">Deactivated</option>
+                    </select>
+                </div>
+
+<div class="form-group" id="permissionGroupStaff">
+                    <label>Staff Permissions</label>
+                    <div class="permission-grid-staff">
+                        <div class="permission-item"><input type="checkbox" id="managePermDashboard"> Dashboard</div>
+                        <div class="permission-item"><input type="checkbox" id="managePermAppt"> Appointment Scheduling</div>
+                        <div class="permission-item"><input type="checkbox" id="managePermRequest"> Request Processing</div>
+                        <div class="permission-item"><input type="checkbox" id="managePermDoc"> Document Generator</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 2rem;">
+                    <button onclick="closeUserModal()" style="padding:10px 20px; border:none; background:#e2e8f0; border-radius:8px; cursor:pointer;">Cancel</button>
+                    <button onclick="saveUserChanges()" style="padding:10px 20px; border:none; background:var(--brand-green); color:white; border-radius:8px; font-weight:600; cursor:pointer;">Update Account</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-overlay" id="appDialogModal" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+            <div class="user-modal" style="max-width:430px;">
+                <div class="modal-header">
+                    <h2 id="appDialogTitle" style="color: var(--brand-dark);">Notice</h2>
+                </div>
+                <p id="appDialogMessage" style="color: var(--text-muted); line-height: 1.55;"></p>
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:1.4rem;">
+                    <button type="button" id="appDialogCancelBtn" style="padding:10px 20px; border:none; background:#e2e8f0; border-radius:8px; cursor:pointer;">Cancel</button>
+                    <button type="button" id="appDialogOkBtn" style="padding:10px 20px; border:none; background:var(--brand-green); color:white; border-radius:8px; cursor:pointer;">OK</button>
+                </div>
+            </div>
+        </div>
+<div class="modal-overlay" id="logoutModal" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+            <div class="modal-card">
+                <h2 class="modal-title" id="logoutModalTitle">Confirm Logout</h2>
+                <p class="modal-text">Are you sure you want to logout from the admin portal?</p>
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn modal-btn-cancel" id="logoutCancelBtn">Cancel</button>
+                    <button type="button" class="modal-btn modal-btn-confirm" id="logoutConfirmBtn">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- View Profile Modal -->
+        <div class="modal-overlay" id="viewProfileModal">
+            <div class="user-modal" style="max-width: 480px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2 style="color: var(--brand-dark);">View Profile</h2>
+                    <button onclick="closeViewProfileModal()" style="background:none; border:none; font-size: 1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+                </div>
+
+                <!-- Avatar -->
+                <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 1.5rem;">
+                    <div style="position: relative; width: 72px; height: 72px; margin-bottom: 0.4rem;">
+                        <div id="viewProfileAvatar" style="width: 72px; height: 72px; border-radius: 50%; background: #d1fae5; color: var(--brand-dark); font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid #e2e8f0;">SD</div>
+                        <img id="viewProfilePhoto" src="" alt="Profile Photo" style="display:none; width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; position: absolute; top: 0; left: 0;">
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 0.8rem;">Profile Photo</div>
+                </div>
+
+                <!-- Fields -->
+                <div class="form-group">
+                    <label style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">Full Name</label>
+                    <input type="text" id="viewProfileName" disabled style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem; background:#f1f5f9; color:#64748b; cursor:not-allowed; opacity:1;">
+                </div>
+                <div class="form-group">
+                    <label style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">Email Address</label>
+                    <input type="email" id="viewProfileEmail" disabled style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem; background:#f1f5f9; color:#64748b; cursor:not-allowed; opacity:1;">
+                </div>
+                <div class="form-group">
+                    <label style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">Contact Number</label>
+                    <input type="text" id="viewProfileContact" placeholder="—" disabled style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem; background:#f1f5f9; color:#64748b; cursor:not-allowed; opacity:1;">
+                </div>
+
+                <!-- Identity Verification -->
+                <div style="margin-top: 1.5rem;">
+                    <p style="font-weight: 700; font-size: 0.95rem; color: var(--text-main); margin-bottom: 0.75rem;">
+                        Supporting Document
+                        <span style="font-weight: 400; color: var(--text-muted); font-size: 0.85rem;"> — Submitted by resident</span>
+                    </p>
+
+                    <!-- Loading state -->
+                    <div id="viewProfileDocLoading" style="display:none; border:1px solid #e2e8f0; border-radius:12px; padding:1.5rem; text-align:center; color:#64748b; font-size:0.9rem;">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="animation:spin 1s linear infinite; margin-bottom:0.4rem;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                        <p style="margin:0;">Loading document…</p>
+                    </div>
+
+                    <!-- No document state -->
+                    <div id="viewProfileDocEmpty" style="border:2px dashed #e2e8f0; border-radius:12px; padding:2rem 1rem; text-align:center; color:#94a3b8;">
+                        <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom:0.5rem; opacity:0.5;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <p style="margin:0; font-size:0.9rem;">No supporting document uploaded by this resident.</p>
+                    </div>
+
+                    <!-- Image document viewer -->
+                    <div id="viewProfileDocImage" style="display:none; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+                        <div style="background:#f8fafc; padding:0.6rem 1rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.8rem; font-weight:600; color:#64748b;">📎 Resident-uploaded ID</span>
+                            <a id="viewProfileDocImageLink" href="#" target="_blank" style="font-size:0.8rem; font-weight:600; color:var(--brand-green); text-decoration:none;">Open full size ↗</a>
+                        </div>
+                        <img id="viewProfileDocImg" src="" alt="Resident ID" style="width:100%; max-height:320px; object-fit:contain; display:block; background:#f1f5f9; padding:0.5rem;">
+                    </div>
+
+                    <!-- PDF document viewer -->
+                    <div id="viewProfileDocPdf" style="display:none; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+                        <div style="background:#f8fafc; padding:0.6rem 1rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.8rem; font-weight:600; color:#64748b;">📄 Resident-uploaded PDF</span>
+                            <a id="viewProfileDocPdfLink" href="#" target="_blank" style="font-size:0.8rem; font-weight:600; color:var(--brand-green); text-decoration:none;">Open PDF ↗</a>
+                        </div>
+                        <div style="padding:1.25rem; display:flex; align-items:center; gap:12px;">
+                            <svg width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="#dc2626" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <div>
+                                <p id="viewProfileDocPdfName" style="margin:0; font-weight:600; font-size:0.9rem; color:var(--text-main);">document.pdf</p>
+                                <p style="margin:0.2rem 0 0; font-size:0.8rem; color:#64748b;">Click "Open PDF" to view the document</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: #f0fdf4; border-radius: 8px; padding: 0.65rem 1rem; margin-top: 0.75rem;">
+                        <p style="margin:0; color: var(--brand-green); font-size: 0.85rem; font-weight: 600;">Uploaded document that proves the user is a resident.</p>
+                    </div>
+                </div>
+
+                <style>
+                @keyframes spin { to { transform: rotate(360deg); } }
+                </style>
+
+                <div style="display: flex; justify-content: flex-end; gap:10px; margin-top: 1.5rem;">
+                    <button onclick="closeViewProfileModal()" style="padding:10px 24px; border:none; background:#e2e8f0; border-radius:8px; cursor:pointer; font-weight:600;">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create New Staff Modal -->
+        <div class="modal-overlay" id="createStaffModal">
+            <div class="user-modal">
+                <div class="modal-header">
+                    <h2 style="color: var(--brand-dark);">Create New Staff</h2>
+                    <button onclick="closeCreateStaffModal()" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">&times;</button>
+                </div>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="newStaffName" placeholder="Enter full name" style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem;">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="newStaffEmail" placeholder="Enter email address" style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem;">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="newStaffPassword" placeholder="Enter password" style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem;">
+                    <p id="newStaffPasswordHint" style="font-size:0.8rem; margin-top:4px; min-height:1.1rem;"></p>
+                </div>
+                <div class="form-group">
+                    <label>Permissions</label>
+                    <div class="permission-grid-staff">
+                        <div class="permission-item"><input type="checkbox" id="permDashboard"> Dashboard</div>
+                        <div class="permission-item"><input type="checkbox" id="permAppt"> Appointment Scheduling</div>
+                        <div class="permission-item"><input type="checkbox" id="permRequest"> Request Processing</div>
+                        <div class="permission-item"><input type="checkbox" id="permDoc"> Document Generator</div>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 2rem;">
+                    <button onclick="closeCreateStaffModal()" style="padding:10px 20px; border:none; background:#e2e8f0; border-radius:8px; cursor:pointer;">Cancel</button>
+                    <button onclick="createNewStaff()" style="padding:10px 20px; border:none; background:var(--brand-green); color:white; border-radius:8px; font-weight:600; cursor:pointer;">Create Staff</button>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="../shared/routes.js"></script>
+    <script src="../shared/maintenance-check.js"></script>
+    <script src="../shared/admin-access.js"></script>
+    <script>
+        (async function() { const auth = await window.SB_ADMIN_ACCESS?.requireRole("admin"); if (!auth) return; })();
+
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+        const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
+        /** Same key as resident-login.html — emails registered through the resident portal. */
+        const RESIDENT_PORTAL_SELF_REG_EMAILS_KEY = "SB_RESIDENT_PORTAL_SELF_REG_EMAILS";
+        let targetUserRow = null;
+
+        function getAdminAccessToken() {
+            try {
+                const raw = sessionStorage.getItem("adminAuth");
+                if (!raw) return null;
+                return JSON.parse(raw)?.session?.accessToken || null;
+            } catch (_e) {
+                return null;
+            }
+        }
+
+        async function adminFetch(path, options = {}) {
+            const token = getAdminAccessToken();
+            const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+            if (token) headers.Authorization = `Bearer ${token}`;
+            return fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        function roleUiLabel(role) {
+            const r = String(role || "").trim().toLowerCase();
+            if (r === "resident") return "Resident";
+            if (r === "staff") return "Staff";
+            if (r === "admin") return "Admin";
+            if (r === "system-admin") return "System Admin";
+            return r ? String(role) : "User";
+        }
+
+        function staffPermissionsCellHtml(p) {
+            const sp = p.staffPermissions;
+            if (!sp || typeof sp !== "object") {
+                return "<small>Staff portal (default access)</small>";
+            }
+            const pairs = [
+                ["dashboard", "Dashboard"],
+                ["appointmentScheduling", "Scheduling"],
+                ["requestProcessing", "Requests"],
+                ["documentGenerator", "Documents"]
+            ];
+            const allowed = pairs.filter(([key]) => sp[key]).map(([, label]) => label);
+            if (!allowed.length) {
+                return '<small style="color:#94a3b8;">No page access</small>';
+            }
+            return "<small>" + escapeHtml(allowed.join(", ")) + "</small>";
+        }
+
+        /** Self-registered resident: from API (residentSelfRegistered) or legacy browser localStorage. */
+        function isResidentPortalSelfRegisteredProfile(p) {
+            if (String(p?.role || "").trim().toLowerCase() !== "resident") return false;
+            if (p?.residentSelfRegistered === true) return true;
+            const email = String(p.email || "").trim().toLowerCase();
+            return Boolean(email && loadResidentPortalSelfRegEmails().includes(email));
+        }
+
+        function permissionsCellHtmlForProfile(p) {
+            const r = String(p.role || "").trim().toLowerCase();
+            if (r === "resident") {
+                if (isResidentPortalSelfRegisteredProfile(p)) {
+                    return "<small>Resident portal access</small>";
+                }
+                return '<small style="color:#94a3b8;">—</small>';
+            }
+            if (r === "staff") return staffPermissionsCellHtml(p);
+            if (r === "admin") return "<small>Administration, catalog, users, announcements</small>";
+            if (r === "system-admin") return "<small>System administration</small>";
+            return "<small>—</small>";
+        }
+
+        function accountStatusBadgeHtml(statusLabel) {
+            const s = String(statusLabel || "Active").trim();
+            let bg = "#f0fdf4";
+            let color = "#16a34a";
+            if (s === "Suspended") {
+                bg = "#fff7ed";
+                color = "#ea580c";
+            } else if (s === "Deactivated") {
+                bg = "#f1f5f9";
+                color = "#64748b";
+            }
+            return `<span class="status-badge" style="background: ${bg}; color: ${color}; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">${escapeHtml(
+                s
+            )}</span>`;
+        }
+
+        function residentPortalDatasetAttr(p) {
+            if (!isResidentPortalSelfRegisteredProfile(p)) return "";
+            return ' data-account-source="resident-login"';
+        }
+
+        function profileSearchHaystack(p) {
+            return `${String(p.fullName || "").trim()} ${String(p.email || "").trim()}`.trim().toLowerCase();
+        }
+
+        function staffPermissionDataAttrsForRow(p) {
+            const r = String(p?.role || "").trim().toLowerCase();
+            if (r !== "staff") return "";
+            const sp =
+                p.staffPermissions && typeof p.staffPermissions === "object"
+                    ? p.staffPermissions
+                    : { dashboard: true, appointmentScheduling: true, requestProcessing: true, documentGenerator: true };
+            const b = (k) => (sp[k] ? "1" : "0");
+            return ` data-sp-dashboard="${b("dashboard")}" data-sp-appt="${b(
+                "appointmentScheduling"
+            )}" data-sp-request="${b("requestProcessing")}" data-sp-doc="${b("documentGenerator")}"`;
+        }
+
+        function isStaffTableRow(row) {
+            return String(row?.dataset?.userRole || "").trim().toLowerCase() === "staff";
+        }
+
+        function readStaffPermissionsFromRowDataset(row) {
+            if (!row || !isStaffTableRow(row)) {
+                return {
+                    dashboard: false,
+                    appointmentScheduling: false,
+                    requestProcessing: false,
+                    documentGenerator: false
+                };
+            }
+            if (row.dataset.spDashboard === undefined) {
+                return {
+                    dashboard: true,
+                    appointmentScheduling: true,
+                    requestProcessing: true,
+                    documentGenerator: true
+                };
+            }
+            return {
+                dashboard: row.dataset.spDashboard === "1",
+                appointmentScheduling: row.dataset.spAppt === "1",
+                requestProcessing: row.dataset.spRequest === "1",
+                documentGenerator: row.dataset.spDoc === "1"
+            };
+        }
+
+        function applyStaffPermissionDatasetToRow(row, perms) {
+            if (!row || !perms || typeof perms !== "object") return;
+            row.dataset.spDashboard = perms.dashboard ? "1" : "0";
+            row.dataset.spAppt = perms.appointmentScheduling ? "1" : "0";
+            row.dataset.spRequest = perms.requestProcessing ? "1" : "0";
+            row.dataset.spDoc = perms.documentGenerator ? "1" : "0";
+        }
+
+        function readStaffPermissionsFromManageModal() {
+            return {
+                dashboard: Boolean(document.getElementById("managePermDashboard")?.checked),
+                appointmentScheduling: Boolean(document.getElementById("managePermAppt")?.checked),
+                requestProcessing: Boolean(document.getElementById("managePermRequest")?.checked),
+                documentGenerator: Boolean(document.getElementById("managePermDoc")?.checked)
+            };
+        }
+
+        function syncManageModalStaffPermissionsFromRow(row) {
+            const ids = ["managePermDashboard", "managePermAppt", "managePermRequest", "managePermDoc"];
+            const perms = readStaffPermissionsFromRowDataset(row);
+            if (!isStaffTableRow(row)) {
+                ids.forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.checked = false;
+                });
+                return;
+            }
+            const keys = ["dashboard", "appointmentScheduling", "requestProcessing", "documentGenerator"];
+            keys.forEach((k, i) => {
+                const el = document.getElementById(ids[i]);
+                if (el) el.checked = Boolean(perms[k]);
+            });
+        }
+
+        async function loadUsersTable() {
+            const tbody = document.getElementById("usersTableBody");
+            if (!tbody) return;
+            tbody.innerHTML =
+                '<tr><td colspan="5" style="color: var(--text-muted); font-size: 0.9rem;">Loading users…</td></tr>';
+            try {
+                const res = await adminFetch("/admin/profiles");
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok || !Array.isArray(json.profiles)) {
+                    throw new Error(json?.message || "Unable to load users.");
+                }
+                const profiles = json.profiles.filter((p) => {
+                    const r = String(p?.role || "").trim().toLowerCase();
+                    return r !== "admin" && r !== "system-admin";
+                });
+                if (!profiles.length) {
+                    tbody.innerHTML =
+                        '<tr><td colspan="5" style="color: var(--text-muted); font-size: 0.9rem;">No user profiles found.</td></tr>';
+                    return;
+                }
+                const rowsHtml = profiles
+                    .map((p, idx) => {
+                        const rowId = `profile-row-${idx}`;
+                        const name = escapeHtml(p.fullName || "—");
+                        const email = escapeHtml(p.email || "");
+                        const roleLabel = roleUiLabel(p.role);
+                        const roleAttr = escapeHtml(roleLabel);
+                        const nameAttr = escapeHtml(p.fullName || "");
+                        const searchAttr = escapeHtml(profileSearchHaystack(p));
+                        const perms = permissionsCellHtmlForProfile(p);
+                        const portalAttr = residentPortalDatasetAttr(p);
+                        const staffPermAttr = staffPermissionDataAttrsForRow(p);
+                        const accLabel = String(p.accountStatus || "Active").trim();
+                        const accAttr = escapeHtml(accLabel);
+                        return `<tr id="${rowId}" data-user-name="${nameAttr}" data-user-role="${roleAttr}" data-search="${searchAttr}" data-account-status="${accAttr}"${portalAttr}${staffPermAttr}>
+                            <td style="font-weight: 600;">${name}</td>
+                            <td>${email}</td>
+                            <td>${perms}</td>
+                            <td data-cell="account-status">${accountStatusBadgeHtml(accLabel)}</td>
+                            <td>
+                                <button type="button" class="btn-config" onclick="openUserManageFromRow('${rowId}')" style="background-color: var(--brand-green); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-right: 5px;">Manage</button>
+                                <button type="button" class="btn-view-user" onclick="openViewProfileModal('${rowId}')" style="background-color: #ea580c; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer;">View</button>
+                            </td>
+                        </tr>`;
+                    })
+                    .join("");
+                tbody.innerHTML = rowsHtml;
+                syncResidentPortalRowMarkers();
+                applyResidentPortalTableCells();
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="5" style="color:#b91c1c;font-size:0.9rem;">${escapeHtml(
+                    err?.message || "Unable to load users."
+                )}</td></tr>`;
+            }
+        }
+        const appDialogModal = document.getElementById("appDialogModal");
+        const appDialogTitle = document.getElementById("appDialogTitle");
+        const appDialogMessage = document.getElementById("appDialogMessage");
+        const appDialogCancelBtn = document.getElementById("appDialogCancelBtn");
+        const appDialogOkBtn = document.getElementById("appDialogOkBtn");
+        const logoutModal = document.getElementById("logoutModal");
+        const logoutCancelBtn = document.getElementById("logoutCancelBtn");
+        const logoutConfirmBtn = document.getElementById("logoutConfirmBtn");
+
+        function showDialog(options) {
+            return new Promise((resolve) => {
+                const {
+                    title = "Notice",
+                    message = "",
+                    confirmLabel = "OK",
+                    cancelLabel = null,
+                    danger = false
+                } = options || {};
+                appDialogTitle.textContent = title;
+                appDialogMessage.textContent = message;
+                appDialogOkBtn.textContent = confirmLabel;
+                appDialogOkBtn.className = danger ? "btn-danger" : "";
+                appDialogOkBtn.style.padding = "10px 20px";
+                appDialogOkBtn.style.borderRadius = "8px";
+                appDialogOkBtn.style.cursor = "pointer";
+                appDialogOkBtn.style.background = danger ? "#dc2626" : "var(--brand-green)";
+                appDialogOkBtn.style.color = "white";
+                appDialogOkBtn.style.border = "none";
+                if (cancelLabel) {
+                    appDialogCancelBtn.style.display = "inline-flex";
+                    appDialogCancelBtn.textContent = cancelLabel;
+                } else {
+                    appDialogCancelBtn.style.display = "none";
+                }
+                const cleanup = () => {
+                    appDialogModal.style.display = "none";
+                    appDialogOkBtn.onclick = null;
+                    appDialogCancelBtn.onclick = null;
+                    appDialogModal.onclick = null;
+                };
+                appDialogOkBtn.onclick = () => {
+                    cleanup();
+                    resolve(true);
+                };
+                appDialogCancelBtn.onclick = () => {
+                    cleanup();
+                    resolve(false);
+                };
+                appDialogModal.onclick = (event) => {
+                    if (event.target === appDialogModal) {
+                        cleanup();
+                        resolve(false);
+                    }
+                };
+                appDialogModal.style.display = "flex";
+            });
+        }
+
+        function loadResidentPortalSelfRegEmails() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(RESIDENT_PORTAL_SELF_REG_EMAILS_KEY) || "[]");
+                if (!Array.isArray(parsed)) return [];
+                const out = [];
+                const seen = new Set();
+                for (const e of parsed) {
+                    const n = String(e || "").trim().toLowerCase();
+                    if (!n || seen.has(n)) continue;
+                    seen.add(n);
+                    out.push(n);
+                }
+                return out;
+            } catch (_e) {
+                return [];
+            }
+        }
+
+        function isResidentPortalRow(row) {
+            if (!row) return false;
+            if (String(row.dataset.accountSource || "").trim() === "resident-login") return true;
+            const email = row.querySelector("td:nth-child(2)")?.textContent?.trim().toLowerCase();
+            if (!email) return false;
+            return loadResidentPortalSelfRegEmails().includes(email);
+        }
+
+        function getAccountStatusCell(row) {
+            return row?.querySelector('[data-cell="account-status"]') || null;
+        }
+
+        function syncResidentPortalRowMarkers() {
+            const emails = new Set(loadResidentPortalSelfRegEmails());
+            document.querySelectorAll("table tbody tr").forEach((row) => {
+                const email = row.querySelector("td:nth-child(2)")?.textContent?.trim().toLowerCase();
+                if (email && emails.has(email)) {
+                    row.dataset.accountSource = "resident-login";
+                }
+            });
+        }
+
+        function applyResidentPortalTableCells() {
+            document.querySelectorAll("table tbody tr").forEach((row) => {
+                if (!isResidentPortalRow(row)) return;
+                const permCell = row.querySelector("td:nth-child(3)");
+                if (permCell) {
+                    permCell.innerHTML = "<small>Resident portal access</small>";
+                }
+            });
+        }
+
+        function getRowProfileEmail(row) {
+            return row?.querySelector("td:nth-child(2)")?.textContent?.trim() || "";
+        }
+
+        function setManageModalPermissionsVisibility(rowId) {
+            const permGroup = document.getElementById("permissionGroupStaff");
+            if (!permGroup) return;
+            if (!rowId) {
+                permGroup.style.display = "block";
+                return;
+            }
+            const row = document.getElementById(rowId);
+            permGroup.style.display = row && isResidentPortalRow(row) ? "none" : "block";
+        }
+
+        function readRowAccountStatus(row) {
+            const ds = String(row?.dataset?.accountStatus || "").trim();
+            if (ds) return ds;
+            const cell = getAccountStatusCell(row);
+            const badge = cell?.querySelector(".status-badge");
+            return badge ? badge.textContent.trim() : "Active";
+        }
+
+        function setRowActionsCell(rowId) {
+            const row = document.getElementById(rowId);
+            if (!row) return;
+            const td = row.querySelector("td:last-child");
+            if (!td) return;
+            const manageStyle =
+                "background-color: var(--brand-green); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer;";
+            td.innerHTML = `
+                    <button type="button" class="btn-config" onclick="openUserManageFromRow('${rowId}')" style="${manageStyle} margin-right: 5px;">Manage</button>
+                    <button type="button" class="btn-delete-user" onclick="deleteUserAccount('${rowId}')" style="background-color: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer;">Delete</button>`;
+        }
+
+        function openUserManageFromRow(rowId) {
+            const row = document.getElementById(rowId);
+            if (!row) return;
+            const userName = row.dataset.userName || row.querySelector("td")?.textContent?.trim() || "User";
+            const role = row.dataset.userRole || "Staff";
+            const status = readRowAccountStatus(row);
+            openUserManage(userName, role, status, rowId);
+        }
+
+        function openUserManage(userName, currentRole, currentStatus, rowId) {
+            targetUserRow = rowId;
+            document.getElementById('manageUserTitle').innerText = "Manage: " + userName;
+            const statusSelect = document.getElementById("userStatusSelect");
+            const allowed = new Set(["Active", "Suspended", "Deactivated"]);
+            statusSelect.value = allowed.has(currentStatus) ? currentStatus : "Active";
+            setManageModalPermissionsVisibility(rowId);
+            const row = rowId ? document.getElementById(rowId) : null;
+            syncManageModalStaffPermissionsFromRow(row);
+            document.getElementById('userManageModal').style.display = 'flex';
+        }
+
+        function closeUserModal() {
+            document.getElementById('userManageModal').style.display = 'none';
+            setManageModalPermissionsVisibility(null);
+        }
+
+        function ensureUsersTablePlaceholderIfEmpty() {
+            const tbody = document.getElementById("usersTableBody");
+            if (tbody && tbody.getElementsByTagName("tr").length === 0) {
+                tbody.innerHTML =
+                    '<tr><td colspan="5" style="color: var(--text-muted); font-size: 0.9rem;">No users in the table. Reload the page to fetch profiles from the server again.</td></tr>';
+            }
+        }
+
+async function saveUserChanges() {
+            if (!targetUserRow) return;
+            
+            const row = document.getElementById(targetUserRow);
+            if (!row) return;
+            
+            const newStatus = document.getElementById('userStatusSelect').value;
+
+            const targetEmailForStatus = getRowProfileEmail(row);
+            if (!targetEmailForStatus) {
+                await showDialog({
+                    title: "Cannot update",
+                    message: "No email found for this user.",
+                    confirmLabel: "OK"
+                });
+                return;
+            }
+
+            try {
+                const statusRes = await adminFetch("/admin/profiles/account-status", {
+                    method: "PATCH",
+                    body: JSON.stringify({ email: targetEmailForStatus, accountStatus: newStatus })
+                });
+                const statusJson = await statusRes.json().catch(() => ({}));
+                if (!statusRes.ok || !statusJson?.ok) {
+                    await showDialog({
+                        title: "Update failed",
+                        message: statusJson?.message || "Could not save account status.",
+                        confirmLabel: "OK"
+                    });
+                    return;
+                }
+            } catch (_err) {
+                await showDialog({
+                    title: "Update failed",
+                    message: "Could not reach the server. Check that the API is running.",
+                    confirmLabel: "OK"
+                });
+                return;
+            }
+
+            const permissionLabels = [
+                ["dashboard", "Dashboard"],
+                ["appointmentScheduling", "Appointment Scheduling"],
+                ["requestProcessing", "Request Processing"],
+                ["documentGenerator", "Document Generator"]
+            ];
+            let selectedPermissions = [];
+            if (isStaffTableRow(row)) {
+                const modalPerms = readStaffPermissionsFromManageModal();
+                selectedPermissions = permissionLabels.filter(([k]) => modalPerms[k]).map(([, label]) => label);
+                const email = getRowProfileEmail(row);
+                if (!email) {
+                    await showDialog({
+                        title: "Cannot update",
+                        message: "No email found for this staff row.",
+                        confirmLabel: "OK"
+                    });
+                    return;
+                }
+                try {
+                    const res = await adminFetch("/admin/staff/permissions", {
+                        method: "PATCH",
+                        body: JSON.stringify({ email, permissions: modalPerms })
+                    });
+                    const json = await res.json().catch(() => ({}));
+                    if (!res.ok || !json?.ok) {
+                        await showDialog({
+                            title: "Update failed",
+                            message: json?.message || "Could not save staff permissions.",
+                            confirmLabel: "OK"
+                        });
+                        return;
+                    }
+                    const saved = json.staffPermissions || modalPerms;
+                    applyStaffPermissionDatasetToRow(row, saved);
+                } catch (_err) {
+                    await showDialog({
+                        title: "Update failed",
+                        message: "Could not reach the server. Check that the API is running.",
+                        confirmLabel: "OK"
+                    });
+                    return;
+                }
+            } else {
+                const permissionCheckboxes = document.querySelectorAll("#permissionGroupStaff input[type=\"checkbox\"]");
+                permissionCheckboxes.forEach((cb) => {
+                    if (cb.checked) {
+                        selectedPermissions.push(cb.parentElement.textContent.trim());
+                    }
+                });
+            }
+            
+            row.dataset.accountStatus = newStatus;
+            const statusCell = getAccountStatusCell(row);
+            if (statusCell) {
+                statusCell.innerHTML = accountStatusBadgeHtml(newStatus);
+            }
+            row.classList.remove("archived-row");
+            setRowActionsCell(targetUserRow);
+
+            if (!isResidentPortalRow(row)) {
+                const permissionsCell = row.querySelector("td:nth-child(3)");
+                if (permissionsCell) {
+                    if (isStaffTableRow(row)) {
+                        const fakeProfile = {
+                            role: "staff",
+                            staffPermissions: readStaffPermissionsFromRowDataset(row)
+                        };
+                        permissionsCell.innerHTML = staffPermissionsCellHtml(fakeProfile);
+                    } else {
+                        permissionsCell.innerHTML = `<small>${escapeHtml(selectedPermissions.join(", "))}</small>`;
+                    }
+                }
+            }
+
+            const updateMessage = isStaffTableRow(row)
+                ? "User account has been updated. If this staff member is currently signed in, they should sign out and sign in again so page access matches the new permissions."
+                : "User account has been updated.";
+            await showDialog({
+                title: "User Updated",
+                message: updateMessage,
+                confirmLabel: "OK"
+            });
+            
+            closeUserModal();
+        }
+
+        async function deleteUserAccount(rowId) {
+            const row = document.getElementById(rowId);
+            if (!row) return;
+
+            const email = getRowProfileEmail(row);
+            const userName = row.dataset.userName || row.querySelector("td:first-child")?.textContent?.trim() || "this user";
+
+            const confirmed = await showDialog({
+                title: "Delete account",
+                message:
+                    "Permanently delete " +
+                    userName +
+                    (email ? " (" + email + ")" : "") +
+                    "? This removes the profile, linked records, and Supabase login for this email. This cannot be undone.",
+                confirmLabel: "Delete",
+                cancelLabel: "Cancel",
+                danger: true
+            });
+            if (!confirmed) return;
+
+            if (!email) {
+                await showDialog({
+                    title: "Cannot delete",
+                    message: "No email address was found for this row.",
+                    confirmLabel: "OK"
+                });
+                return;
+            }
+
+            try {
+                const res = await adminFetch("/admin/profiles/delete", {
+                    method: "POST",
+                    body: JSON.stringify({ email })
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok) {
+                    await showDialog({
+                        title: "Delete failed",
+                        message: json?.message || "Unable to delete this account.",
+                        confirmLabel: "OK"
+                    });
+                    return;
+                }
+
+                row.remove();
+                ensureUsersTablePlaceholderIfEmpty();
+                const selfReg = loadResidentPortalSelfRegEmails();
+                const next = selfReg.filter((e) => e !== email.trim().toLowerCase());
+                try {
+                    localStorage.setItem(RESIDENT_PORTAL_SELF_REG_EMAILS_KEY, JSON.stringify(next));
+                } catch (_e) {
+                    /* ignore */
+                }
+
+                await showDialog({
+                    title: "Account deleted",
+                    message: (json.message || "Account deleted.") + " The row has been removed from the table.",
+                    confirmLabel: "OK"
+                });
+            } catch (_err) {
+                await showDialog({
+                    title: "Delete failed",
+                    message: "Could not reach the server. Check that the API is running.",
+                    confirmLabel: "OK"
+                });
+            }
+        }
+
+        function handleLogout(event) {
+            event?.preventDefault?.();
+            logoutModal.classList.add("show");
+        }
+        function closeLogoutModal() {
+            logoutModal.classList.remove("show");
+        }
+        logoutCancelBtn?.addEventListener("click", closeLogoutModal);
+        logoutModal?.addEventListener("click", (event) => {
+            if (event.target === logoutModal) closeLogoutModal();
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") closeLogoutModal();
+        });
+logoutConfirmBtn?.addEventListener("click", () => {
+            closeLogoutModal();
+            if (window.APP_NAV?.logout) {
+                window.APP_NAV.logout();
+                return;
+            }
+            sessionStorage.removeItem("adminAuth");
+            window.location.href = COMMON_ROUTES.landing;
+        });
+
+// Search Staff Function
+        function searchStaff() {
+            const input = document.getElementById('searchStaff');
+            const filter = input.value.toLowerCase();
+            const table = document.querySelector('table tbody');
+            const rows = table.getElementsByTagName('tr');
+            
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const hay = (row.getAttribute("data-search") || "").toLowerCase();
+                if (hay) {
+                    row.style.display = hay.indexOf(filter) > -1 ? "" : "none";
+                    continue;
+                }
+                const nameCell = row.getElementsByTagName("td")[0];
+                const emailCell = row.getElementsByTagName("td")[1];
+                if (nameCell || emailCell) {
+                    const nameText = nameCell.textContent || nameCell.innerText;
+                    const emailText = emailCell.textContent || emailCell.innerText;
+                    if (nameText.toLowerCase().indexOf(filter) > -1 || emailText.toLowerCase().indexOf(filter) > -1) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                }
+            }
+        }
+
+        function openCreateStaffModal() {
+            document.getElementById('createStaffModal').style.display = 'flex';
+            document.getElementById('newStaffName').value = '';
+            document.getElementById('newStaffEmail').value = '';
+            document.getElementById('newStaffPassword').value = '';
+            const nsh = document.getElementById("newStaffPasswordHint");
+            if (nsh) {
+                nsh.textContent = "";
+                nsh.style.color = "";
+            }
+            document.getElementById('permDashboard').checked = false;
+            document.getElementById('permAppt').checked = false;
+            document.getElementById('permRequest').checked = false;
+            document.getElementById('permDoc').checked = false;
+        }
+
+        function closeCreateStaffModal() {
+            document.getElementById('createStaffModal').style.display = 'none';
+        }
+
+        async function createNewStaff() {
+            const name = document.getElementById('newStaffName').value.trim();
+            const email = document.getElementById('newStaffEmail').value.trim();
+            const password = document.getElementById('newStaffPassword').value;
+
+            if (!name || !email || !password) {
+                await showDialog({
+                    title: "Validation Error",
+                    message: "Please fill in all required fields: Full Name, Email Address, and Password.",
+                    confirmLabel: "OK"
+                });
+                return;
+            }
+            if (password.length < 8) {
+                await showDialog({
+                    title: "Validation Error",
+                    message: "Password must be at least 8 characters.",
+                    confirmLabel: "OK"
+                });
+                return;
+            }
+
+            const permissions = {
+                dashboard: Boolean(document.getElementById('permDashboard')?.checked),
+                appointmentScheduling: Boolean(document.getElementById('permAppt')?.checked),
+                requestProcessing: Boolean(document.getElementById('permRequest')?.checked),
+                documentGenerator: Boolean(document.getElementById('permDoc')?.checked)
+            };
+
+            try {
+                const res = await adminFetch("/admin/staff", {
+                    method: "POST",
+                    body: JSON.stringify({ fullName: name, email, password, permissions })
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok) {
+                    await showDialog({
+                        title: "Could not create staff",
+                        message: json?.message || "Unable to create this staff account.",
+                        confirmLabel: "OK"
+                    });
+                    return;
+                }
+                closeCreateStaffModal();
+                await loadUsersTable();
+                await showDialog({
+                    title: "Staff created",
+                    message:
+                        (json.message || "Staff account created.") +
+                        " They can sign in at the admin portal login using the email and password you set.",
+                    confirmLabel: "OK"
+                });
+            } catch (_err) {
+                await showDialog({
+                    title: "Could not create staff",
+                    message: "Could not reach the server. Check that the API is running.",
+                    confirmLabel: "OK"
+                });
+            }
+        }
+
+        function getInitials(name) {
+            const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+            if (!parts.length) return "?";
+            if (parts.length === 1) return parts[0][0].toUpperCase();
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+
+        function showDocSection(mode, url) {
+            document.getElementById("viewProfileDocLoading").style.display = "none";
+            document.getElementById("viewProfileDocEmpty").style.display = "none";
+            document.getElementById("viewProfileDocImage").style.display = "none";
+            document.getElementById("viewProfileDocPdf").style.display = "none";
+
+            if (mode === "loading") {
+                document.getElementById("viewProfileDocLoading").style.display = "block";
+            } else if (mode === "image") {
+                const img = document.getElementById("viewProfileDocImg");
+                img.src = url;
+                document.getElementById("viewProfileDocImageLink").href = url;
+                document.getElementById("viewProfileDocImage").style.display = "block";
+            } else if (mode === "pdf") {
+                const filename = url.split("/").pop().split("?")[0] || "document.pdf";
+                document.getElementById("viewProfileDocPdfName").textContent = filename;
+                document.getElementById("viewProfileDocPdfLink").href = url;
+                document.getElementById("viewProfileDocPdf").style.display = "block";
+            } else {
+                document.getElementById("viewProfileDocEmpty").style.display = "block";
+            }
+        }
+
+        async function openViewProfileModal(rowId) {
+            const row = document.getElementById(rowId);
+            if (!row) return;
+            const name = row.querySelector("td:first-child")?.textContent?.trim() || "";
+            const email = row.querySelector("td:nth-child(2)")?.textContent?.trim() || "";
+
+            document.getElementById("viewProfileName").value = name;
+            document.getElementById("viewProfileEmail").value = email;
+            document.getElementById("viewProfileContact").value = "";
+            document.getElementById("viewProfileAvatar").textContent = getInitials(name);
+            document.getElementById("viewProfileAvatar").style.display = "inline-flex";
+            document.getElementById("viewProfilePhoto").style.display = "none";
+            document.getElementById("viewProfilePhoto").src = "";
+            document.getElementById("viewProfileModal").dataset.email = email;
+            document.getElementById("viewProfileModal").style.display = "flex";
+
+            // Show loading then fetch the actual profile document
+            showDocSection("loading");
+            try {
+                const encodedEmail = encodeURIComponent(email);
+                const res = await adminFetch(`/admin/profiles/by-email?email=${encodedEmail}`);
+                const json = await res.json().catch(() => ({}));
+                const profile = json?.profile || json;
+
+                // GridFS-backed /files/:id URLs are relative; prefix with
+                // the API base so they resolve against the backend, not
+                // whatever origin this admin page happens to be served from.
+                function resolveFileUrlAdmin(url) {
+                    const u = String(url || "").trim();
+                    if (!u) return u;
+                    const absolute = /^https?:\/\//i.test(u) ? u : `${API_BASE_URL}${u.startsWith("/") ? "" : "/"}${u}`;
+                    const token = getAdminAccessToken();
+                    if (!token) return absolute;
+                    const sep = absolute.includes("?") ? "&" : "?";
+                    return `${absolute}${sep}access_token=${encodeURIComponent(token)}`;
+                }
+
+                // Show resident's profile photo if available
+                const photoUrl = resolveFileUrlAdmin(profile?.avatarUrl || profile?.photoUrl || profile?.profilePhoto || profile?.profilePicture || profile?.photo || null);
+                if (photoUrl) {
+                    const photoEl = document.getElementById("viewProfilePhoto");
+                    const avatarEl = document.getElementById("viewProfileAvatar");
+                    photoEl.onload = () => {
+                        avatarEl.style.display = "none";
+                        photoEl.style.display = "block";
+                    };
+                    photoEl.onerror = () => {
+                        avatarEl.style.display = "inline-flex";
+                        photoEl.style.display = "none";
+                    };
+                    photoEl.src = photoUrl;
+                }
+
+                const docUrl = resolveFileUrlAdmin(profile?.idUrl || profile?.supportingDocumentUrl || profile?.validIdUrl || null);
+
+                if (docUrl) {
+                    const lower = docUrl.toLowerCase().split("?")[0];
+                    if (lower.endsWith(".pdf")) {
+                        showDocSection("pdf", docUrl);
+                    } else {
+                        showDocSection("image", docUrl);
+                    }
+                } else {
+                    showDocSection("empty");
+                }
+
+                // Populate contact if available
+                if (profile?.contactNumber || profile?.phone) {
+                    document.getElementById("viewProfileContact").value = profile.contactNumber || profile.phone || "";
+                }
+            } catch (_err) {
+                showDocSection("empty");
+            }
+        }
+
+        function closeViewProfileModal() {
+            document.getElementById("viewProfileModal").style.display = "none";
+        }
+
+        async function saveViewProfileChanges() {
+            // Password fields removed — function kept as stub for compatibility
+        }
+
+        loadUsersTable();
+
+        (function wireAdminPasswordLengthHints() {
+            const minLen = 8;
+            function bind(inputId, hintId) {
+                const input = document.getElementById(inputId);
+                const hint = document.getElementById(hintId);
+                if (!input || !hint) return;
+                input.addEventListener("input", () => {
+                    const v = input.value;
+                    if (!v.length) {
+                        hint.textContent = "";
+                        hint.style.color = "";
+                        return;
+                    }
+                    if (v.length < minLen) {
+                        hint.textContent = "Password must be at least 8 characters.";
+                        hint.style.color = "#dc2626";
+                        return;
+                    }
+                    hint.textContent = "Minimum length requirement met.";
+                    hint.style.color = "#16a34a";
+                });
+            }
+            bind("newStaffPassword", "newStaffPasswordHint");
+        })();
+    </script>
+</body>
+</html>

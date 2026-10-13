@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Announcements | SerbisyoBurgos</title>
+    <link rel="icon" type="image/png" href="../asset/SB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand-green: #16a34a;
+            --brand-dark: #043d2e;
+            --bg-light: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-width: 260px;
+            --white: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); color: var(--text-main); display: flex; min-height: 100vh; }
+
+        /* SIDEBAR NAVIGATION */
+        aside {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            color: var(--brand-dark);
+            font-size: 1.25rem;
+        }
+
+        .sidebar-header img {
+            width: 32px;
+            border-radius: 50%;
+            background: white;
+            padding: 3px;
+            border: 3px solid var(--brand-dark);
+        }
+        nav { flex-grow: 1; padding: 1rem; }
+
+        .nav-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 2.5rem; text-decoration: none; }
+        .nav-logo img { height: 35px; }
+        .nav-logo span { font-weight: 700; color: var(--brand-dark); font-size: 1.25rem; }
+
+        nav { flex: 1; }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: var(--text-muted);
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: #f0fdf4;
+            color: var(--brand-green);
+        }
+
+        .nav-item svg { width: 20px; height: 20px; }
+
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #f1f5f9;
+            margin-top: auto;
+        }
+
+        .logout-btn {
+            width: 100%;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff1f2;
+            color: #e11d48;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            border: none;
+            margin-top: 10px;
+        }
+
+        .logout-btn:hover {
+            background: #ffe4e6;
+        }
+
+        /* Sidebar theme */
+        aside {
+            background: #5f9632;
+            border-right: 1px solid rgba(4, 61, 46, 0.18);
+        }
+.sidebar-header {
+            padding: 1.75rem 1.25rem 1.25rem;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.75rem;
+            color: white;
+            font-weight: 800;
+            text-align: center;
+        }
+        .sidebar-header img {
+            width: 54px !important;
+            height: 54px !important;
+            object-fit: contain;
+        }
+        .nav-item { color: rgba(255, 255, 255, 0.9); }
+        .nav-item:hover, .nav-item.active { background: #426c22; color: white; }
+        .nav-item:hover:not(.active) { background: #4f7f29; }
+        .logout-btn { background: rgba(255, 255, 255, 0.14); color: white; }
+        .logout-btn:hover,
+        .logout-btn:focus-visible { background: #b91c1c; }
+        .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.18); }
+
+        /* MAIN CONTENT AREA */
+        main {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 2.5rem;
+            width: calc(100% - var(--sidebar-width)); /* Ensures it fills to the right edge */
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HEADER & USER PROFILE */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--white);
+            padding: 6px 16px 6px 6px;
+            border-radius: 30px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            background: var(--brand-green);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        /* FORM CONTAINER (CARD) */
+        .card {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            width: 100%; 
+            box-sizing: border-box;
+        }
+
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: var(--brand-dark); }
+
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        input:focus, textarea:focus { border-color: var(--brand-green); }
+
+        textarea { min-height: 150px; resize: vertical; }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .btn-post {
+            background: var(--brand-green);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-post:hover { background: #15803d; }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1200;
+            padding: 1rem;
+            opacity: 0;
+            transition: opacity 0.22s ease;
+        }
+        .modal-overlay.show { display: flex; opacity: 1; }
+        .confirm-modal {
+            width: 100%;
+            max-width: 430px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 1.25rem;
+            box-shadow: 0 18px 34px rgba(2, 6, 23, 0.25);
+            transform: translateY(8px) scale(0.98);
+            opacity: 0;
+            transition: transform 0.22s ease, opacity 0.22s ease;
+        }
+        .modal-overlay.show .confirm-modal { transform: translateY(0) scale(1); opacity: 1; }
+        .confirm-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.65rem;
+            margin-top: 1.2rem;
+        }
+        .btn-cancel {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 0.95rem;
+            font-weight: 600;
+            color: #334155;
+            cursor: pointer;
+        }
+        .btn-confirm {
+            background: var(--brand-green);
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 0.95rem;
+            font-weight: 600;
+            color: #fff;
+            cursor: pointer;
+        }
+        .btn-confirm.danger { background: #dc2626; }
+
+        .modal-card {
+            width: 100%;
+            max-width: 420px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px rgba(2, 6, 23, 0.2);
+        }
+        .modal-title { font-size: 1.1rem; font-weight: 700; color: var(--brand-dark); margin-bottom: 0.6rem; }
+        .modal-text { font-size: 0.92rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.25rem; }
+        .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+        .modal-btn {
+            border: none;
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .modal-btn-cancel { background: #f1f5f9; color: #334155; }
+        .modal-btn-confirm { background: #e11d48; color: white; }
+        .modal-window {
+            background: white;
+            width: 90%;
+            max-width: 1100px;
+            max-height: 90vh;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            display: flex;
+            gap: 2rem;
+            position: relative;
+            overflow-y: auto; /* Allows scrolling if content is too tall */
+        }
+
+        /* Close button positioning */
+        .modal-close-btn {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        #postedAnnouncementsTableCard { display: none; } /* Initially hide the table card until data loads */
+        .content-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .announcements-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .announcements-table th { padding: 1.2rem 1rem; text-align: left; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; border-bottom: 2px solid #f8fafc; }
+        .announcements-table td { padding: 1.2rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+        
+        .tag-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+
+        /* Gmail-style Delete Icon */
+        .btn-delete {
+            background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; border-radius: 50%; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center;
+        }
+        .btn-delete:hover { background: #fee2e2; color: #ef4444; }
+
+        /* Button to open form */
+        #btnCreateAnnouncement {
+            background-color: var(--brand-green);
+            color: white; 
+            height: 42px; 
+            padding: 0 1.25rem;
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-flex; 
+            align-items: center; 
+            gap: 8px; 
+            cursor: pointer; 
+            transition: all 0.2s;
+            width: fit-content;     
+            margin-left: auto;      
+            margin-bottom: 1.5rem;   
+        }
+
+#btnCreateAnnouncement:hover { 
+            background-color: #15803d; 
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Search Bar Styles */
+        .search-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 1.5rem;
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .search-filter-bar label {
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 0;
+            white-space: nowrap;
+        }
+
+        .search-filter-bar select {
+            width: 220px;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            background: white;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .search-filter-bar select:focus {
+            border-color: var(--brand-green);
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+        }
+
+        #categoryFilter {
+            flex: 1;
+            max-width: 250px;
+        }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="sidebar-header">
+            <img src="../asset/SB.png" alt="Logo">
+            <span>SerbisyoBurgos</span>
+        </div>
+        <nav>
+            <a href="service-mngmt.html" class="nav-item">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                Dashboard
+            </a>
+            <a href="user-role.html" class="nav-item">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                User & Roles
+            </a>
+            <a href="reports-analytics.html" class="nav-item">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Analytics
+            </a>
+            <a href="announcements.html" class="nav-item active">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                Announcements
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="../index.html" class="logout-btn" onclick="handleLogout(event)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+<main>
+        <div class="top-bar">
+            <div>
+                <h1 style="color: var(--brand-dark); font-weight: 800; font-size: 1.75rem;">Announcement Posting</h1>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Broadcast news and advisories to the residents.</p>
+            </div>
+
+            <div class="user-profile">
+                <div class="user-avatar">AD</div>
+                <div style="line-height: 1.2;">
+                    <p style="font-weight: 700; font-size: 0.85rem;">Administrator</p>
+                    <p style="font-size: 0.75rem; color: var(--text-muted);">Kagawad/Secretary</p>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; width: 100%;">
+            <button id="btnCreateAnnouncement" type="button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Create Announcement
+            </button>
+        </div>
+
+<div class="content-card" id="postedAnnouncementsTableCard" style="display: block;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                <h3 style="color: var(--brand-dark); margin: 0;">Recently Posted Advisories</h3>
+                
+                <!-- Search/Filter Bar - Left Aligned -->
+                <div class="search-filter-bar" style="margin-bottom: 0; background: transparent; border: none; padding: 0;">
+                    <select id="categoryFilter">
+                        <option value="">All Categories</option>
+                        <option value="Holiday Schedule">📅 Holiday Schedule</option>
+                        <option value="Service Interruption">⚠️ Service Interruption</option>
+                        <option value="Community News">📰 Community News</option>
+                        <option value="Emergency Alert">🚨 Emergency Alert</option>
+                    </select>
+                </div>
+            </div>
+
+            <table class="announcements-table" id="announcementsTable">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Title</th>
+                        <th>Date Posted</th>
+                        <th>Posted By</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="announcementsTableBody">
+                    <tr id="announcementsTableLoadingRow">
+                        <td colspan="5" style="color: var(--text-muted); font-size: 0.9rem;">Loading announcements…</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+        <div id="announcementFormModal" class="modal-overlay">
+            <div class="modal-window">
+                <!-- Close Button -->
+                <button type="button" class="modal-close-btn" onclick="closeFormModal()">&times;</button>
+
+                <!-- Left Side: Form -->
+                <div style="flex: 1.2;">
+                    <h3 style="margin-bottom: 1.5rem; color: var(--brand-dark); display: flex; align-items: center; gap: 10px;">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
+                        Draft New Advisory
+                    </h3>
+                    
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="advCategory">
+                            <option value="Holiday Schedule">📅 Holiday Schedule</option>
+                            <option value="Service Interruption">⚠️ Service Interruption</option>
+                            <option value="Community News">📰 Community News</option>
+                            <option value="Emergency Alert">🚨 Emergency Alert</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Advisory Title</label>
+                        <input type="text" id="advTitle" placeholder="Scheduled Power Interruption - May 4">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Announcement Details</label>
+                        <textarea id="advContent" placeholder="Describe your announcement details..." style="min-height: 180px;"></textarea>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-top: 1rem;">
+                        <button class="btn-post" style="flex: 2;" type="button" id="btnPublish">Publish to Residents Bulletin Board</button>
+                        <button type="button" style="flex: 1; background: #f1f5f9; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; color: #475569;" id="btnSaveDraft">Save Draft</button>
+                    </div>
+                </div>
+
+                <!-- Right Side: Preview (Grey background for contrast) -->
+                <div style="flex: 0.8; background: #f8fafc; padding: 1.5rem; border-radius: 12px; border: 1px dashed #e2e8f0; height: fit-content;">
+                    <h3 style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;">Announcement Preview</h3>
+                    <div id="previewBox" style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                        <span id="previewTag" class="tag-badge" style="background: #dcfce7; color: #16a34a;">Holiday Schedule</span>
+                        <h2 id="previewTitle" style="margin-top: 12px; font-size: 1.4rem; color: var(--brand-dark); line-height: 1.2;">Title Preview</h2>
+                        <p id="previewText" style="margin-top: 12px; font-size: 0.95rem; color: #475569; line-height: 1.6;">Details will appear here as you type...</p>
+                        <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid #f1f5f9;">
+                        <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+                            <span>Posted by: Admin</span>
+                            <span>Just now</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <div id="publishConfirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="publishConfirmTitle">
+        <div class="confirm-modal">
+            <h3 id="publishConfirmTitle" style="font-size:1.05rem; color:var(--brand-dark); margin-bottom:0.55rem;">Post announcement now?</h3>
+            <p style="font-size:0.9rem; color:var(--text-muted); line-height:1.5;">
+                This advisory will be visible on the resident bulletin board right away.
+            </p>
+            <div class="confirm-actions">
+                <button type="button" class="btn-cancel" id="publishConfirmCancelBtn">Cancel</button>
+                <button type="button" class="btn-confirm" id="publishConfirmSubmitBtn">Post announcement</button>
+            </div>
+        </div>
+    </div>
+    <div id="deleteConfirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle">
+        <div class="confirm-modal">
+            <h3 id="deleteConfirmTitle" style="font-size:1.05rem; color:var(--brand-dark); margin-bottom:0.55rem;">Delete this announcement?</h3>
+            <p id="deleteConfirmMessage" style="font-size:0.9rem; color:var(--text-muted); line-height:1.5;">
+                This cannot be undone. The post will be removed from the admin list and the resident bulletin board.
+            </p>
+            <div class="confirm-actions">
+                <button type="button" class="btn-cancel" id="deleteConfirmCancelBtn">Cancel</button>
+                <button type="button" class="btn-confirm danger" id="deleteConfirmSubmitBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+    <div id="publishSuccessModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="publishSuccessTitle">
+        <div class="confirm-modal">
+            <h3 id="publishSuccessTitle" style="font-size:1.05rem; color:var(--brand-dark); margin-bottom:0.55rem;">Announcement posted</h3>
+            <p style="font-size:0.9rem; color:var(--text-muted); line-height:1.5;">
+                Your advisory was posted successfully and is now visible on the resident bulletin board.
+            </p>
+            <div class="confirm-actions">
+                <button type="button" class="btn-confirm" id="publishSuccessOkBtn">OK</button>
+            </div>
+        </div>
+    </div>
+    <div id="appDialogModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+        <div class="confirm-modal">
+            <h3 id="appDialogTitle" style="font-size:1.05rem; color:var(--brand-dark); margin-bottom:0.55rem;">Notice</h3>
+            <p id="appDialogMessage" style="font-size:0.9rem; color:var(--text-muted); line-height:1.5;"></p>
+            <div class="confirm-actions">
+                <button type="button" class="btn-cancel" id="appDialogCancelBtn">Cancel</button>
+                <button type="button" class="btn-confirm" id="appDialogOkBtn">OK</button>
+            </div>
+        </div>
+    </div>
+    <div id="logoutModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+        <div class="modal-card">
+            <h2 class="modal-title" id="logoutModalTitle">Confirm Logout</h2>
+            <p class="modal-text">Are you sure you want to logout from the admin portal?</p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="logoutCancelBtn">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-confirm" id="logoutConfirmBtn">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/routes.js"></script>
+    <script src="../shared/maintenance-check.js"></script>
+    <script src="../shared/admin-access.js"></script>
+    <script>
+        (async function() { const auth = await window.SB_ADMIN_ACCESS?.requireRole("admin"); if (!auth) return; })();
+
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+        const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
+
+        function getAdminAccessToken() {
+            try {
+                const raw = sessionStorage.getItem("adminAuth");
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                return parsed?.session?.accessToken || null;
+            } catch (_e) {
+                return null;
+            }
+        }
+
+        // Real-time preview logic to enhance communication accuracy
+        const titleInput = document.getElementById("advTitle");
+        const contentInput = document.getElementById("advContent");
+        const categoryInput = document.getElementById("advCategory");
+        const btnPublish = document.getElementById("btnPublish");
+        const btnSaveDraft = document.getElementById("btnSaveDraft");
+        const publishConfirmModal = document.getElementById("publishConfirmModal");
+        const publishConfirmCancelBtn = document.getElementById("publishConfirmCancelBtn");
+        const publishConfirmSubmitBtn = document.getElementById("publishConfirmSubmitBtn");
+        const publishSuccessModal = document.getElementById("publishSuccessModal");
+        const publishSuccessOkBtn = document.getElementById("publishSuccessOkBtn");
+        const deleteConfirmModal = document.getElementById("deleteConfirmModal");
+        const deleteConfirmMessage = document.getElementById("deleteConfirmMessage");
+        const deleteConfirmCancelBtn = document.getElementById("deleteConfirmCancelBtn");
+        const deleteConfirmSubmitBtn = document.getElementById("deleteConfirmSubmitBtn");
+        const appDialogModal = document.getElementById("appDialogModal");
+        const appDialogTitle = document.getElementById("appDialogTitle");
+        const appDialogMessage = document.getElementById("appDialogMessage");
+        const appDialogCancelBtn = document.getElementById("appDialogCancelBtn");
+        const appDialogOkBtn = document.getElementById("appDialogOkBtn");
+        const logoutModal = document.getElementById("logoutModal");
+        const logoutCancelBtn = document.getElementById("logoutCancelBtn");
+        const logoutConfirmBtn = document.getElementById("logoutConfirmBtn");
+        const createAnnBtn = document.getElementById("btnCreateAnnouncement");
+        const annFormModal = document.getElementById("announcementFormModal");
+        const categoryFilter = document.getElementById("categoryFilter");
+        const announcementsTableBody = document.getElementById("announcementsTableBody");
+
+        function openFormModal() {
+            annFormModal?.classList.add("show");
+        }
+
+        function closeFormModal() {
+            annFormModal?.classList.remove("show");
+            // Optional: Clear inputs when closing
+            titleInput.value = "";
+            contentInput.value = "";
+            updatePreview();
+        }
+
+        createAnnBtn?.addEventListener("click", openFormModal);
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        function escapeAttr(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function getCategoryTagStyle(category) {
+            const c = String(category || "");
+            if (c.includes("Emergency")) return { background: "#fee2e2", color: "#ef4444" };
+            if (c.includes("Holiday")) return { background: "#dcfce7", color: "#16a34a" };
+            if (c.includes("Service Interruption")) return { background: "#fef3c7", color: "#d97706" };
+            if (c.includes("Community News")) return { background: "#e0e7ff", color: "#4f46e5" };
+            return { background: "#e0f2fe", color: "#0284c7" };
+        }
+
+        function formatPostedByRole(role) {
+            const r = String(role || "").trim().toLowerCase();
+            if (r === "admin") return "Admin";
+            if (r === "staff") return "Staff";
+            if (r === "system-admin") return "System Admin";
+            return r ? role : "—";
+        }
+
+        function formatAnnouncementDate(iso) {
+            if (!iso) return "—";
+            try {
+                const d = new Date(iso);
+                if (Number.isNaN(d.getTime())) return "—";
+                return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+            } catch (_e) {
+                return "—";
+            }
+        }
+
+        let pendingDeleteAnnouncementId = null;
+
+        function openDeleteAnnouncementModal(id, title) {
+            const numId = Number(id);
+            if (!Number.isInteger(numId) || numId <= 0) return;
+            pendingDeleteAnnouncementId = numId;
+            const safeTitle = String(title || "this announcement").trim() || "this announcement";
+            if (deleteConfirmMessage) {
+                deleteConfirmMessage.textContent =
+                    'Permanently delete "' +
+                    safeTitle +
+                    '"? This cannot be undone. The post will be removed from the resident bulletin board.';
+            }
+            deleteConfirmModal?.classList.add("show");
+        }
+
+        function closeDeleteConfirmModal() {
+            deleteConfirmModal?.classList.remove("show");
+            pendingDeleteAnnouncementId = null;
+        }
+
+        async function adminFetch(path, options = {}) {
+            const token = getAdminAccessToken();
+            const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+            if (token) headers.Authorization = `Bearer ${token}`;
+            return fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+        }
+
+        async function loadAnnouncementsTable() {
+            const tbody = document.getElementById("announcementsTableBody");
+            if (!tbody) return;
+
+            tbody.innerHTML =
+                '<tr><td colspan="5" style="color: var(--text-muted); font-size: 0.9rem;">Loading announcements…</td></tr>';
+
+            const token = getAdminAccessToken();
+            if (!token) {
+                tbody.innerHTML =
+                    '<tr><td colspan="5" style="color:#b91c1c;font-size:0.9rem;">Sign in again to load announcements.</td></tr>';
+                return;
+            }
+
+            try {
+                const res = await adminFetch("/admin/announcements");
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok || !Array.isArray(json.announcements)) {
+                    throw new Error(json?.message || "Unable to load announcements.");
+                }
+                const list = json.announcements;
+                if (!list.length) {
+                    tbody.innerHTML =
+                        '<tr><td colspan="5" style="color: var(--text-muted); font-size: 0.9rem;">No announcements posted yet.</td></tr>';
+                    filterByCategory();
+                    return;
+                }
+
+                const rows = list
+                    .map((a) => {
+                        const id = Number(a.id);
+                        const title = String(a.title || "").trim();
+                        const category = String(a.category || "Community News");
+                        const tag = getCategoryTagStyle(category);
+                        const posted = formatPostedByRole(a.postedByRole);
+                        const when = formatAnnouncementDate(a.createdAt);
+                        return `<tr data-announcement-id="${id}">
+                            <td><span class="tag-badge" style="background:${tag.background};color:${tag.color};">${escapeHtml(
+                                category
+                            )}</span></td>
+                            <td>${escapeHtml(title)}</td>
+                            <td>${escapeHtml(when)}</td>
+                            <td>${escapeHtml(posted)}</td>
+                            <td style="text-align: right;">
+                                <button type="button" class="btn-delete" title="Delete announcement" data-announcement-delete data-announcement-id="${id}" data-announcement-title="${escapeAttr(
+                                    title
+                                )}">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                </button>
+                            </td>
+                        </tr>`;
+                    })
+                    .join("");
+                tbody.innerHTML = rows;
+                filterByCategory();
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="5" style="color:#b91c1c;font-size:0.9rem;">${escapeHtml(
+                    err?.message || "Unable to load announcements."
+                )}</td></tr>`;
+            }
+        }
+
+        announcementsTableBody?.addEventListener("click", (event) => {
+            const btn = event.target.closest("button[data-announcement-delete]");
+            if (!btn) return;
+            const id = btn.getAttribute("data-announcement-id");
+            const title = btn.getAttribute("data-announcement-title") || "";
+            openDeleteAnnouncementModal(id, title);
+        });
+
+        deleteConfirmCancelBtn?.addEventListener("click", closeDeleteConfirmModal);
+        deleteConfirmModal?.addEventListener("click", (event) => {
+            if (event.target === deleteConfirmModal) closeDeleteConfirmModal();
+        });
+        deleteConfirmSubmitBtn?.addEventListener("click", async () => {
+            const id = pendingDeleteAnnouncementId;
+            if (!id) {
+                closeDeleteConfirmModal();
+                return;
+            }
+            const token = getAdminAccessToken();
+            if (!token) {
+                closeDeleteConfirmModal();
+                await showDialog({ title: "Session expired", message: "Please sign in again.", confirmLabel: "OK" });
+                return;
+            }
+            deleteConfirmSubmitBtn.disabled = true;
+            try {
+                const res = await adminFetch(`/admin/announcements/${id}`, { method: "DELETE" });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok) {
+                    await showDialog({
+                        title: "Delete failed",
+                        message: json?.message || "Could not delete this announcement.",
+                        confirmLabel: "OK"
+                    });
+                    return;
+                }
+                closeDeleteConfirmModal();
+                await loadAnnouncementsTable();
+            } catch (_err) {
+                await showDialog({
+                    title: "Delete failed",
+                    message: "Could not reach the server. Check that the API is running.",
+                    confirmLabel: "OK"
+                });
+            } finally {
+                deleteConfirmSubmitBtn.disabled = false;
+            }
+        });
+
+        function updatePreview() {
+            document.getElementById("previewTitle").innerText = titleInput.value || "Title Preview";
+            document.getElementById("previewText").innerText = contentInput.value || "Details will appear here as you type...";
+            document.getElementById("previewTag").innerText = categoryInput.value;
+
+const tag = document.getElementById("previewTag");
+            if (categoryInput.value.includes("Emergency")) {
+                tag.style.background = "#fee2e2";
+                tag.style.color = "#ef4444";
+            } else if (categoryInput.value.includes("Holiday")) {
+                tag.style.background = "#dcfce7";
+                tag.style.color = "#16a34a";
+            } else if (categoryInput.value.includes("Service Interruption")) {
+                tag.style.background = "#fef3c7";
+                tag.style.color = "#d97706";
+            } else if (categoryInput.value.includes("Community News")) {
+                tag.style.background = "#e0e7ff";
+                tag.style.color = "#4f46e5";
+            } else {
+                tag.style.background = "#e0f2fe";
+                tag.style.color = "#0284c7";
+            }
+        }
+
+        titleInput.addEventListener("input", updatePreview);
+        contentInput.addEventListener("input", updatePreview);
+        categoryInput.addEventListener("change", updatePreview);
+        updatePreview();
+
+        function showDialog(options) {
+            return new Promise((resolve) => {
+                const {
+                    title = "Notice",
+                    message = "",
+                    confirmLabel = "OK",
+                    cancelLabel = null,
+                    danger = false
+                } = options || {};
+                appDialogTitle.textContent = title;
+                appDialogMessage.textContent = message;
+                appDialogOkBtn.textContent = confirmLabel;
+                appDialogOkBtn.classList.toggle("danger", Boolean(danger));
+                if (cancelLabel) {
+                    appDialogCancelBtn.style.display = "inline-flex";
+                    appDialogCancelBtn.textContent = cancelLabel;
+                } else {
+                    appDialogCancelBtn.style.display = "none";
+                }
+                const cleanup = () => {
+                    appDialogModal.classList.remove("show");
+                    appDialogOkBtn.onclick = null;
+                    appDialogCancelBtn.onclick = null;
+                    appDialogModal.onclick = null;
+                };
+                appDialogOkBtn.onclick = () => {
+                    cleanup();
+                    resolve(true);
+                };
+                appDialogCancelBtn.onclick = () => {
+                    cleanup();
+                    resolve(false);
+                };
+                appDialogModal.onclick = (event) => {
+                    if (event.target === appDialogModal) {
+                        cleanup();
+                        resolve(false);
+                    }
+                };
+                appDialogModal.classList.add("show");
+            });
+        }
+
+        btnSaveDraft?.addEventListener("click", async () => {
+            await showDialog({ title: "Save Draft", message: "Draft saving is not available yet.", confirmLabel: "OK" });
+        });
+
+        function openPublishConfirmModal() {
+            publishConfirmModal?.classList.add("show");
+        }
+
+        function closePublishConfirmModal() {
+            publishConfirmModal?.classList.remove("show");
+        }
+        function openPublishSuccessModal() {
+            publishSuccessModal?.classList.add("show");
+        }
+        function closePublishSuccessModal() {
+            publishSuccessModal?.classList.remove("show");
+        }
+
+        async function publishAdvisory() {
+            if (!titleInput.value.trim()) {
+                await showDialog({ title: "Missing Title", message: "Please enter a title before publishing.", confirmLabel: "OK" });
+                return;
+            }
+            if (!contentInput.value.trim()) {
+                await showDialog({ title: "Missing Details", message: "Please enter announcement details before publishing.", confirmLabel: "OK" });
+                return;
+            }
+            const token = getAdminAccessToken();
+            if (!token) {
+                await showDialog({ title: "Session Expired", message: "Your session expired. Please sign in again.", confirmLabel: "OK" });
+                return;
+            }
+            btnPublish.disabled = true;
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/announcements`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        category: categoryInput.value,
+                        title: titleInput.value.trim(),
+                        body: contentInput.value.trim()
+                    })
+                });
+                const result = await response.json();
+                if (!response.ok || !result.ok) {
+                    throw new Error(result.message || result.detail || "Unable to post announcement.");
+                }
+                titleInput.value = "";
+                contentInput.value = "";
+                updatePreview();
+                await loadAnnouncementsTable();
+                openPublishSuccessModal();
+            } catch (err) {
+                await showDialog({
+                    title: "Publish Failed",
+                    message: err.message || "Failed to publish. Ensure the API is running and the database migration is applied.",
+                    confirmLabel: "OK"
+                });
+            } finally {
+                btnPublish.disabled = false;
+            }
+        }
+
+        btnPublish?.addEventListener("click", openPublishConfirmModal);
+        publishConfirmCancelBtn?.addEventListener("click", closePublishConfirmModal);
+        publishConfirmModal?.addEventListener("click", (event) => {
+            if (event.target === publishConfirmModal) closePublishConfirmModal();
+        });
+        publishSuccessOkBtn?.addEventListener("click", closePublishSuccessModal);
+        publishSuccessModal?.addEventListener("click", (event) => {
+            if (event.target === publishSuccessModal) closePublishSuccessModal();
+        });
+        publishConfirmSubmitBtn?.addEventListener("click", async () => {
+            closePublishConfirmModal();
+            await publishAdvisory();
+        });
+        function handleLogout(event) {
+            event?.preventDefault?.();
+            logoutModal?.classList.add("show");
+        }
+        function closeLogoutModal() {
+            logoutModal?.classList.remove("show");
+        }
+        logoutCancelBtn?.addEventListener("click", closeLogoutModal);
+        logoutModal?.addEventListener("click", (event) => {
+            if (event.target === logoutModal) closeLogoutModal();
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            if (deleteConfirmModal?.classList.contains("show")) {
+                closeDeleteConfirmModal();
+                return;
+            }
+            if (publishConfirmModal?.classList.contains("show")) {
+                closePublishConfirmModal();
+                return;
+            }
+            if (publishSuccessModal?.classList.contains("show")) {
+                closePublishSuccessModal();
+                return;
+            }
+            if (appDialogModal?.classList.contains("show")) {
+                appDialogModal.classList.remove("show");
+                return;
+            }
+            closeLogoutModal();
+        });
+logoutConfirmBtn?.addEventListener("click", () => {
+            closeLogoutModal();
+            if (window.APP_NAV?.logout) {
+                window.APP_NAV.logout();
+                return;
+            }
+            sessionStorage.removeItem("adminAuth");
+            window.location.href = COMMON_ROUTES.landing;
+        });
+
+        // Category Filter Functionality
+        function filterByCategory() {
+            const selectedCategory = categoryFilter.value;
+            const rows = announcementsTableBody?.querySelectorAll("tr");
+            
+            rows?.forEach(row => {
+                if (!selectedCategory) {
+                    // Show all rows if no filter selected
+                    row.style.display = "";
+                    return;
+                }
+                
+                const categoryCell = row.querySelector("td:first-child");
+                if (categoryCell) {
+                    const categoryText = categoryCell.textContent;
+                    if (categoryText.includes(selectedCategory)) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                }
+            });
+        }
+
+        categoryFilter?.addEventListener("change", filterByCategory);
+
+        loadAnnouncementsTable();
+    </script>
+</body>
+</html>

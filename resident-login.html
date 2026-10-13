@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Login | SerbisyoBurgos</title>
+    <link rel="icon" type="image/png" href="asset/SB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-green: #043d2e;
+            --brand-green: #16a34a;
+            --hover-green: #15803d; 
+            --bg-light: #f8fafc;
+            --text-gray: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-light);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .resident-container {
+            background: white;
+            width: 100%;
+            max-width: 450px;
+            padding: 3.5rem 2.5rem 3rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.05);
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            position: relative;
+        }
+
+        /* Back Button */
+        .btn-back {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            text-decoration: none;
+            color: var(--text-gray);
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.2s ease;
+        }
+
+        .btn-back:hover {
+            color: var(--brand-green);
+        }
+
+        .logo {
+            height: 50px;
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin: 0 0 0.5rem 0;
+            color: var(--primary-green);
+        }
+
+        p.subtitle {
+            color: var(--text-gray);
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+
+        .portal-header {
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 10px;
+        }
+
+        .portal-header span {
+            color: var(--brand-green);
+            font-weight: 700;
+            font-size: 1.1rem;
+            border-bottom: 3px solid var(--brand-green);
+            padding-bottom: 8px;
+        }
+
+        .input-group {
+            text-align: left;
+            margin-bottom: 1.25rem;
+            position: relative;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+            color: #334155;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 45px 12px 16px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            background: #f8fafc;
+            transition: border-color 0.2s;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 12px;
+            color: var(--text-gray);
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--brand-green);
+            background: white;
+        }
+
+        /* Password see/unsee icon */
+        .password-toggle {
+            position: absolute;
+            right: 15px;
+            top: 38px;
+            cursor: pointer;
+            color: var(--text-gray);
+            display: flex;
+            align-items: center;
+        }
+
+        /* Identity Verification styling */
+        .upload-box {
+            border: 2px dashed #e2e8f0;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 5px;
+        }
+
+        .upload-box:hover {
+            border-color: var(--brand-green);
+            background: #f0fdf4;
+        }
+
+        .upload-box.has-file {
+            border-color: #16a34a;
+            background: #f0fdf4;
+            cursor: default;
+        }
+
+        .upload-box.has-file:hover {
+            background: #f0fdf4;
+        }
+
+        .upload-success-inner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 2px 0;
+        }
+
+        .upload-file-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #dcfce7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: #16a34a;
+        }
+
+        .upload-file-info {
+            flex: 1;
+            text-align: left;
+            min-width: 0;
+        }
+
+        .upload-file-name {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+
+        .upload-file-size {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-gray);
+            margin-top: 1px;
+        }
+
+        .upload-remove-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #94a3b8;
+            padding: 4px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.15s, background 0.15s;
+            flex-shrink: 0;
+        }
+
+        .upload-remove-btn:hover {
+            color: #ef4444;
+            background: #fee2e2;
+        }
+
+        .upload-success-badge {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 10px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #16a34a;
+            background: #dcfce7;
+            border-radius: 20px;
+            padding: 4px 10px;
+            width: fit-content;
+        }
+
+        .upload-text {
+            font-size: 0.85rem;
+            color: var(--text-gray);
+            display: block;
+            margin-top: 8px;
+        }
+
+        .verification-note {
+            font-size: 0.75rem;
+            color: #047857;
+            background: #ecfdf5;
+            padding: 8px;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: block;
+            font-weight: 500;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: var(--brand-green);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: background 0.2s;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            background: var(--hover-green);
+        }
+
+        .btn-submit:disabled {
+            cursor: not-allowed;
+        }
+
+        .btn-submit-inner {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.55rem;
+            width: 100%;
+        }
+
+        .btn-spinner {
+            width: 1.15em;
+            height: 1.15em;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: btn-spin 0.7s linear infinite;
+            flex-shrink: 0;
+            display: none;
+        }
+
+        .btn-submit.is-loading .btn-spinner {
+            display: block;
+        }
+
+        .btn-submit.is-loading {
+            opacity: 0.92;
+            cursor: wait;
+            pointer-events: none;
+        }
+
+        @keyframes btn-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+
+
+        .footer-text {
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            color: var(--text-gray);
+        }
+
+        .footer-text span {
+            color: var(--brand-green);
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .help-section {
+            margin-top: 2rem;
+            font-size: 0.75rem;
+            color: var(--text-gray);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            padding: 1rem;
+        }
+
+        .modal-content {
+            width: 100%;
+            max-width: 420px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px rgba(2, 6, 23, 0.2);
+            text-align: left;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .modal-content--success {
+            text-align: center;
+            max-width: 440px;
+            padding: 2rem 1.75rem 1.75rem;
+            border-radius: 20px;
+            border: 1px solid #bbf7d0;
+            box-shadow: 0 24px 48px rgba(22, 101, 52, 0.12);
+        }
+
+        .success-icon-circle {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 1.25rem;
+            border-radius: 50%;
+            background: linear-gradient(160deg, #ecfdf5, #bbf7d0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--brand-green);
+        }
+
+        .modal-content--success h3,
+        .modal-content--success .register-success-heading {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--primary-green);
+            line-height: 1.35;
+        }
+
+        .modal-content--success .btn-success-cta {
+            width: 100%;
+            margin-top: 1.5rem;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            background: var(--brand-green);
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+        }
+
+        .modal-content--success .btn-success-cta:hover {
+            background: var(--hover-green);
+        }
+
+        .hidden { display: none; }
+
+        /* Password Strength Meter */
+        .pw-strength-wrap {
+            margin-top: 10px;
+            padding: 12px 14px;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            transition: border-color 0.25s;
+        }
+
+        .pw-strength-bar-track {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 99px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .pw-strength-bar-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 99px;
+            transition: width 0.35s ease, background-color 0.35s ease;
+            background: #e2e8f0;
+        }
+
+        .pw-strength-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-gray);
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .pw-checklist {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px 8px;
+        }
+
+        .pw-checklist li {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            color: #94a3b8;
+            transition: color 0.2s;
+        }
+
+        .pw-checklist li.met {
+            color: #16a34a;
+        }
+
+        .pw-check-icon {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 1.5px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .pw-checklist li.met .pw-check-icon {
+            background: #16a34a;
+            border-color: #16a34a;
+        }
+
+        .pw-check-icon svg {
+            display: none;
+        }
+
+        .pw-checklist li.met .pw-check-icon svg {
+            display: block;
+        }
+
+        .pw-length-line {
+            font-size: 0.8rem;
+            margin-top: 6px;
+            min-height: 1.2rem;
+            text-align: left;
+            font-weight: 500;
+        }
+
+
+    </style>
+</head>
+<body>
+
+<div class="resident-container">
+    <a href="index.html" class="btn-back" id="residentBackToLanding">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        Back
+    </a>
+
+    <img src="asset/SB.png" alt="SerbisyoBurgos Logo" class="logo">
+    
+    <div id="login-form">
+        <h2>Hello!</h2>
+        <p class="subtitle">Welcome back to the community.</p>
+
+        <div class="input-group">
+            <label>Email Address</label>
+            <input type="email" id="resident-login-email" placeholder="user@gmail.com" maxlength="254" autocomplete="username">
+        </div>
+
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" id="resident-login-pass" placeholder="••••••••" maxlength="128" autocomplete="current-password">
+            <span class="password-toggle" onclick="togglePassword('resident-login-pass', this)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </span>
+        </div>
+
+        <button type="button" class="btn-submit" id="resident-login-submit" onclick="handleResidentLogin()">
+            <span class="btn-submit-inner">
+                <span class="btn-spinner" aria-hidden="true"></span>
+                <span class="btn-submit-text">Log in</span>
+            </span>
+        </button>
+        <p id="resident-login-error" style="margin-top:0.9rem; color:#b91c1c; font-size:0.85rem; min-height:1.1rem; text-align:left;"></p>
+        <p class="footer-text">New to SerbisyoBurgos? <span onclick="toggleForm()">Sign in</span></p>
+    </div>
+
+    <div id="register-form" class="hidden">
+        <h2>Register New Account</h2>
+        <p class="subtitle">Welcome to the community</p>
+
+        <div class="input-group">
+            <label>Full Name</label>
+            <input type="text" id="resident-register-name" placeholder="Juan Dela Cruz" maxlength="120" autocomplete="name">
+        </div>
+
+        <div class="input-group">
+            <label>Email Address</label>
+            <input type="email" id="resident-register-email" placeholder="your@email.com" maxlength="254" autocomplete="email">
+        </div>
+
+        <div class="input-group">
+            <label>Identity Verification <span style="color:#b91c1c;font-weight:700;" title="Required">*</span></label>
+            <div class="upload-box" id="upload-box" onclick="document.getElementById('id-upload').click()">
+                <!-- Default state -->
+                <div id="upload-default-state">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--brand-green)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <span class="upload-text">Click to upload Valid ID (JPEG, PNG, or PDF)</span>
+                </div>
+                <!-- Uploaded state (hidden by default) -->
+                <div id="upload-success-state" style="display:none;">
+                    <div class="upload-success-inner">
+                        <div class="upload-file-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        </div>
+                        <div class="upload-file-info">
+                            <span class="upload-file-name" id="upload-file-name">document.pdf</span>
+                            <span class="upload-file-size" id="upload-file-size">0 KB</span>
+                        </div>
+                        <button type="button" class="upload-remove-btn" onclick="removeUploadedFile(event)" title="Remove file">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                    <div class="upload-success-badge">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        File uploaded successfully
+                    </div>
+                </div>
+                <input type="file" id="id-upload" class="hidden" accept=".jpg,.jpeg,.png,.pdf" onchange="handleFileUpload(this)">
+            </div>
+            <span class="verification-note">Upload a document that proves you are a resident.</span>
+        </div>
+
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" id="resident-register-pass" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" maxlength="128" autocomplete="new-password">
+            <span class="password-toggle" onclick="togglePassword('resident-register-pass', this)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </span>
+            <p id="resident-register-pass-length-msg" class="pw-length-line" role="status" aria-live="polite"></p>
+            <div class="pw-strength-wrap" id="pw-strength-wrap" style="display:none;">
+                <div class="pw-strength-label" id="pw-strength-label">Weak</div>
+                <div class="pw-strength-bar-track">
+                    <div class="pw-strength-bar-fill" id="pw-strength-bar"></div>
+                </div>
+                <ul class="pw-checklist">
+                    <li id="pwc-length"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>At least 8 characters</li>
+                    <li id="pwc-upper"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>Uppercase letter</li>
+                    <li id="pwc-lower"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>Lowercase letter</li>
+                    <li id="pwc-number"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>Number (0-9)</li>
+                    <li id="pwc-special"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>Special character</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Confirm Password</label>
+            <input type="password" id="resident-register-confirm" placeholder="••••••••" maxlength="128" autocomplete="new-password">
+            <span class="password-toggle" onclick="togglePassword('resident-register-confirm', this)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </span>
+        </div>
+
+
+
+        <button type="button" id="resident-register-submit" class="btn-submit" onclick="handleResidentRegister()" disabled style="opacity:0.6; cursor:not-allowed;">
+            <span class="btn-submit-inner">
+                <span class="btn-spinner" aria-hidden="true"></span>
+                <span class="btn-submit-text">Sign in</span>
+            </span>
+        </button>
+        <p id="resident-register-error" style="margin-top:0.9rem; color:#b91c1c; font-size:0.85rem; min-height:1.1rem; text-align:left;"></p>
+        <p class="footer-text">Already have an account? <span onclick="toggleForm()">Log In</span></p>
+    </div>
+
+    <div class="help-section">
+        Need help? Contact Barangay Office: <b>09489454674</b><br>
+        © 2026 SerbisyoBurgos. All rights reserved.
+    </div>
+</div>
+
+<div id="registerSuccessModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="registerSuccessTitle">
+    <div class="modal-content modal-content--success">
+        <div class="success-icon-circle" aria-hidden="true">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        </div>
+        <h3 id="registerSuccessTitle" class="register-success-heading">Registered successfully.</h3>
+        <button type="button" class="btn-success-cta" id="registerSuccessContinueBtn">Continue to log in</button>
+    </div>
+</div>
+
+<script src="shared/routes.js"></script>
+<script src="shared/maintenance-check.js"></script>
+<script>
+    /** Registration sends multipart (ID file); the API must run the matching backend revision (e.g. redeploy Render after git push). */
+    const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+    const RESIDENT_CONTEXT_KEY = "residentContext";
+    /** Emails self-registered via this page; admin User & Roles uses this to show status-only management. */
+    const RESIDENT_PORTAL_SELF_REG_EMAILS_KEY = "SB_RESIDENT_PORTAL_SELF_REG_EMAILS";
+    const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "index.html" };
+    const RESIDENT_ROUTES = window.APP_ROUTES?.resident || { dashboard: "resident/dashboard.html" };
+    document.getElementById("residentBackToLanding")?.setAttribute("href", COMMON_ROUTES.landing);
+    const registerSuccessModal = document.getElementById("registerSuccessModal");
+    const registerSuccessTitle = document.getElementById("registerSuccessTitle");
+    const registerSuccessContinueBtn = document.getElementById("registerSuccessContinueBtn");
+
+    const CLIENT_MAX_EMAIL_LEN = 254;
+    const CLIENT_MAX_NAME_LEN = 120;
+    const CLIENT_MAX_PASSWORD_LEN = 128;
+    const REGISTER_MIN_PASSWORD_LEN = 8;
+
+    function updateRegisterPasswordLengthHint() {
+        const el = document.getElementById("resident-register-pass-length-msg");
+        const passInput = document.getElementById("resident-register-pass");
+        if (!el || !passInput) return;
+        const pw = String(passInput.value || "");
+        if (!pw.length) {
+            el.textContent = "";
+            el.style.color = "";
+            return;
+        }
+        if (pw.length < REGISTER_MIN_PASSWORD_LEN) {
+            el.textContent = "Password must be at least 8 characters.";
+            el.style.color = "#b91c1c";
+            return;
+        }
+        el.textContent = "Minimum length requirement met.";
+        el.style.color = "#166534";
+    }
+
+    function isClientEmailValid(value) {
+        const s = String(value || "").trim();
+        if (!s || s.length > CLIENT_MAX_EMAIL_LEN) return false;
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+    }
+
+    function showRegisterSuccessModal() {
+        if (!registerSuccessModal || !registerSuccessTitle) return;
+        registerSuccessTitle.textContent = "Registered successfully.";
+        registerSuccessModal.style.display = "flex";
+        registerSuccessContinueBtn?.focus();
+    }
+
+    function closeRegisterSuccessAndGoLogin() {
+        if (registerSuccessModal) registerSuccessModal.style.display = "none";
+        const regForm = document.getElementById("register-form");
+        if (regForm && !regForm.classList.contains("hidden")) {
+            toggleForm();
+        }
+        const regEmail = document.getElementById("resident-register-email")?.value?.trim() || "";
+        const { emailInput, passInput } = getLoginElements();
+        if (emailInput && regEmail) emailInput.value = regEmail;
+        if (passInput) passInput.value = "";
+        const { passInput: regPass, confirmInput } = getRegisterElements();
+        if (regPass) regPass.value = "";
+        if (confirmInput) confirmInput.value = "";
+        updateRegisterPasswordLengthHint();
+        updateRegisterSubmitState();
+    }
+
+    registerSuccessContinueBtn?.addEventListener("click", closeRegisterSuccessAndGoLogin);
+
+    try {
+        const blockedMsg = sessionStorage.getItem("residentPortalBlockedReason");
+        if (blockedMsg) {
+            sessionStorage.removeItem("residentPortalBlockedReason");
+            const blockedEl = document.getElementById("resident-login-error");
+            if (blockedEl) blockedEl.textContent = blockedMsg;
+        }
+    } catch (_e) {
+        /* ignore */
+    }
+
+    function getLoginElements() {
+        return {
+            emailInput: document.getElementById("resident-login-email"),
+            passInput: document.getElementById("resident-login-pass"),
+            errorEl: document.getElementById("resident-login-error")
+        };
+    }
+
+    function getRegisterElements() {
+        return {
+            nameInput: document.getElementById("resident-register-name"),
+            emailInput: document.getElementById("resident-register-email"),
+            passInput: document.getElementById("resident-register-pass"),
+            confirmInput: document.getElementById("resident-register-confirm"),
+            errorEl: document.getElementById("resident-register-error")
+        };
+    }
+
+    function rememberResidentPortalSelfRegistration(email) {
+        const norm = String(email || "").trim().toLowerCase();
+        if (!norm) return;
+        try {
+            const parsed = JSON.parse(localStorage.getItem(RESIDENT_PORTAL_SELF_REG_EMAILS_KEY) || "[]");
+            const list = Array.isArray(parsed) ? parsed : [];
+            const merged = [...new Set([...list.map((e) => String(e).trim().toLowerCase()).filter(Boolean), norm])];
+            localStorage.setItem(RESIDENT_PORTAL_SELF_REG_EMAILS_KEY, JSON.stringify(merged));
+        } catch (_e) {
+            localStorage.setItem(RESIDENT_PORTAL_SELF_REG_EMAILS_KEY, JSON.stringify([norm]));
+        }
+    }
+
+    function persistResidentAuth(result) {
+        const payload = { user: result.user, session: result.session };
+        sessionStorage.setItem("residentAuth", JSON.stringify(payload));
+        if (result?.user?.residentUserId) {
+            const residentUserId = String(result.user.residentUserId);
+            sessionStorage.setItem(RESIDENT_CONTEXT_KEY, JSON.stringify({ residentUserId }));
+        }
+    }
+
+    function validateRegisterPasswordMatch(forceShowError = false) {
+        const { passInput, confirmInput, errorEl } = getRegisterElements();
+        const password = String(passInput?.value || "");
+        const confirmPassword = String(confirmInput?.value || "");
+
+        if (!errorEl) return true;
+        if (!confirmPassword) {
+            if (forceShowError && password) {
+                errorEl.style.color = "#b91c1c";
+                errorEl.innerText = "Please confirm your password.";
+            } else {
+                errorEl.style.color = "#b91c1c";
+                errorEl.innerText = "";
+            }
+            return false;
+        }
+
+        if (password !== confirmPassword) {
+            errorEl.style.color = "#b91c1c";
+            errorEl.innerText = "Passwords do not match.";
+            return false;
+        }
+
+        errorEl.style.color = "#166534";
+        errorEl.innerText = "Passwords match.";
+        return true;
+    }
+
+    function hasIdentityVerificationFile() {
+        const input = document.getElementById("id-upload");
+        return Boolean(input?.files?.length);
+    }
+
+    function updateRegisterSubmitState() {
+        const registerBtn = document.getElementById("resident-register-submit");
+        const { passInput, confirmInput } = getRegisterElements();
+        if (!registerBtn || registerBtn.classList.contains("is-loading")) return;
+
+        const password = String(passInput?.value || "");
+        const confirmPassword = String(confirmInput?.value || "");
+        const canSubmit =
+            hasIdentityVerificationFile() &&
+            Boolean(password) &&
+            password.length >= REGISTER_MIN_PASSWORD_LEN &&
+            password === confirmPassword;
+
+        registerBtn.disabled = !canSubmit;
+        registerBtn.style.opacity = canSubmit ? "1" : "0.6";
+        registerBtn.style.cursor = canSubmit ? "pointer" : "not-allowed";
+    }
+
+    function setLoginSubmitLoading(isLoading) {
+        const btn = document.getElementById("resident-login-submit");
+        if (!btn) return;
+        const label = btn.querySelector(".btn-submit-text");
+        btn.classList.toggle("is-loading", isLoading);
+        btn.disabled = isLoading;
+        btn.setAttribute("aria-busy", isLoading ? "true" : "false");
+        if (label) label.textContent = isLoading ? "Logging in…" : "Log in";
+    }
+
+    function setRegisterSubmitLoading(isLoading) {
+        const btn = document.getElementById("resident-register-submit");
+        if (!btn) return;
+        const label = btn.querySelector(".btn-submit-text");
+        btn.classList.toggle("is-loading", isLoading);
+        btn.setAttribute("aria-busy", isLoading ? "true" : "false");
+        if (label) label.textContent = isLoading ? "Creating account…" : "Sign in";
+        if (isLoading) {
+            btn.disabled = true;
+            btn.style.opacity = "0.92";
+            btn.style.cursor = "wait";
+        } else {
+            updateRegisterSubmitState();
+        }
+    }
+
+    async function handleResidentLogin() {
+        const { emailInput, passInput, errorEl } = getLoginElements();
+        if (errorEl) errorEl.innerText = "";
+        const email = String(emailInput?.value || "").trim();
+        const password = String(passInput?.value || "");
+
+        if (!email || !password) {
+            if (errorEl) errorEl.innerText = "Please enter your email and password.";
+            return;
+        }
+        if (!isClientEmailValid(email)) {
+            if (errorEl) errorEl.innerText = "Please enter a valid email address.";
+            return;
+        }
+
+        setLoginSubmitLoading(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/resident/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password })
+            });
+            const result = await response.json();
+            if (!response.ok || !result?.ok) {
+                if (errorEl) errorEl.innerText = result?.message || "Login failed. Please try again.";
+                return;
+            }
+            persistResidentAuth(result);
+            let maintenanceMode = false;
+            try {
+                const statusRes = await fetch(`${API_BASE_URL}/public/system-status`);
+                const statusJson = await statusRes.json().catch(() => ({}));
+                maintenanceMode = statusJson?.environment === "maintenance";
+            } catch (_e) {
+                maintenanceMode = false;
+            }
+            window.location.href = maintenanceMode
+                ? window.SB_MAINTENANCE?.maintenancePageHref?.() ||
+                  window.APP_ROUTES?.common?.maintenance ||
+                  "maintenance.html"
+                : RESIDENT_ROUTES.dashboard;
+        } catch (_error) {
+            if (errorEl) errorEl.innerText = "Cannot connect to backend. Make sure API server is running.";
+        } finally {
+            setLoginSubmitLoading(false);
+        }
+    }
+
+    async function handleResidentRegister() {
+        const { nameInput, emailInput, passInput, confirmInput, errorEl } = getRegisterElements();
+        if (errorEl) errorEl.innerText = "";
+
+        const fullName = String(nameInput?.value || "").trim();
+        const email = String(emailInput?.value || "").trim();
+        const password = String(passInput?.value || "");
+        const confirmPassword = String(confirmInput?.value || "");
+
+        if (!fullName || !email || !password || !confirmPassword) {
+            if (errorEl) errorEl.innerText = "Please complete all required fields.";
+            return;
+        }
+        if (!hasIdentityVerificationFile()) {
+            if (errorEl) errorEl.innerText = "Please upload a valid ID (JPEG, PNG, or PDF). This is required.";
+            return;
+        }
+        if (fullName.length > CLIENT_MAX_NAME_LEN) {
+            if (errorEl) errorEl.innerText = "Full name is too long.";
+            return;
+        }
+        if (!isClientEmailValid(email)) {
+            if (errorEl) errorEl.innerText = "Please enter a valid email address.";
+            return;
+        }
+        if (!validateRegisterPasswordMatch(true)) {
+            return;
+        }
+        if (password.length < REGISTER_MIN_PASSWORD_LEN) {
+            if (errorEl) errorEl.innerText = "Password must be at least 8 characters.";
+            return;
+        }
+        if (password.length > CLIENT_MAX_PASSWORD_LEN) {
+            if (errorEl) errorEl.innerText = "Password is too long.";
+            return;
+        }
+
+        const idInput = document.getElementById("id-upload");
+        const idFile = idInput?.files?.[0];
+        if (!idFile) {
+            if (errorEl) errorEl.innerText = "Please upload a valid ID (JPEG, PNG, or PDF). This is required.";
+            return;
+        }
+
+        setRegisterSubmitLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append("fullName", fullName);
+            formData.append("email", email);
+            formData.append("password", password);
+            formData.append("identityVerification", idFile, idFile.name);
+
+            const response = await fetch(`${API_BASE_URL}/auth/resident/register`, {
+                method: "POST",
+                body: formData
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result?.ok) {
+                if (errorEl) {
+                    const raw = String(result?.message || "").trim();
+                    const legacyMultipartMismatch =
+                        raw === "fullName, email, and password are required." ||
+                        /^fullName,\s*email,\s*and\s*password\s+are\s+required\.?$/i.test(raw);
+                    if (legacyMultipartMismatch) {
+                        errorEl.innerText =
+                            "The API at " +
+                            API_BASE_URL +
+                            " is an older build: it expects JSON, but this page sends your ID as a file (multipart). Redeploy the latest backend to Render (or point API_BASE_URL in resident-login.html to a server running the current code).";
+                    } else {
+                        errorEl.innerText = raw || "Registration failed. Please try again.";
+                    }
+                }
+                return;
+            }
+
+            rememberResidentPortalSelfRegistration(email);
+            showRegisterSuccessModal();
+        } catch (_error) {
+            if (errorEl) errorEl.innerText = "Cannot connect to backend. Make sure API server is running.";
+        } finally {
+            setRegisterSubmitLoading(false);
+        }
+    }
+
+
+
+    function resetIdentityVerificationUpload() {
+        const input = document.getElementById("id-upload");
+        const box = document.getElementById("upload-box");
+        const defaultState = document.getElementById("upload-default-state");
+        const successState = document.getElementById("upload-success-state");
+        if (input) input.value = "";
+        if (defaultState) defaultState.style.display = "block";
+        if (successState) successState.style.display = "none";
+        if (box) {
+            box.classList.remove("has-file");
+            box.onclick = function () {
+                document.getElementById("id-upload").click();
+            };
+        }
+        updateRegisterSubmitState();
+    }
+
+    function toggleForm() {
+        const registerForm = document.getElementById("register-form");
+        const registerWasVisible = registerForm && !registerForm.classList.contains("hidden");
+        document.getElementById('login-form').classList.toggle('hidden');
+        document.getElementById('register-form').classList.toggle('hidden');
+        if (registerWasVisible) {
+            resetIdentityVerificationUpload();
+        }
+        const loginError = document.getElementById("resident-login-error");
+        const registerError = document.getElementById("resident-register-error");
+        if (loginError) {
+            loginError.style.color = "#b91c1c";
+            loginError.innerText = "";
+        }
+        if (registerError) {
+            registerError.style.color = "#b91c1c";
+            registerError.innerText = "";
+        }
+        const lenHint = document.getElementById("resident-register-pass-length-msg");
+        if (lenHint) {
+            lenHint.textContent = "";
+            lenHint.style.color = "";
+        }
+        updateRegisterPasswordLengthHint();
+        updateRegisterSubmitState();
+    }
+
+    function togglePassword(inputId, toggleElement) {
+        const passwordInput = document.getElementById(inputId);
+        const icon = toggleElement.querySelector('svg');
+        if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+        } else {
+            passwordInput.type = "password";
+            icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+        }
+    }
+
+    document.getElementById("resident-login-pass")?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            handleResidentLogin();
+        }
+    });
+    document.getElementById("resident-register-confirm")?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            handleResidentRegister();
+        }
+    });
+    function handleFileUpload(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const errEl = document.getElementById("resident-register-error");
+        const maxBytes = 10 * 1024 * 1024;
+        const allowed = /\.(jpe?g|png|pdf)$/i;
+        if (!allowed.test(file.name)) {
+            if (errEl) {
+                errEl.style.color = "#b91c1c";
+                errEl.innerText = "Please choose a JPEG, PNG, or PDF file.";
+            }
+            input.value = "";
+            return;
+        }
+        if (file.size > maxBytes) {
+            if (errEl) {
+                errEl.style.color = "#b91c1c";
+                errEl.innerText = "File is too large (maximum 10MB).";
+            }
+            input.value = "";
+            return;
+        }
+        if (errEl) errEl.innerText = "";
+
+        const box = document.getElementById("upload-box");
+        const defaultState = document.getElementById("upload-default-state");
+        const successState = document.getElementById("upload-success-state");
+        const fileName = document.getElementById("upload-file-name");
+        const fileSize = document.getElementById("upload-file-size");
+
+        fileName.textContent = file.name;
+        const sizeKB = (file.size / 1024).toFixed(0);
+        fileSize.textContent = sizeKB >= 1024
+            ? (sizeKB / 1024).toFixed(1) + " MB"
+            : sizeKB + " KB";
+
+        defaultState.style.display = "none";
+        successState.style.display = "block";
+        box.classList.add("has-file");
+        // Prevent click from opening file picker when file is uploaded
+        box.onclick = null;
+        updateRegisterSubmitState();
+    }
+
+    function removeUploadedFile(event) {
+        event.stopPropagation();
+        resetIdentityVerificationUpload();
+    }
+
+function updatePasswordStrength(password) {
+        const wrap = document.getElementById("pw-strength-wrap");
+        const bar = document.getElementById("pw-strength-bar");
+        const label = document.getElementById("pw-strength-label");
+        if (!wrap || !bar || !label) return;
+
+        if (!password) { wrap.style.display = "none"; return; }
+        wrap.style.display = "block";
+
+        const checks = {
+            length:  password.length >= 8,
+            upper:   /[A-Z]/.test(password),
+            lower:   /[a-z]/.test(password),
+            number:  /[0-9]/.test(password),
+            special: /[^A-Za-z0-9]/.test(password)
+        };
+
+        ["length","upper","lower","number","special"].forEach(key => {
+            const li = document.getElementById("pwc-" + key);
+            if (li) li.classList.toggle("met", checks[key]);
+        });
+
+        const score = Object.values(checks).filter(Boolean).length;
+        const levels = [
+            { pct: "20%",  color: "#ef4444", text: "Very Weak" },
+            { pct: "40%",  color: "#f97316", text: "Weak"      },
+            { pct: "60%",  color: "#eab308", text: "Fair"      },
+            { pct: "80%",  color: "#3b82f6", text: "Good"      },
+            { pct: "100%", color: "#16a34a", text: "Strong"    }
+        ];
+        const lvl = levels[score - 1] || levels[0];
+        bar.style.width = lvl.pct;
+        bar.style.backgroundColor = lvl.color;
+        label.textContent = lvl.text;
+        label.style.color = lvl.color;
+        wrap.style.borderColor = lvl.color + "55";
+    }
+
+    document.getElementById("resident-register-pass")?.addEventListener("input", () => {
+        const passInput = document.getElementById("resident-register-pass");
+        updateRegisterPasswordLengthHint();
+        updatePasswordStrength(passInput?.value || "");
+        const confirmInput = document.getElementById("resident-register-confirm");
+        if (confirmInput?.value) validateRegisterPasswordMatch();
+        updateRegisterSubmitState();
+    });
+    document.getElementById("resident-register-confirm")?.addEventListener("input", () => {
+        validateRegisterPasswordMatch();
+        updateRegisterSubmitState();
+    });
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            if (registerSuccessModal && registerSuccessModal.style.display === "flex") {
+                closeRegisterSuccessAndGoLogin();
+            }
+        }
+    });
+
+    registerSuccessModal?.addEventListener("click", (event) => {
+        if (event.target === registerSuccessModal) {
+            closeRegisterSuccessAndGoLogin();
+        }
+    });
+
+    // Block emojis from ALL input fields
+    const emojiRegex = /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu;
+
+    document.querySelectorAll("input[type='text'], input[type='email'], input[type='password']").forEach(el => {
+        // Strip emojis on input (covers typing, paste, drag-drop)
+        el.addEventListener("input", function () {
+            const pos = this.selectionStart;
+            const cleaned = this.value.replace(emojiRegex, "");
+            if (cleaned !== this.value) {
+                this.value = cleaned;
+                this.setSelectionRange(Math.max(0, pos - 1), Math.max(0, pos - 1));
+            }
+        });
+
+        // Block emoji key presses before they land
+        el.addEventListener("keydown", function (e) {
+            if (emojiRegex.test(e.key)) e.preventDefault();
+        });
+    });
+
+    // Block cut, copy, paste and right-click on password fields only
+    ["resident-login-pass", "resident-register-pass", "resident-register-confirm"].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        ["cut", "copy", "paste"].forEach(evt => {
+            el.addEventListener(evt, function (e) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+            });
+        });
+
+        el.addEventListener("contextmenu", function (e) {
+            e.preventDefault();
+            return false;
+        });
+    });
+
+    updateRegisterSubmitState();
+</script>
+
+</body>
+</html>

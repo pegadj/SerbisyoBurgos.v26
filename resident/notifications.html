@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulletin Board | SerbisyoBurgos</title>
+    <link rel="icon" type="image/png" href="../asset/SB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --brand-green: #16a34a;
+            --brand-dark: #043d2e;
+            --brand-blue: #2563eb;
+            --brand-red: #ef4444;
+            --bg-light: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-width: 260px;
+            --white: #ffffff; /* Add this line */
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); color: var(--text-main); display: flex; min-height: 100vh; }
+
+        /* SIDEBAR NAVIGATION */
+        aside {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            position: fixed;
+            display: flex;           /* Added */
+            flex-direction: column;  /* Added */
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            color: var(--brand-dark);
+            font-size: 1.25rem;
+        }
+
+        .sidebar-header img { width: 32px; }
+
+        nav {
+            flex-grow: 1;
+            padding: 1rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.85rem 1rem;
+            text-decoration: none;
+            color: var(--text-muted);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+
+        .nav-link:hover {
+            background: #f8fafc;
+            color: var(--brand-green);
+        }
+
+        .nav-link.active {
+            background: #f0fdf4;
+            color: var(--brand-green);
+            font-weight: 600;
+        }
+
+        /* Sidebar Footer Layout */
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #f1f5f9;
+            margin-top: auto; /* This pushes the footer to the bottom of the sidebar */
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: #f0fdf4;
+            color: var(--brand-green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .user-role {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Logout Button Style */
+        .logout-btn {
+            width: 100%;
+            height: 45px; /* Added specific height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff1f2;
+            color: #e11d48;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.95rem; /* Slightly larger text */
+            transition: all 0.2s ease;
+            border: none;
+            margin-top: 10px;
+        }
+
+        .logout-btn:hover {
+            background: #ffe4e6;
+        }
+
+        /* Resident sidebar branding */
+        aside {
+            background: #5f9632;
+            border-right: 1px solid rgba(4, 61, 46, 0.18);
+        }
+        .sidebar-header {
+            padding: 1.75rem 1.25rem 1.25rem;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.75rem;
+            color: white;
+            font-weight: 800;
+            text-align: center;
+        }
+        .sidebar-header img {
+            width: 54px !important;
+            height: 54px;
+            object-fit: contain;
+            border-radius: 50%;
+            background: white;
+            padding: 3px;
+            border: 3px solid var(--brand-dark);
+        }
+        .nav-link { color: rgba(255, 255, 255, 0.9); }
+        .nav-link:hover { background: #4f7f29; color: white; }
+        .nav-link.active { background: #426c22; color: white; }
+        .logout-btn { background: rgba(255, 255, 255, 0.14); color: white; }
+        .logout-btn:hover,
+        .logout-btn:focus-visible { background: #b91c1c; }
+        .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.18); }
+        .user-profile { color: white; }
+        .user-avatar { color: var(--brand-dark); }
+        .user-role { color: rgba(255, 255, 255, 0.75); }
+        
+        /* MAIN CONTENT */
+        main { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 2.5rem 3rem; }
+        .page-header h1 { font-size: 1.85rem; font-weight: 700; color: var(--brand-dark); }
+        
+        .welcome-section {
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            border-left: 6px solid #5f9632;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center; /* Vertical centering */
+            gap: 20px;
+            margin-bottom: 2.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            min-height: 110px; /* Fixed height to prevent "jumping" when switching pages */
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .welcome-icon-wrapper {
+            width: 56px;
+            height: 56px;
+            background-color: #5f9632;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .welcome-icon-wrapper svg {
+            color: white;
+            width: 28px;
+            height: 28px;
+        }
+
+        .welcome-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .welcome-text h1 {
+            font-size: 1.5rem;
+            color: #043d2e; /* --brand-dark from dashboard_15.html */
+            font-weight: 700;
+            margin: 0 0 4px 0;
+            line-height: 1.2;
+        }
+
+        .welcome-text p {
+            color: #64748b; /* --text-muted from dashboard_15.html */
+            font-size: 0.95rem;
+            margin: 0;
+        }
+
+        /* Tab & Button Container */
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+        }
+
+        .filter-tabs { 
+            display: flex; 
+            gap: 2rem; 
+            border-bottom: none; /* Removed border here to use parent border */
+            margin-bottom: 0; 
+        }
+
+        .mark-all-btn { 
+            color: #5f9632; 
+            background: #f0fdf4; 
+            border: 1px solid #dcfce7; 
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600; 
+            cursor: pointer; 
+            font-size: 0.85rem; 
+            transition: all 0.2s;
+        }
+
+        .mark-all-btn:hover { background: #dcfce7; color: #166534; }
+        .mark-all-btn:active { transform: scale(0.98); }
+
+        .tab { padding-bottom: 1rem; color: var(--text-muted); font-weight: 600; cursor: pointer; position: relative; }
+        .tab.active { color: var(--brand-green); }
+        .tab.active::after { content: ""; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: var(--brand-green); }
+
+        /* NOTIFICATION LIST */
+        .notif-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            cursor: default;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+        }
+        .notif-card.notif-card--announcement {
+            cursor: pointer;
+        }
+        .notif-card.notif-card--announcement:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        }
+        .notif-card.notif-card--announcement:focus-visible {
+            outline: 2px solid var(--brand-green);
+            outline-offset: 2px;
+        }
+        .notif-card.notif-card--announcement .ann-open-hint {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-top: 0.35rem;
+            letter-spacing: 0.02em;
+        }
+        .notif-card.unread { border-left: 4px solid var(--brand-green); }
+        /* Request/appointment updates + new barangay admin posts */
+        .notif-card.bulletin-spotlight {
+            background: linear-gradient(135deg, #fffbeb 0%, #fff7ed 55%, #ffffff 100%);
+            border-color: #fcd34d;
+            box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.25), 0 8px 20px -6px rgba(180, 83, 9, 0.12);
+        }
+        .notif-card.bulletin-spotlight.unread { border-left-width: 5px; border-left-color: #d97706; }
+        .unread-dot { width: 8px; height: 8px; background: var(--brand-green); border-radius: 50%; position: absolute; top: 1.5rem; right: 1.5rem; }
+        .notif-card.bulletin-spotlight .unread-dot { background: #d97706; }
+
+        .notif-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .icon-blue { background: #eff6ff; color: var(--brand-blue); }
+        .icon-green { background: #f0fdf4; color: var(--brand-green); }
+        .icon-red { background: #fef2f2; color: var(--brand-red); }
+        .icon-amber { background: #fffbeb; color: #b45309; }
+
+        .notif-content h4 { font-size: 1rem; margin-bottom: 6px; color: var(--brand-dark); }
+        .notif-content p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.45; margin-bottom: 6px; }
+        .notif-time { font-size: 0.8rem; color: #94a3b8; }
+
+        /* Logout confirmation (fullscreen overlay + centered dialog) */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(2px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 4000;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 1.75rem;
+            border: 1px solid #e2e8f0;
+            max-width: min(440px, 100%);
+            width: 100%;
+            box-shadow: 0 20px 44px rgba(2, 6, 23, 0.25);
+        }
+
+        /* Announcement full post (matches bulletin / welcome card language) */
+        .modal-content.announcement-detail-modal {
+            position: relative;
+            max-width: min(560px, 100%);
+            max-height: min(88vh, 720px);
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem 1.75rem 1.5rem;
+            border-left: 6px solid #5f9632;
+        }
+        .announcement-detail-modal .ann-detail-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 2.25rem;
+            height: 2.25rem;
+            border: none;
+            border-radius: 10px;
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 1.35rem;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, color 0.2s;
+        }
+        .announcement-detail-modal .ann-detail-close:hover {
+            background: #e2e8f0;
+            color: var(--brand-dark);
+        }
+        .announcement-detail-modal .ann-detail-category {
+            display: inline-block;
+            margin: 0 0 0.65rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .announcement-detail-modal #announcementDetailTitle {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--brand-dark);
+            margin: 0 2.5rem 0.75rem 0;
+            line-height: 1.35;
+            padding-right: 0.25rem;
+        }
+        .announcement-detail-modal .ann-detail-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1rem;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .announcement-detail-modal .ann-detail-meta span {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .announcement-detail-modal .ann-detail-body {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            font-size: 0.95rem;
+            line-height: 1.65;
+            color: #475569;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .announcement-detail-modal .ann-detail-footer {
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .announcement-detail-modal .ann-detail-footer .mark-all-btn {
+            min-width: 6.5rem;
+            justify-content: center;
+        }
+
+        /* AI CHATBOT STYLES */
+        #chatToggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: var(--brand-green);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 2000;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .chat-window {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 350px;
+            height: 480px;
+            background: white;
+            border-radius: 20px;
+            display: none;
+            flex-direction: column;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.2);
+            z-index: 2001;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .chat-header { background: var(--brand-dark); color: white; padding: 1.2rem; display: flex; justify-content: space-between; align-items: center; }
+        .chat-body { flex-grow: 1; padding: 1rem; overflow-y: auto; background: #f1f5f9; display: flex; flex-direction: column; gap: 12px; }
+        .msg { max-width: 85%; padding: 10px 14px; border-radius: 15px; font-size: 0.88rem; line-height: 1.5; }
+        .msg-ai { background: white; align-self: flex-start; border: 1px solid #e2e8f0; }
+        .msg-user { background: var(--brand-green); color: white; align-self: flex-end; }
+        .chat-footer { padding: 1rem; display: flex; gap: 8px; border-top: 1px solid #e2e8f0; background: white; }
+        .chat-footer input { flex-grow: 1; padding: 0.7rem; border: 1.5px solid #e2e8f0; border-radius: 10px; outline: none; }
+        .chat-footer button { background: var(--brand-green); color: white; border: none; padding: 0 15px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="sidebar-header">
+            <img src="../asset/SB.png" alt="Logo">
+            <span>SerbisyoBurgos</span>
+        </div>
+        
+        <nav>
+            <a href="dashboard.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                Dashboard
+            </a>
+            <a href="service-requests.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Service Requests
+            </a>
+            <a href="appointments.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                Appointments
+            </a>
+            <a href="notifications.html" class="nav-link active">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                Bulletin Board
+            </a>
+            <a href="request-history.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                Request History
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-profile" id="residentProfileBtn" style="cursor: pointer;">
+                <div class="user-avatar" id="residentSidebarAvatar" aria-hidden="true">?</div>
+                <div class="user-info">
+                    <span class="user-name" id="residentSidebarName">Resident</span>
+                    <span class="user-role">View Profile</span>
+                </div>
+            </div>
+            <a href="landing.html" class="logout-btn" onclick="handleLogout(event)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <main>
+        <section class="welcome-section">
+            <div class="welcome-icon-wrapper">
+                <!-- Navigation Bell Icon -->
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+            </div>
+            <div class="welcome-text">
+                <h1>Bulletin Board</h1>
+                <p>Service and appointment updates from the office, plus community announcements.</p>
+            </div>
+        </section>
+
+        <div class="controls-row">
+            <div class="filter-tabs" style="border-bottom: none; margin-bottom: 0;">
+                <div class="tab active" data-bulletin-tab="all" role="tab" tabindex="0">All Notifications</div>
+                <div class="tab" data-bulletin-tab="announcements" role="tab" tabindex="0">Announcements</div>
+            </div>
+            <button type="button" class="mark-all-btn" onclick="markAllBulletinReads()">Mark all read</button>
+        </div>
+
+        <div class="notification-list">
+            <section class="notification-group">
+                <div id="notificationsFeed">
+                    <p style="color:var(--text-muted); font-size:0.9rem;">Loading…</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="chatToggle" onclick="toggleChat()">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </div>
+
+    <div id="chatWindow" class="chat-window">
+        <div class="chat-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:10px; height:10px; background:#22c55e; border-radius:50%;"></div>
+                <span>SB Assistant</span>
+            </div>
+            <button onclick="toggleChat()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+        <div id="chatBody" class="chat-body"></div>
+        <div class="chat-footer">
+            <input type="text" id="chatInput" placeholder="Type here...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <div id="announcementDetailModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="announcementDetailTitle">
+        <div class="modal-content announcement-detail-modal">
+            <button type="button" class="ann-detail-close" id="announcementDetailCloseBtn" aria-label="Close announcement">&times;</button>
+            <span id="announcementDetailCategory" class="ann-detail-category"></span>
+            <h2 id="announcementDetailTitle">Announcement</h2>
+            <div class="ann-detail-meta" id="announcementDetailMeta"></div>
+            <div id="announcementDetailBody" class="ann-detail-body"></div>
+            <div class="ann-detail-footer">
+                <button type="button" class="mark-all-btn" id="announcementDetailDoneBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="logoutModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+        <div class="modal-content">
+            <h2 id="logoutModalTitle" style="font-size:1.1rem; color:var(--brand-dark); margin-bottom:0.75rem;">Confirm Logout</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.25rem;">Are you sure you want to logout from your resident portal?</p>
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+                <button id="logoutCancelBtn" type="button" class="mark-all-btn" style="background:#f1f5f9; color:#334155;">Cancel</button>
+                <button id="logoutConfirmBtn" type="button" class="mark-all-btn" style="background:#e11d48;">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/routes.js"></script>
+    <script src="../shared/maintenance-check.js"></script>
+    <script src="../shared/resident-auth-guard.js"></script>
+    <script src="../shared/resident-sidebar-profile.js"></script>
+    <script src="../shared/resident-profile-modal.js"></script>
+    <script>
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+        const READ_ANNOUNCEMENT_IDS_KEY = "bulletinReadAnnouncementIds";
+        const READ_ACTIVITY_KEYS_KEY = "bulletinReadActivityKeys";
+        const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "landing.html" };
+        const RESIDENT_ROUTES = window.APP_ROUTES?.resident || {};
+        const logoutModal = document.getElementById("logoutModal");
+        const logoutCancelBtn = document.getElementById("logoutCancelBtn");
+        const logoutConfirmBtn = document.getElementById("logoutConfirmBtn");
+        const announcementDetailModal = document.getElementById("announcementDetailModal");
+        const announcementDetailCloseBtn = document.getElementById("announcementDetailCloseBtn");
+        const announcementDetailDoneBtn = document.getElementById("announcementDetailDoneBtn");
+        const announcementDetailCategory = document.getElementById("announcementDetailCategory");
+        const announcementDetailTitle = document.getElementById("announcementDetailTitle");
+        const announcementDetailMeta = document.getElementById("announcementDetailMeta");
+        const announcementDetailBody = document.getElementById("announcementDetailBody");
+        function applyResidentRouteLinks() {
+            const hrefMap = {
+                "dashboard.html": RESIDENT_ROUTES.dashboard || "dashboard.html",
+                "service-requests.html": RESIDENT_ROUTES.serviceRequests || "service-requests.html",
+                "appointments.html": RESIDENT_ROUTES.appointments || "appointments.html",
+                "notifications.html": RESIDENT_ROUTES.notifications || "notifications.html",
+                "request-history.html": RESIDENT_ROUTES.requestHistory || "request-history.html",
+                "landing.html": COMMON_ROUTES.landing
+            };
+            Object.entries(hrefMap).forEach(([from, to]) => {
+                document.querySelectorAll(`a[href="${from}"]`).forEach((link) => {
+                    link.href = to;
+                });
+            });
+        }
+        applyResidentRouteLinks();
+
+        let latestAnnouncementRows = [];
+        let latestRequests = [];
+        let latestAppointments = [];
+        let latestActivityCards = [];
+
+        let activeBulletinTab = "all";
+        let requestEventStream = null;
+        let appointmentEventStream = null;
+        let announcementEventStream = null;
+
+        function normalizeAnnouncementId(raw) {
+            const n = Number(raw);
+            return Number.isInteger(n) && n > 0 ? n : null;
+        }
+
+        function loadReadAnnouncementIds() {
+            try {
+                const parsed = JSON.parse(sessionStorage.getItem(READ_ANNOUNCEMENT_IDS_KEY) || "[]");
+                if (!Array.isArray(parsed)) return [];
+                const out = [];
+                const seen = new Set();
+                for (const x of parsed) {
+                    const id = normalizeAnnouncementId(x);
+                    if (id === null || seen.has(id)) continue;
+                    seen.add(id);
+                    out.push(id);
+                }
+                return out;
+            } catch (_e) {
+                return [];
+            }
+        }
+
+        function saveReadAnnouncementIds(ids) {
+            const merged = [];
+            const seen = new Set();
+            for (const x of ids || []) {
+                const id = normalizeAnnouncementId(x);
+                if (id === null || seen.has(id)) continue;
+                seen.add(id);
+                merged.push(id);
+            }
+            sessionStorage.setItem(READ_ANNOUNCEMENT_IDS_KEY, JSON.stringify(merged));
+        }
+
+        /** Drop read markers for announcements that no longer exist (e.g. admin deleted the post). */
+        function pruneReadAnnouncementIdsToCurrentRows(rows) {
+            const valid = new Set(
+                (rows || [])
+                    .map((a) => normalizeAnnouncementId(a?.id))
+                    .filter((id) => id !== null)
+            );
+            const current = loadReadAnnouncementIds();
+            const next = current.filter((id) => valid.has(id));
+            if (next.length !== current.length) {
+                saveReadAnnouncementIds(next);
+            }
+        }
+
+        function loadReadActivityKeys() {
+            try {
+                const parsed = JSON.parse(sessionStorage.getItem(READ_ACTIVITY_KEYS_KEY) || "[]");
+                if (!Array.isArray(parsed)) return [];
+                const out = [];
+                const seen = new Set();
+                for (const x of parsed) {
+                    const k = String(x ?? "").trim();
+                    if (!k || seen.has(k)) continue;
+                    seen.add(k);
+                    out.push(k);
+                }
+                return out;
+            } catch (_e) {
+                return [];
+            }
+        }
+
+        function saveReadActivityKeys(keys) {
+            const merged = [];
+            const seen = new Set();
+            for (const x of keys || []) {
+                const k = String(x ?? "").trim();
+                if (!k || seen.has(k)) continue;
+                seen.add(k);
+                merged.push(k);
+            }
+            const capped = merged.length > 800 ? merged.slice(merged.length - 800) : merged;
+            sessionStorage.setItem(READ_ACTIVITY_KEYS_KEY, JSON.stringify(capped));
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        function escapeAttr(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function getAnnouncementCategoryBadgeStyle(category) {
+            const c = String(category || "");
+            if (c.includes("Emergency")) return { background: "#fee2e2", color: "#ef4444" };
+            if (c.includes("Holiday")) return { background: "#dcfce7", color: "#16a34a" };
+            if (c.includes("Service Interruption")) return { background: "#fef3c7", color: "#d97706" };
+            if (c.includes("Community News")) return { background: "#e0e7ff", color: "#4f46e5" };
+            return { background: "#e0f2fe", color: "#0284c7" };
+        }
+
+        function formatPostedByDisplay(role) {
+            const r = String(role || "").trim().toLowerCase();
+            if (r === "admin") return "Barangay admin";
+            if (r === "staff") return "Barangay staff";
+            if (r === "system-admin") return "System admin";
+            return r ? String(role).trim() : "Barangay office";
+        }
+
+        function formatAnnouncementFullDate(iso) {
+            if (!iso) return "—";
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return "—";
+            return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+        }
+
+        function findAnnouncementById(rawId) {
+            const n = normalizeAnnouncementId(rawId);
+            if (n === null) return null;
+            const rows = latestAnnouncementRows || [];
+            return rows.find((a) => normalizeAnnouncementId(a?.id) === n) || null;
+        }
+
+        function markAnnouncementOpenedAndRefresh(id) {
+            const n = normalizeAnnouncementId(id);
+            if (n === null) return;
+            const ids = loadReadAnnouncementIds();
+            if (ids.includes(n)) return;
+            saveReadAnnouncementIds([...ids, n]);
+            renderFeed();
+        }
+
+        function closeAnnouncementDetailModal() {
+            announcementDetailModal?.classList.remove("show");
+        }
+
+        function openAnnouncementDetailModal(rawId) {
+            const a = findAnnouncementById(rawId);
+            if (!a) return;
+
+            const catLabel = String(a.category || "Community News").trim() || "Community News";
+            const badge = getAnnouncementCategoryBadgeStyle(catLabel);
+            if (announcementDetailCategory) {
+                announcementDetailCategory.textContent = catLabel;
+                announcementDetailCategory.style.background = badge.background;
+                announcementDetailCategory.style.color = badge.color;
+            }
+            if (announcementDetailTitle) {
+                announcementDetailTitle.textContent = String(a.title || "Announcement").trim() || "Announcement";
+            }
+            if (announcementDetailMeta) {
+                const posted = formatPostedByDisplay(a.postedByRole);
+                const when = formatAnnouncementFullDate(a.createdAt);
+                announcementDetailMeta.innerHTML =
+                    '<span>Posted by <strong style="color:#334155;font-weight:600;">' +
+                    escapeHtml(posted) +
+                    '</strong></span><span>Date <strong style="color:#334155;font-weight:600;">' +
+                    escapeHtml(when) +
+                    "</strong></span>";
+            }
+            if (announcementDetailBody) {
+                const body = String(a.body || "").trim();
+                announcementDetailBody.textContent = body || "(No details were provided for this announcement.)";
+            }
+
+            markAnnouncementOpenedAndRefresh(a.id);
+            announcementDetailModal?.classList.add("show");
+            requestAnimationFrame(() => announcementDetailCloseBtn?.focus());
+        }
+
+        function formatRelativeTime(iso) {
+            const t = new Date(iso || 0).getTime();
+            if (Number.isNaN(t)) return "";
+            const diffMs = Date.now() - t;
+            const mins = Math.floor(diffMs / 60000);
+            if (mins < 1) return "Just now";
+            if (mins < 60) return `${mins} min ago`;
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+            const days = Math.floor(hrs / 24);
+            if (days < 7) return `${days} day${days === 1 ? "" : "s"} ago`;
+            return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        }
+
+        async function resolveResidentUserIdCached() {
+            const RES_CTX = "residentContext";
+            try {
+                const parsed = JSON.parse(sessionStorage.getItem(RES_CTX) || "{}");
+                if (parsed?.residentUserId) return String(parsed.residentUserId);
+            } catch (_e) {
+                /* ignore */
+            }
+            const response = await residentApiFetch(`${API_BASE_URL}/resident/context`);
+            const result = await response.json();
+            if (!response.ok || !result?.ok || !result.residentUserId) {
+                throw new Error(result?.message || "Unable to resolve resident.");
+            }
+            const rid = String(result.residentUserId);
+            sessionStorage.setItem(RES_CTX, JSON.stringify({ residentUserId: rid }));
+            return rid;
+        }
+
+        function purposeLabelBrief(purpose) {
+            const n = String(purpose || "").toLowerCase();
+            if (n === "in-person") return "document processing appointment";
+            if (n === "pickup") return "document / ID pickup";
+            if (n === "consultation") return "face-to-face consultation";
+            return purpose ? String(purpose) : "your appointment";
+        }
+
+        /** Drop the first timeline entry — it anchors the filing time, not staff action. Show later staff-driven updates only. */
+        function staffFacingTimelineSlices(timeline) {
+            const raw = Array.isArray(timeline) ? timeline.slice() : [];
+            raw.sort((a, b) => new Date(a?.at || 0).getTime() - new Date(b?.at || 0).getTime());
+            return raw.slice(1);
+        }
+
+        function buildActivityCards(requests, appointments, readKeySet) {
+            const readKeys = readKeySet instanceof Set ? readKeySet : new Set(Array.isArray(readKeySet) ? readKeySet : []);
+            const out = [];
+
+            for (const r of requests || []) {
+                const ref = String(r.referenceNo || r.id || "").trim();
+                const titlePlain = String(r.title || r.serviceType || "Service request").slice(0, 120);
+                const slices = staffFacingTimelineSlices(r.statusTimeline);
+                for (const e of slices) {
+                    const st = String(e?.status || "Updated").trim();
+                    const iso = e?.at || null;
+                    const sortMs = new Date(iso || 0).getTime();
+                    if (Number.isNaN(sortMs)) continue;
+                    const note = typeof e?.note === "string" && e.note.trim() ? escapeHtml(e.note.trim()) : "";
+                    const headline = escapeHtml(ref ? `#${ref}` : `#${String(r.id || "")}`);
+                    const feedKey = `service:${String(r?.id ?? "")}:${sortMs}:${escapeHtml(st)}`;
+                    out.push({
+                        feedKey,
+                        sortMs,
+                        type: "service",
+                        unread: !readKeys.has(feedKey),
+                        iconClass: "icon-blue",
+                        icon: "📄",
+                        title: headline,
+                        bodyHtml:
+                            `<p>Your service request ${headline} (${escapeHtml(titlePlain)}) is now ` +
+                            `<strong>${escapeHtml(st)}</strong>.</p>` +
+                            (note ? `<p style="margin-top:6px;">Note from the office: ${note}</p>` : ""),
+                        timeLabel: formatRelativeTime(iso)
+                    });
+                }
+            }
+
+            for (const apt of appointments || []) {
+                const ref = String(apt.referenceNo || apt.id || "").trim();
+                const purpose = purposeLabelBrief(apt.purpose);
+                const slices = staffFacingTimelineSlices(apt.statusTimeline);
+                for (const e of slices) {
+                    const st = String(e?.status || "Updated").trim();
+                    const iso = e?.at || null;
+                    const sortMs = new Date(iso || 0).getTime();
+                    if (Number.isNaN(sortMs)) continue;
+                    const note = typeof e?.note === "string" && e.note.trim() ? escapeHtml(e.note.trim()) : "";
+                    const headline = escapeHtml(ref ? `#${ref}` : `#${String(apt.id || "")}`);
+                    const safePurpose = escapeHtml(purpose);
+                    const feedKey = `apt:${String(apt?.id ?? "")}:${sortMs}:${escapeHtml(st)}`;
+                    out.push({
+                        feedKey,
+                        sortMs,
+                        type: "appointment",
+                        unread: !readKeys.has(feedKey),
+                        iconClass: "icon-amber",
+                        icon: "📅",
+                        title: headline,
+                        bodyHtml:
+                            `<p>Your appointment ${headline} (${safePurpose}) is now <strong>${escapeHtml(st)}</strong>.</p>` +
+                            (note ? `<p style="margin-top:6px;">Note from the office: ${note}</p>` : ""),
+                        timeLabel: formatRelativeTime(iso)
+                    });
+                }
+            }
+
+            out.sort((a, b) => b.sortMs - a.sortMs);
+            return out;
+        }
+
+        function buildAnnouncementCards(announcements, options) {
+            const readIds = new Set(loadReadAnnouncementIds());
+            const onlyAdmin = options?.onlyAdmin === true;
+            return (announcements || [])
+                .filter((a) => {
+                    if (!onlyAdmin) return true;
+                    return String(a?.postedByRole || "").trim() === "admin";
+                })
+                .map((a) => {
+                    const id = normalizeAnnouncementId(a.id);
+                    const unread = id !== null && !readIds.has(id);
+                    const rawBody = String(a.body || "");
+                    const preview = rawBody.length > 420 ? `${escapeHtml(rawBody.slice(0, 420))}…` : escapeHtml(rawBody);
+                    const sortMs = new Date(a.createdAt || 0).getTime();
+                    const iso = a.createdAt;
+                    const titlePlain = String(a.title || "Announcement").trim() || "Announcement";
+                    return {
+                        feedKey: `announcement:${id ?? "x"}:${sortMs}`,
+                        sortMs,
+                        type: "announcement",
+                        unread,
+                        postedByRole: String(a?.postedByRole || "").trim(),
+                        iconClass: "icon-green",
+                        icon: "📢",
+                        title: escapeHtml(titlePlain),
+                        announcementTitlePlain: titlePlain,
+                        bodyHtml: `
+                            <p><span style="font-size:0.75rem;font-weight:700;color:#64748b;">${escapeHtml(a.category || "Community")}</span></p>
+                            <p>${preview}</p>`,
+                        timeLabel: formatRelativeTime(iso),
+                        announcementId: id
+                    };
+                })
+                .sort((a, b) => b.sortMs - a.sortMs);
+        }
+
+        function renderFeed() {
+            const feed = document.getElementById("notificationsFeed");
+            if (!feed) return;
+
+            const annCards = buildAnnouncementCards(latestAnnouncementRows, {
+                onlyAdmin: activeBulletinTab === "announcements"
+            });
+            const merged =
+                activeBulletinTab === "announcements"
+                    ? annCards.slice()
+                    : [...latestActivityCards, ...buildAnnouncementCards(latestAnnouncementRows, { onlyAdmin: false })].sort(
+                          (x, y) => y.sortMs - x.sortMs
+                      );
+
+            if (!merged.length) {
+                feed.innerHTML =
+                    '<p style="color:var(--text-muted); font-size:0.9rem;">No entries yet.</p>';
+                return;
+            }
+
+            feed.innerHTML = merged
+                .map((row) => {
+                    const unread = row.unread ? " unread" : "";
+                    const dot = row.unread ? '<div class="unread-dot" aria-hidden="true"></div>' : "";
+                    const isActivity = row.type === "service" || row.type === "appointment";
+                    const isAnnouncement = row.type === "announcement";
+                    const annId = isAnnouncement && row.announcementId !== null ? String(row.announcementId) : "";
+                    const isAdminPost =
+                        row.type === "announcement" && String(row.postedByRole || "").toLowerCase() === "admin";
+                    const spotlight =
+                        (isActivity && row.unread) || (isAdminPost && row.unread);
+                    const spotlightClass = spotlight ? " bulletin-spotlight" : "";
+                    const annInteractiveClass = annId ? " notif-card--announcement" : "";
+                    const ariaAnn =
+                        annId !== ""
+                            ? escapeAttr(`View full announcement: ${row.announcementTitlePlain || "Announcement"}`)
+                            : "";
+                    const annAttrs =
+                        annId !== ""
+                            ? ` role="button" tabindex="0" data-announcement-id="${escapeHtml(annId)}" aria-label="${ariaAnn}"`
+                            : "";
+                    const annHint =
+                        annId !== ""
+                            ? '<p class="ann-open-hint">View full post</p>'
+                            : "";
+                    return `
+                        <article class="notif-card${unread}${spotlightClass}${annInteractiveClass}" data-feed-key="${escapeHtml(row.feedKey)}" data-unread="${row.unread ? "true" : "false"}"${annAttrs}>
+                            ${dot}
+                            <div class="notif-icon ${row.iconClass}">${escapeHtml(row.icon)}</div>
+                            <div class="notif-content">
+                                <h4>${row.title}</h4>
+                                ${row.bodyHtml}
+                                <span class="notif-time">${escapeHtml(row.timeLabel)}</span>
+                                ${annHint}
+                            </div>
+                        </article>`;
+                })
+                .join("");
+        }
+
+        async function reloadBulletinData() {
+            const feed = document.getElementById("notificationsFeed");
+            if (!feed) return;
+
+            feed.innerHTML = `<p style="color:var(--text-muted); font-size:0.9rem;">Loading…</p>`;
+
+            try {
+                const residentUserId = await resolveResidentUserIdCached();
+
+                const [reqRes, apptRes, annRes] = await Promise.all([
+                    residentApiFetch(`${API_BASE_URL}/requests?residentUserId=${encodeURIComponent(residentUserId)}`),
+                    residentApiFetch(`${API_BASE_URL}/appointments?residentUserId=${encodeURIComponent(residentUserId)}`),
+                    residentApiFetch(`${API_BASE_URL}/resident/announcements`)
+                ]);
+
+                const reqJson = await reqRes.json().catch(() => ({}));
+                const apJson = await apptRes.json().catch(() => ({}));
+                const annJson = await annRes.json().catch(() => ({}));
+
+                if (!reqRes.ok || !reqJson.ok) throw new Error(reqJson.message || "Unable to load service requests.");
+                if (!apptRes.ok || !apJson.ok) throw new Error(apJson.message || "Unable to load appointments.");
+                if (!annRes.ok || !annJson.ok) throw new Error(annJson.message || "Unable to load announcements.");
+
+                latestRequests = reqJson.requests || [];
+                latestAppointments = apJson.appointments || [];
+                latestActivityCards = buildActivityCards(
+                    latestRequests,
+                    latestAppointments,
+                    new Set(loadReadActivityKeys())
+                );
+                latestAnnouncementRows = annJson.announcements || [];
+                pruneReadAnnouncementIdsToCurrentRows(latestAnnouncementRows);
+
+                renderFeed();
+            } catch (error) {
+                feed.innerHTML = `<p style="color:#b91c1c; font-size:0.9rem;">${escapeHtml(error?.message || "Unable to load bulletin.")}</p>`;
+            }
+        }
+
+        function setBulletinTab(tab) {
+            activeBulletinTab = tab === "announcements" ? "announcements" : "all";
+            document.querySelectorAll("[data-bulletin-tab]").forEach((el) => {
+                el.classList.toggle("active", el.getAttribute("data-bulletin-tab") === activeBulletinTab);
+            });
+            renderFeed();
+        }
+
+        function attachTabHandlers() {
+            document.querySelectorAll("[data-bulletin-tab]").forEach((tab) => {
+                tab.addEventListener("click", () => setBulletinTab(tab.getAttribute("data-bulletin-tab")));
+                tab.addEventListener("keydown", (event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setBulletinTab(tab.getAttribute("data-bulletin-tab"));
+                    }
+                });
+            });
+        }
+
+        function connectRealtimeFeeds() {
+            if (typeof window.residentSseUrl !== "function") return;
+
+            if (requestEventStream) requestEventStream.close();
+            requestEventStream = new EventSource(residentSseUrl(`${API_BASE_URL}/requests/events`));
+            requestEventStream.addEventListener("request-updated", () => reloadBulletinData());
+            requestEventStream.onerror = () => {
+                /* browser reconnects automatically */
+            };
+
+            if (appointmentEventStream) appointmentEventStream.close();
+            appointmentEventStream = new EventSource(residentSseUrl(`${API_BASE_URL}/appointments/events`));
+            appointmentEventStream.addEventListener("appointment-updated", () => reloadBulletinData());
+            appointmentEventStream.onerror = () => {
+                /* browser reconnects automatically */
+            };
+
+            if (announcementEventStream) announcementEventStream.close();
+            announcementEventStream = new EventSource(residentSseUrl(`${API_BASE_URL}/announcements/events`));
+            announcementEventStream.addEventListener("announcements-changed", () => reloadBulletinData());
+            announcementEventStream.onerror = () => {
+                /* browser reconnects automatically */
+            };
+        }
+
+        function markAllBulletinReads() {
+            const fromRows = [];
+            const seenRow = new Set();
+            for (const a of latestAnnouncementRows || []) {
+                const id = normalizeAnnouncementId(a?.id);
+                if (id === null || seenRow.has(id)) continue;
+                seenRow.add(id);
+                fromRows.push(id);
+            }
+            const mergedAnn = [...new Set([...loadReadAnnouncementIds(), ...fromRows])];
+            saveReadAnnouncementIds(mergedAnn);
+
+            const actKeys = (latestActivityCards || []).map((c) => c.feedKey).filter(Boolean);
+            saveReadActivityKeys([...new Set([...loadReadActivityKeys(), ...actKeys])]);
+            latestActivityCards = buildActivityCards(
+                latestRequests,
+                latestAppointments,
+                new Set(loadReadActivityKeys())
+            );
+
+            renderFeed();
+        }
+
+        attachTabHandlers();
+        reloadBulletinData();
+        connectRealtimeFeeds();
+
+        function attachAnnouncementFeedHandlers() {
+            const feed = document.getElementById("notificationsFeed");
+            if (!feed || feed.dataset.annHandlersAttached === "1") return;
+            feed.dataset.annHandlersAttached = "1";
+            feed.addEventListener("click", (event) => {
+                const card = event.target.closest("[data-announcement-id]");
+                if (!card || !feed.contains(card)) return;
+                openAnnouncementDetailModal(card.getAttribute("data-announcement-id"));
+            });
+            feed.addEventListener("keydown", (event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                const card = event.target.closest("[data-announcement-id]");
+                if (!card || !feed.contains(card)) return;
+                if (event.target !== card) return;
+                if (event.key === " ") event.preventDefault();
+                openAnnouncementDetailModal(card.getAttribute("data-announcement-id"));
+            });
+        }
+        attachAnnouncementFeedHandlers();
+
+        announcementDetailCloseBtn?.addEventListener("click", closeAnnouncementDetailModal);
+        announcementDetailDoneBtn?.addEventListener("click", closeAnnouncementDetailModal);
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            if (announcementDetailModal?.classList.contains("show")) {
+                event.preventDefault();
+                closeAnnouncementDetailModal();
+            }
+        });
+
+        function openLogoutModal() {
+            if (logoutModal) logoutModal.classList.add("show");
+        }
+        function closeLogoutModal() {
+            if (logoutModal) logoutModal.classList.remove("show");
+        }
+
+        window.onclick = function (e) {
+            if (e.target === logoutModal) closeLogoutModal();
+            if (e.target === announcementDetailModal) closeAnnouncementDetailModal();
+        };
+
+        function handleLogout(event) {
+            event.preventDefault();
+            openLogoutModal();
+        }
+        logoutCancelBtn?.addEventListener("click", closeLogoutModal);
+        logoutConfirmBtn?.addEventListener("click", () => {
+            if (window.APP_NAV?.logout) {
+                window.APP_NAV.logout();
+                return;
+            }
+            window.location.href = COMMON_ROUTES.landing;
+        });
+    </script>
+    <script src="../shared/resident-faq-chat.js"></script>
+</body>
+</html>

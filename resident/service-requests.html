@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Requests | SerbisyoBurgos</title>
+    <link rel="icon" type="image/png" href="../asset/SB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --brand-green: #16a34a;
+            --brand-dark: #043d2e;
+            --bg-light: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-width: 260px;
+            --danger-red: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); color: var(--text-main); display: flex; }
+
+        /* SIDEBAR NAVIGATION */
+        aside {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            position: fixed;
+            display: flex;           /* Added */
+            flex-direction: column;  /* Added */
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            color: var(--brand-dark);
+            font-size: 1.25rem;
+        }
+
+        .sidebar-header img { width: 32px; }
+
+        nav {
+            flex-grow: 1;
+            padding: 1rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.85rem 1rem;
+            text-decoration: none;
+            color: var(--text-muted);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+
+        .nav-link:hover {
+            background: #f8fafc;
+            color: var(--brand-green);
+        }
+
+        .nav-link.active {
+            background: #f0fdf4;
+            color: var(--brand-green);
+            font-weight: 600;
+        }
+
+        /* Sidebar Footer Layout */
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #f1f5f9;
+            margin-top: auto; /* This pushes the footer to the bottom of the sidebar */
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: #f0fdf4;
+            color: var(--brand-green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .user-role {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Logout Button Style */
+        .logout-btn {
+            width: 100%;
+            height: 45px; /* Added specific height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff1f2;
+            color: #e11d48;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.95rem; /* Slightly larger text */
+            transition: all 0.2s ease;
+            border: none;
+            margin-top: 10px;
+        }
+
+        .logout-btn:hover {
+            background: #ffe4e6;
+        }
+
+        /* Resident sidebar branding */
+        aside {
+            background: #5f9632;
+            border-right: 1px solid rgba(4, 61, 46, 0.18);
+        }
+        .sidebar-header {
+            padding: 1.75rem 1.25rem 1.25rem;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.75rem;
+            color: white;
+            font-weight: 800;
+            text-align: center;
+        }
+        .sidebar-header img {
+            width: 54px !important;
+            height: 54px;
+            object-fit: contain;
+            border-radius: 50%;
+            background: white;
+            padding: 3px;
+            border: 3px solid var(--brand-dark);
+        }
+        .nav-link { color: rgba(255, 255, 255, 0.9); }
+        .nav-link:hover { background: #4f7f29; color: white; }
+        .nav-link.active { background: #426c22; color: white; }
+        .logout-btn { background: rgba(255, 255, 255, 0.14); color: white; }
+        .logout-btn:hover,
+        .logout-btn:focus-visible { background: #b91c1c; }
+        .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.18); }
+        .user-profile { color: white; }
+        .user-avatar { color: var(--brand-dark); }
+        .user-role { color: rgba(255, 255, 255, 0.75); }
+
+        /* MAIN CONTENT AREA */
+        main { margin-left: var(--sidebar-width); flex-grow: 1; padding: 2.5rem; min-height: 100vh; }
+        
+        .header-section {
+            background: #ffffff; /* White background */
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            border-left: 6px solid #5f9632; /* Green accent bar */
+            padding: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .welcome-icon-wrapper {
+            width: 56px;
+            height: 56px;
+            background-color: #5f9632; /* Solid green icon background */
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .welcome-icon-wrapper svg {
+            color: white;
+            width: 28px;
+            height: 28px;
+        }
+        
+        .btn-new {
+            background-color: #5f9632; /* Primary Green */
+            color: white;
+            height: 45px; 
+            padding: 0 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-new:hover {
+            background-color: #4d7a28; /* Darker green on hover */
+        }
+
+        /* TABLE STYLES */
+        .request-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 1.5rem;
+        }
+        .toolbar-input,
+        .toolbar-select {
+            width: 100%;
+            padding: 0.75rem 0.85rem;
+            border: 1px solid #dbe2ea;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            background: #fff;
+            outline: none;
+        }
+        .toolbar-input:focus,
+        .toolbar-select:focus {
+            border-color: #86efac;
+            box-shadow: 0 0 0 3px rgba(134, 239, 172, 0.3);
+        }
+        .content-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .requests-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .requests-table th { padding: 1.2rem 1rem; text-align: left; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; border-bottom: 2px solid #f8fafc; }
+        .requests-table td { padding: 1.2rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+        
+        #requestSearchInput { flex: 2; }
+        #requestStatusFilter { flex: 1; }
+
+        .status-badge { padding: 6px 14px; border-radius: 30px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+        .status-pending { background: #ffedd5; color: #ea580c; }
+        .status-processing { background: #dcfce7; color: #16a34a; }
+        .status-pickup { background: #dbeafe; color: #2563eb; }
+        .status-completed { background: #ccfbf1; color: #047857; }
+        .status-rejected { background: #fee2e2; color: #dc2626; }
+        
+        /* Gmail-style Delete Icon */
+        .btn-delete {
+            background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; border-radius: 50%; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center;
+        }
+        .btn-delete:hover { background: #fee2e2; color: var(--danger-red); }
+        .btn-action { color: var(--brand-green); background: none; border: none; font-weight: 600; cursor: pointer; padding: 4px 8px; margin-right: 8px; }
+
+        /* MODAL STYLES */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .modal-content { background: white; width: 850px; border-radius: 24px; padding: 2.5rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        
+        .delete-modal { width: 420px; text-align: center; }
+        .delete-icon-large { width: 64px; height: 64px; background: #fee2e2; color: var(--danger-red); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 1.5rem 0; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 0.6rem; }
+        .form-group input, .form-group select { width: 100%; padding: 0.85rem; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; }
+
+        .upload-area { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 2rem; text-align: center; background: #f8fafc; cursor: pointer; position: relative; }
+        .upload-area input[type="file"] { position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; cursor: pointer; }
+
+        .upload-area:hover {
+            border-color: var(--brand-green); /* Changes dashed border to green */
+            background-color: #f0fdf4; /* Light green tint inside */
+            box-shadow: 0 0 15px rgba(22, 163, 74, 0.2); /* Soft green glow */
+            cursor: pointer;
+            transition: all 0.3s ease; /* Makes the transition smooth */
+        }
+
+        .upload-area:hover svg {
+            color: var(--brand-green);
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+
+        .upload-area.success {
+            border-color: var(--brand-green);
+            background-color: #f0fdf4;
+        }
+
+        .upload-success-msg {
+            color: #166534;
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .upload-file-name {
+            margin-top: 8px;
+            font-size: 0.82rem;
+            color: #166534;
+            font-weight: 600;
+            word-break: break-word;
+        }
+        .upload-files-list {
+            margin-top: 10px;
+            padding-left: 18px;
+            color: #166534;
+            font-size: 0.84rem;
+            line-height: 1.5;
+        }
+        .upload-files-list li {
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .view-preview-grid {
+            margin-top: 8px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 10px;
+        }
+        .view-preview-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 6px;
+            background: #f8fafc;
+        }
+        .view-preview-item img {
+            width: 100%;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 8px;
+            display: block;
+            cursor: zoom-in;
+        }
+        .view-preview-caption {
+            margin-top: 6px;
+            font-size: 0.72rem;
+            color: #475569;
+            word-break: break-word;
+        }
+        .image-lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 4000;
+            padding: 1rem;
+        }
+        .image-lightbox-content {
+            position: relative;
+            max-width: min(92vw, 900px);
+            max-height: 88vh;
+            width: auto;
+        }
+        .image-lightbox-content img {
+            max-width: 100%;
+            max-height: 88vh;
+            border-radius: 12px;
+            display: block;
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+        }
+        .image-lightbox-close {
+            position: absolute;
+            top: -12px;
+            right: -12px;
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 999px;
+            background: #0f172a;
+            color: white;
+            font-size: 1.2rem;
+            line-height: 1;
+            cursor: pointer;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        }
+        .remove-upload-file-btn {
+            border: none;
+            background: #fee2e2;
+            color: #b91c1c;
+            border-radius: 999px;
+            width: 22px;
+            height: 22px;
+            line-height: 22px;
+            text-align: center;
+            font-size: 0.8rem;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        /* AI CHATBOT STYLES */
+        #chatToggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: var(--brand-green);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 2000;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .chat-window {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 350px;
+            height: 480px;
+            background: white;
+            border-radius: 20px;
+            display: none;
+            flex-direction: column;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.2);
+            z-index: 2001;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .chat-header { background: var(--brand-dark); color: white; padding: 1.2rem; display: flex; justify-content: space-between; align-items: center; }
+        .chat-body { flex-grow: 1; padding: 1rem; overflow-y: auto; background: #f1f5f9; display: flex; flex-direction: column; gap: 12px; }
+        .msg { max-width: 85%; padding: 10px 14px; border-radius: 15px; font-size: 0.88rem; line-height: 1.5; }
+        .msg-ai { background: white; align-self: flex-start; border: 1px solid #e2e8f0; }
+        .msg-user { background: var(--brand-green); color: white; align-self: flex-end; }
+        .chat-footer { padding: 1rem; display: flex; gap: 8px; border-top: 1px solid #e2e8f0; background: white; }
+        .chat-footer input { flex-grow: 1; padding: 0.7rem; border: 1.5px solid #e2e8f0; border-radius: 10px; outline: none; }
+        .chat-footer button { background: var(--brand-green); color: white; border: none; padding: 0 15px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="sidebar-header">
+            <img src="../asset/SB.png" alt="Logo">
+            <span>SerbisyoBurgos</span>
+        </div>
+        <nav>
+            <a href="dashboard.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                Dashboard
+            </a>
+            <a href="service-requests.html" class="nav-link active">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Service Requests
+            </a>
+            <a href="appointments.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                Appointments
+            </a>
+            <a href="notifications.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                Bulletin Board
+            </a>
+            <a href="request-history.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                Request History
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-profile" id="residentProfileBtn" style="cursor: pointer;">
+                <div class="user-avatar" id="residentSidebarAvatar" aria-hidden="true">?</div>
+                <div class="user-info">
+                    <span class="user-name" id="residentSidebarName">Resident</span>
+                    <span class="user-role">View Profile</span>
+                </div>
+            </div>
+            <a href="landing.html" class="logout-btn" onclick="handleLogout(event)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <main>
+        <div class="header-section">
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <div class="welcome-icon-wrapper">
+                <!-- Copied Service Request Icon from Sidebar -->
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+            </div>
+            <div>
+                <h1 style="font-size: 1.5rem; margin: 0;">Service Requests</h1>
+                <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 4px;">Manage and track your service requests</p>
+            </div>
+        </div>
+    </div>
+
+        <div class="request-toolbar">
+        <input
+            id="requestSearchInput"
+            class="toolbar-input"
+            type="text"
+            placeholder="Search by reference or title..."
+        >
+<select id="requestStatusFilter" class="toolbar-select">
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="processing">Processing</option>
+            <option value="ready for pickup">Ready for Pickup</option>
+            <option value="completed">Completed</option>
+            <option value="rejected">Rejected</option>
+        </select>
+
+        <button class="btn-new" onclick="openModal()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            New Request
+        </button>
+    </div>
+
+        <div class="content-card">
+            <table class="requests-table">
+                <thead>
+                    <tr>
+                        <th>Reference ID</th>
+                        <th>Request Title</th>
+                        <th>Date Submitted</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="requestTableBody">
+                    <!-- Populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div id="requestModal" class="modal-overlay">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2 style="font-size: 1.5rem; color: var(--brand-dark);">Create New Request</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Fill out the details below to submit a new application.</p>
+                </div>
+                <button onclick="closeModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+            </div>
+            
+<form id="serviceForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Resident Name *</label>
+                        <input type="text" id="reqResidentName" placeholder="Resident name" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label>Service Type *</label>
+                        <select id="reqType" required>
+                            <option value="" disabled selected>Loading services…</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Preferred Date *</label>
+                        <input type="date" id="reqDate" required autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>Preferred Time Slot *</label>
+                        <select id="reqTime" required>
+                            <option value="" disabled selected>Select Time...</option>
+                            <option>09:00 AM - 10:00 AM</option>
+                            <option>10:00 AM - 11:00 AM</option>
+                            <option>11:00 AM - 12:00 NN</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Supporting Documents</label>
+                    <div class="upload-area">
+                        <p style="font-weight: 500;">Click to upload or drag and drop</p>
+                        <p style="font-size: 0.75rem; color: var(--text-muted);">PDF, PNG, JPG (Max 5MB)</p>
+                        <input type="file" id="docUpload" multiple>
+                    </div>
+                    <ul id="uploadedFilesList" class="upload-files-list"></ul>
+                </div>
+
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 2rem;">
+                    <button type="button" onclick="closeModal()" style="padding: 0.8rem 1.8rem; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; cursor: pointer;">Cancel</button>
+                    <button type="submit" style="padding: 0.8rem 1.8rem; border-radius: 10px; border: none; background: var(--brand-dark); color: white; font-weight: 600; cursor: pointer;">Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="modal-overlay">
+        <div class="modal-content delete-modal">
+            <div class="delete-icon-large">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </div>
+            <h3>Confirm Deletion</h3>
+            <p style="color: var(--text-muted); margin: 12px 0 24px;">Are you sure you want to delete this request? This action cannot be undone.</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button onclick="closeDeleteModal()" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; cursor: pointer;">Cancel</button>
+                <button id="confirmDeleteBtn" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: none; background: var(--danger-red); color: white; font-weight: 600; cursor: pointer;">Delete</button>
+            </div>
+        </div>
+    </div>
+    <div id="viewRequestModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="viewRequestTitle">
+        <div class="modal-content" style="max-width:560px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
+                <div>
+                    <h3 id="viewRequestTitle" style="color: var(--brand-dark);">Request Details</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Review your submitted request information.</p>
+                </div>
+                <button type="button" onclick="closeViewRequestModal()" style="background:none; border:none; font-size:1.5rem; color:var(--text-muted); cursor:pointer;">&times;</button>
+            </div>
+            <div style="margin-top:1rem; display:grid; grid-template-columns:1fr 1fr; gap:0.9rem 1.2rem;">
+                <div><p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Reference</p><p id="viewRefNo">—</p></div>
+                <div><p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Status</p><p id="viewStatus">—</p><div id="viewPickupHint" class="pickup-appointment-hint" style="display:none;"></div></div>
+                <div><p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Title</p><p id="viewTitle">—</p></div>
+                <div><p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Date Submitted</p><p id="viewSubmittedDate">—</p></div>
+                <div style="grid-column: 1 / -1;"><p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Preferred Slot</p><p id="viewPreferredSlot">—</p></div>
+                <div style="grid-column: 1 / -1;">
+                    <p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Supporting Documents</p>
+                    <ul id="viewSupportingDocsList" style="margin:6px 0 0 18px; color:#166534;"></ul>
+                    <div id="viewImagePreviewGrid" class="view-preview-grid"></div>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:1.25rem;">
+                <button type="button" onclick="closeViewRequestModal()" style="padding:0.7rem 1.2rem; border-radius:8px; border:none; background:var(--brand-green); color:white; font-weight:600; cursor:pointer;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="uploadSuccessModal" class="modal-overlay">
+        <div class="modal-content delete-modal">
+            <div class="delete-icon-large" style="background:#dcfce7; color:#16a34a;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+            <h3>Upload Successful</h3>
+            <p id="uploadSuccessText" style="color: var(--text-muted); margin: 12px 0 24px;">
+                Supporting document uploaded successfully.
+            </p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button onclick="closeUploadSuccessModal()" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: none; background: var(--brand-green); color:white; font-weight:600; cursor: pointer;">OK</button>
+            </div>
+        </div>
+    </div>
+    <div id="uploadLimitModal" class="modal-overlay">
+        <div class="modal-content delete-modal">
+            <div class="delete-icon-large" style="background:#fee2e2; color:#e11d48;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="8" x2="12" y2="13"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    <circle cx="12" cy="12" r="10"></circle>
+                </svg>
+            </div>
+            <h3>Upload Limit Reached</h3>
+            <p style="color: var(--text-muted); margin: 12px 0 24px;">Maximum upload is 2 files only.</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button onclick="closeUploadLimitModal()" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: none; background: var(--brand-green); color:white; font-weight:600; cursor: pointer;">OK</button>
+            </div>
+        </div>
+    </div>
+    <div id="feedbackModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
+        <div class="modal-content delete-modal">
+            <h3 id="feedbackModalTitle">Notice</h3>
+            <p id="feedbackModalText" style="color: var(--text-muted); margin: 12px 0 24px;">Operation completed.</p>
+            <div style="display:flex; gap:12px; justify-content:center;">
+                <button id="feedbackModalOkBtn" type="button" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: none; background: var(--brand-green); color:white; font-weight:600; cursor: pointer;">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="logoutModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+        <div class="modal-content delete-modal">
+            <h2 id="logoutModalTitle" style="font-size:1.1rem; color:var(--brand-dark); margin-bottom:0.75rem;">Confirm Logout</h2>
+            <p style="color: var(--text-muted); margin: 12px 0 24px;">Are you sure you want to logout from your resident portal?</p>
+            <div style="display:flex; gap:12px; justify-content:center;">
+                <button id="logoutCancelBtn" type="button" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; cursor: pointer;">Cancel</button>
+                <button id="logoutConfirmBtn" type="button" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: none; background: #e11d48; color: white; font-weight: 600; cursor: pointer;">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="chatToggle" onclick="toggleChat()">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </div>
+
+    <div id="chatWindow" class="chat-window">
+        <div class="chat-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:10px; height:10px; background:#22c55e; border-radius:50%;"></div>
+                <span>SB Assistant</span>
+            </div>
+            <button onclick="toggleChat()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+        <div id="chatBody" class="chat-body"></div>
+        <div class="chat-footer">
+            <input type="text" id="chatInput" placeholder="Type here...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+    <div id="imageLightbox" class="image-lightbox" role="dialog" aria-modal="true" aria-labelledby="lightboxImageAlt">
+        <div class="image-lightbox-content">
+            <button type="button" class="image-lightbox-close" id="lightboxCloseBtn" aria-label="Close image preview">&times;</button>
+            <img id="lightboxImage" src="" alt="Image preview">
+        </div>
+    </div>
+
+    <script src="../shared/routes.js"></script>
+    <script src="../shared/maintenance-check.js"></script>
+    <script src="../shared/resident-auth-guard.js"></script>
+    <script src="../shared/resident-sidebar-profile.js"></script>
+    <script src="../shared/resident-profile-modal.js"></script>
+    <script>
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+        const RESIDENT_CONTEXT_KEY = 'residentContext';
+        const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "landing.html" };
+        const RESIDENT_ROUTES = window.APP_ROUTES?.resident || {};
+        function applyResidentRouteLinks() {
+            const hrefMap = {
+                "dashboard.html": RESIDENT_ROUTES.dashboard || "dashboard.html",
+                "service-requests.html": RESIDENT_ROUTES.serviceRequests || "service-requests.html",
+                "appointments.html": RESIDENT_ROUTES.appointments || "appointments.html",
+                "notifications.html": RESIDENT_ROUTES.notifications || "notifications.html",
+                "request-history.html": RESIDENT_ROUTES.requestHistory || "request-history.html",
+                "landing.html": COMMON_ROUTES.landing
+            };
+            Object.entries(hrefMap).forEach(([from, to]) => {
+                document.querySelectorAll(`a[href="${from}"]`).forEach((link) => {
+                    link.href = to;
+                });
+            });
+        }
+        applyResidentRouteLinks();
+
+        function localDateISO() {
+            const d = new Date();
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+        }
+
+        function applyServicePreferredDateMin() {
+            const reqDate = document.getElementById("reqDate");
+            if (!reqDate) return;
+            const today = localDateISO();
+            reqDate.min = today;
+            if (reqDate.value && reqDate.value < today) {
+                reqDate.value = "";
+            }
+        }
+
+        let requestIdToDelete = null;
+        let latestRequests = [];
+        let latestFilteredRequests = [];
+        let requestEventStream = null;
+        let selectedSupportingFiles = [];
+        const SUPPORTING_DOCS_KEY = 'residentSupportingDocsByReference';
+        const SUPPORTING_DOCS_PREVIEW_KEY = 'residentSupportingDocsPreviewByReference';
+        /** Same key as `resident/request-history.html` — opens new-request modal with service prefilled. */
+        const RESIDENT_SERVICE_REQUEST_REPEAT_KEY = "sb_resident_service_request_repeat_v1";
+        const uploadInput = document.getElementById('docUpload');
+        const uploadArea = document.querySelector('.upload-area');
+        const uploadedFilesList = document.getElementById('uploadedFilesList');
+        const uploadSuccessModal = document.getElementById('uploadSuccessModal');
+        const uploadLimitModal = document.getElementById('uploadLimitModal');
+        const uploadSuccessText = document.getElementById('uploadSuccessText');
+        const feedbackModal = document.getElementById('feedbackModal');
+        const feedbackModalTitle = document.getElementById('feedbackModalTitle');
+        const feedbackModalText = document.getElementById('feedbackModalText');
+        const feedbackModalOkBtn = document.getElementById('feedbackModalOkBtn');
+        const requestSearchInput = document.getElementById('requestSearchInput');
+        const requestStatusFilter = document.getElementById('requestStatusFilter');
+        const viewRequestModal = document.getElementById('viewRequestModal');
+        const viewRefNo = document.getElementById('viewRefNo');
+        const viewStatus = document.getElementById('viewStatus');
+        const viewPickupHint = document.getElementById('viewPickupHint');
+        const viewTitle = document.getElementById('viewTitle');
+        const viewSubmittedDate = document.getElementById('viewSubmittedDate');
+        const viewPreferredSlot = document.getElementById('viewPreferredSlot');
+        const viewSupportingDocsList = document.getElementById('viewSupportingDocsList');
+        const viewImagePreviewGrid = document.getElementById('viewImagePreviewGrid');
+        const imageLightbox = document.getElementById('imageLightbox');
+        const lightboxImage = document.getElementById('lightboxImage');
+        const lightboxCloseBtn = document.getElementById('lightboxCloseBtn');
+        const logoutModal = document.getElementById("logoutModal");
+        const logoutCancelBtn = document.getElementById("logoutCancelBtn");
+        const logoutConfirmBtn = document.getElementById("logoutConfirmBtn");
+        function loadSupportingDocMap() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(SUPPORTING_DOCS_KEY) || '{}');
+                return parsed && typeof parsed === 'object' ? parsed : {};
+            } catch (_error) {
+                return {};
+            }
+        }
+        function saveSupportingDocMap(map) {
+            localStorage.setItem(SUPPORTING_DOCS_KEY, JSON.stringify(map));
+        }
+        function loadSupportingDocPreviewMap() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(SUPPORTING_DOCS_PREVIEW_KEY) || '{}');
+                return parsed && typeof parsed === 'object' ? parsed : {};
+            } catch (_error) {
+                return {};
+            }
+        }
+        function saveSupportingDocPreviewMap(map) {
+            try {
+                localStorage.setItem(SUPPORTING_DOCS_PREVIEW_KEY, JSON.stringify(map));
+                return true;
+            } catch (_error) {
+                return false;
+            }
+        }
+        async function getResidentUserId() {
+            try {
+                const cached = JSON.parse(sessionStorage.getItem(RESIDENT_CONTEXT_KEY) || '{}');
+                const cachedId = cached?.residentUserId ? String(cached.residentUserId) : null;
+                if (cachedId) return cachedId;
+            } catch (_e) {
+                // Ignore invalid cached context and resolve from backend.
+            }
+            const response = await residentApiFetch(`${API_BASE_URL}/resident/context`);
+            const result = await response.json();
+            if (!response.ok || !result?.ok || !result.residentUserId) {
+                throw new Error(result?.message || 'Unable to resolve resident context.');
+            }
+            const residentUserId = String(result.residentUserId);
+            sessionStorage.setItem(RESIDENT_CONTEXT_KEY, JSON.stringify({ residentUserId }));
+            return residentUserId;
+        }
+        function fileToPreviewEntry(file) {
+            return new Promise((resolve) => {
+                const isImage = file.type === 'image/png' || file.type === 'image/jpeg';
+                if (!isImage) {
+                    resolve({ name: file.name, type: file.type, previewDataUrl: null });
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const result = typeof reader.result === 'string' ? reader.result : null;
+                    if (!result) {
+                        resolve({ name: file.name, type: file.type, previewDataUrl: null });
+                        return;
+                    }
+                    const image = new Image();
+                    image.onload = () => {
+                        const maxDim = 220;
+                        const ratio = Math.min(maxDim / image.width, maxDim / image.height, 1);
+                        const width = Math.max(1, Math.floor(image.width * ratio));
+                        const height = Math.max(1, Math.floor(image.height * ratio));
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) {
+                            resolve({ name: file.name, type: file.type, previewDataUrl: result });
+                            return;
+                        }
+                        ctx.drawImage(image, 0, 0, width, height);
+                        const optimized = canvas.toDataURL('image/jpeg', 0.72);
+                        resolve({
+                            name: file.name,
+                            type: file.type,
+                            previewDataUrl: optimized || result
+                        });
+                    };
+                    image.onerror = () => resolve({ name: file.name, type: file.type, previewDataUrl: result });
+                    image.src = result;
+                };
+                reader.onerror = () => {
+                    resolve({ name: file.name, type: file.type, previewDataUrl: null });
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+async function populateResidentNameField() {
+            const residentNameInput = document.getElementById('reqResidentName');
+            if (!residentNameInput) return;
+            
+            try {
+                const response = await residentApiFetch(`${API_BASE_URL}/resident/context`);
+                const result = await response.json();
+                if (!response.ok || !result?.ok) {
+                    throw new Error(result?.message || 'Unable to load resident context.');
+                }
+                const fullName = result.fullName || result.user?.fullName || result.name || result.residentName || 'Resident';
+                residentNameInput.value = fullName;
+                residentNameInput.disabled = true;
+            } catch (error) {
+                residentNameInput.value = 'Unknown Resident';
+                residentNameInput.disabled = true;
+            }
+        }
+        
+        function openModal() {
+            populateResidentNameField();
+            void populateResidentServiceTypeOptions();
+            applyServicePreferredDateMin();
+            document.getElementById("requestModal").style.display = "flex";
+        }
+        function closeModal() { document.getElementById('requestModal').style.display = 'none'; }
+        function openUploadSuccessModal(message) {
+            if (uploadSuccessText) uploadSuccessText.textContent = message;
+            if (uploadSuccessModal) uploadSuccessModal.style.display = 'flex';
+        }
+        function closeUploadSuccessModal() {
+            if (uploadSuccessModal) uploadSuccessModal.style.display = 'none';
+        }
+        function openUploadLimitModal() {
+            if (uploadLimitModal) uploadLimitModal.style.display = 'flex';
+        }
+        function closeUploadLimitModal() {
+            if (uploadLimitModal) uploadLimitModal.style.display = 'none';
+        }
+        function openFeedbackModal(title, message) {
+            if (feedbackModalTitle) feedbackModalTitle.textContent = title;
+            if (feedbackModalText) feedbackModalText.textContent = message;
+            if (feedbackModal) feedbackModal.style.display = 'flex';
+        }
+        function closeFeedbackModal() {
+            if (feedbackModal) feedbackModal.style.display = 'none';
+        }
+        function closeViewRequestModal() {
+            if (viewRequestModal) viewRequestModal.style.display = 'none';
+        }
+        function openImageLightbox(src, alt = 'Image preview') {
+            if (!imageLightbox || !lightboxImage || !src) return;
+            lightboxImage.src = src;
+            lightboxImage.alt = alt;
+            imageLightbox.style.display = 'flex';
+        }
+        function closeImageLightbox() {
+            if (!imageLightbox || !lightboxImage) return;
+            imageLightbox.style.display = 'none';
+            lightboxImage.src = '';
+        }
+        function openViewRequestModal(requestId) {
+            const request = latestRequests.find((item) => String(item?.id) === String(requestId));
+            if (!request) {
+                openFeedbackModal("Request Not Found", "Unable to locate the selected request.");
+                return;
+            }
+            const supportingDocMap = loadSupportingDocMap();
+            const supportingDocValue = supportingDocMap[request.referenceNo] || null;
+            const supportingDocs = Array.isArray(supportingDocValue)
+                ? supportingDocValue
+                : supportingDocValue
+                    ? [supportingDocValue]
+                    : [];
+            const supportingPreviewMap = loadSupportingDocPreviewMap();
+            const supportingPreviewValue = supportingPreviewMap[request.referenceNo] || [];
+            const supportingPreviewEntries = Array.isArray(supportingPreviewValue) ? supportingPreviewValue : [];
+
+            if (viewRefNo) viewRefNo.textContent = request.referenceNo ? `#${request.referenceNo}` : "Not assigned";
+            if (viewStatus) viewStatus.textContent = request.status || 'Pending';
+            if (viewPickupHint) {
+                if (String(request.status || "").toLowerCase() === "ready for pickup") {
+                    const apptUrl = RESIDENT_ROUTES.appointments || "appointments.html";
+                    viewPickupHint.innerHTML = `Book an <a href="${escapeHtmlText(apptUrl)}">appointment</a> for when you want to pick it up.`;
+                    viewPickupHint.style.display = "block";
+                } else {
+                    viewPickupHint.innerHTML = "";
+                    viewPickupHint.style.display = "none";
+                }
+            }
+            if (viewTitle) viewTitle.textContent = request.title || request.serviceType || 'Service Request';
+            if (viewSubmittedDate) viewSubmittedDate.textContent = formatDate(request.createdAt || request.preferredDate);
+            if (viewPreferredSlot) {
+                const d = request.preferredDate || "";
+                const t = request.preferredTimeSlot || "";
+                if (!d && !t) viewPreferredSlot.textContent = "Not specified";
+                else viewPreferredSlot.textContent = `${d || "Date TBD"}${t ? ` · ${t}` : ""}`;
+            }
+            if (viewSupportingDocsList) {
+                viewSupportingDocsList.innerHTML = '';
+                if (!supportingDocs.length) {
+                    const li = document.createElement('li');
+                    li.style.color = '#64748b';
+                    li.textContent = 'No uploaded supporting documents.';
+                    viewSupportingDocsList.appendChild(li);
+                } else {
+                    supportingDocs.forEach((name) => {
+                        const li = document.createElement('li');
+                        li.textContent = name;
+                        viewSupportingDocsList.appendChild(li);
+                    });
+                }
+            }
+            if (viewImagePreviewGrid) {
+                viewImagePreviewGrid.innerHTML = '';
+                const imagePreviews = supportingPreviewEntries.filter((entry) => entry?.previewDataUrl);
+                if (!imagePreviews.length) {
+                    const note = document.createElement('div');
+                    note.style.fontSize = '0.78rem';
+                    note.style.color = '#64748b';
+                    note.style.gridColumn = '1 / -1';
+                    note.textContent = supportingDocs.length
+                        ? 'No image preview available for this request yet.'
+                        : 'No image uploaded.';
+                    viewImagePreviewGrid.appendChild(note);
+                } else {
+                    imagePreviews.forEach((entry) => {
+                        const card = document.createElement('div');
+                        card.className = 'view-preview-item';
+                        const img = document.createElement('img');
+                        img.src = entry.previewDataUrl;
+                        img.alt = entry.name || 'Uploaded image preview';
+                        img.addEventListener('click', () => openImageLightbox(entry.previewDataUrl, entry.name || 'Uploaded image preview'));
+                        const caption = document.createElement('div');
+                        caption.className = 'view-preview-caption';
+                        caption.textContent = entry.name || 'Image';
+                        card.appendChild(img);
+                        card.appendChild(caption);
+                        viewImagePreviewGrid.appendChild(card);
+                    });
+                }
+            }
+            if (viewRequestModal) viewRequestModal.style.display = 'flex';
+        }
+        window.openViewRequestModal = openViewRequestModal;
+        window.closeViewRequestModal = closeViewRequestModal;
+        function openLogoutModal() {
+            if (logoutModal) logoutModal.style.display = "flex";
+        }
+        function closeLogoutModal() {
+            if (logoutModal) logoutModal.style.display = "none";
+        }
+        function formatFileSize(bytes) {
+            if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+            if (bytes < 1024) return `${bytes} B`;
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+            return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+        }
+        function resetUploadState() {
+            selectedSupportingFiles = [];
+            if (uploadInput) uploadInput.value = '';
+            if (!uploadArea) return;
+            uploadArea.classList.remove('success');
+            uploadArea.innerHTML = `
+                <p style="font-weight: 500;">Click to upload or drag and drop</p>
+                <p style="font-size: 0.75rem; color: var(--text-muted);">PDF, PNG, JPG (Max 5MB)</p>
+                <input type="file" id="docUpload" multiple>
+            `;
+            const refreshedInput = document.getElementById('docUpload');
+            if (refreshedInput) {
+                refreshedInput.addEventListener('change', handleSupportingDocumentUpload);
+            }
+            if (uploadedFilesList) {
+                uploadedFilesList.innerHTML = '';
+            }
+        }
+        function updateUploadAreaState() {
+            if (!uploadArea) return;
+            if (!selectedSupportingFiles.length) {
+                uploadArea.classList.remove('success');
+                uploadArea.innerHTML = `
+                    <p style="font-weight: 500;">Click to upload or drag and drop</p>
+                    <p style="font-size: 0.75rem; color: var(--text-muted);">PDF, PNG, JPG (Max 5MB)</p>
+                    <input type="file" id="docUpload" multiple>
+                `;
+            } else {
+                uploadArea.classList.add('success');
+                uploadArea.innerHTML = `
+                    <div class="upload-success-msg">
+                        <span>Supporting document${selectedSupportingFiles.length > 1 ? 's' : ''} uploaded</span>
+                        <span class="upload-file-name">${selectedSupportingFiles.length}/2 file${selectedSupportingFiles.length > 1 ? 's' : ''} selected</span>
+                    </div>
+                    <input type="file" id="docUpload" multiple>
+                `;
+            }
+            const refreshedInput = document.getElementById('docUpload');
+            if (refreshedInput) {
+                refreshedInput.addEventListener('change', handleSupportingDocumentUpload);
+            }
+        }
+        function removeSupportingFile(indexToRemove) {
+            if (indexToRemove < 0 || indexToRemove >= selectedSupportingFiles.length) return;
+            selectedSupportingFiles.splice(indexToRemove, 1);
+            renderUploadedFilesList();
+            updateUploadAreaState();
+        }
+        function renderUploadedFilesList() {
+            if (!uploadedFilesList) return;
+            uploadedFilesList.innerHTML = '';
+            selectedSupportingFiles.forEach((file, index) => {
+                const li = document.createElement('li');
+                const textSpan = document.createElement('span');
+                textSpan.textContent = `${file.name} (${formatFileSize(file.size)})`;
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'remove-upload-file-btn';
+                removeBtn.title = 'Remove file';
+                removeBtn.setAttribute('aria-label', `Remove ${file.name}`);
+                removeBtn.textContent = 'x';
+                removeBtn.addEventListener('click', () => removeSupportingFile(index));
+                li.appendChild(textSpan);
+                li.appendChild(removeBtn);
+                uploadedFilesList.appendChild(li);
+            });
+        }
+        function handleSupportingDocumentUpload(event) {
+            const newlySelectedFiles = Array.from(event.target?.files || []);
+            if (!newlySelectedFiles.length) return;
+            const previousCount = selectedSupportingFiles.length;
+            const maxBytes = 5 * 1024 * 1024;
+            const allowedTypes = new Set(['application/pdf', 'image/png', 'image/jpeg']);
+            for (const file of newlySelectedFiles) {
+                if (!allowedTypes.has(file.type)) {
+                    openFeedbackModal("Upload Failed", "Unsupported file type. Please upload PDF, PNG, or JPG.");
+                    if (uploadInput) uploadInput.value = '';
+                    return;
+                }
+                if (file.size > maxBytes) {
+                    openFeedbackModal("Upload Failed", "File is too large. Maximum allowed size is 5MB.");
+                    if (uploadInput) uploadInput.value = '';
+                    return;
+                }
+            }
+
+            if (previousCount >= 2) {
+                openUploadLimitModal();
+                if (uploadInput) uploadInput.value = '';
+                return;
+            }
+
+            const availableSlots = 2 - previousCount;
+            const acceptedFiles = newlySelectedFiles.slice(0, availableSlots);
+            selectedSupportingFiles = selectedSupportingFiles.concat(acceptedFiles);
+
+            updateUploadAreaState();
+            renderUploadedFilesList();
+            if (previousCount + newlySelectedFiles.length > 2) {
+                openUploadLimitModal();
+            } else {
+                const latestFile = acceptedFiles[acceptedFiles.length - 1];
+                if (latestFile) {
+                    openUploadSuccessModal(`"${latestFile.name}" uploaded successfully.`);
+                }
+            }
+            if (uploadInput) uploadInput.value = '';
+        }
+        uploadInput?.addEventListener('change', handleSupportingDocumentUpload);
+
+        function openDeleteModal(id) {
+            requestIdToDelete = id;
+            document.getElementById('deleteModal').style.display = 'flex';
+        }
+        function closeDeleteModal() {
+            requestIdToDelete = null;
+            document.getElementById('deleteModal').style.display = 'none';
+        }
+
+        function formatDate(dateValue) {
+            if (!dateValue) return "Not recorded";
+            const dateObj = new Date(dateValue);
+            if (Number.isNaN(dateObj.getTime())) return String(dateValue);
+            return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function escapeHtmlText(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        async function populateResidentServiceTypeOptions() {
+            const sel = document.getElementById("reqType");
+            if (!sel) return;
+            try {
+                const response = await residentApiFetch(`${API_BASE_URL}/resident/service-catalog`);
+                const result = await response.json();
+                if (!response.ok || !result?.ok || !Array.isArray(result.services)) {
+                    throw new Error(result?.message || "Unable to load services.");
+                }
+                const list = result.services.filter((s) => String(s.status) === "Active");
+                if (!list.length) {
+                    sel.innerHTML =
+                        '<option value="" disabled selected>No services are available for requests right now.</option>';
+                    sel.disabled = true;
+                    return;
+                }
+                sel.disabled = false;
+                const opts = [
+                    '<option value="" disabled selected>Select Service…</option>',
+                    ...list.map((svc) => {
+                        const label = String(svc.name || "").trim();
+                        if (!label) return "";
+                        const esc = escapeHtmlText(label);
+                        return `<option value="${esc}">${esc}</option>`;
+                    })
+                ].join("");
+                sel.innerHTML = opts;
+            } catch (_err) {
+                sel.innerHTML =
+                    '<option value="" disabled selected>Could not load services. Try again later.</option>';
+                sel.disabled = true;
+            }
+        }
+
+        function stripServiceQueryParamIfPresent() {
+            try {
+                const search = window.location.search || "";
+                const p = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+                if (!p.has("service")) return;
+                p.delete("service");
+                const qs = p.toString();
+                history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+            } catch (_e) {
+                /* ignore */
+            }
+        }
+
+        function selectServiceTypeByName(wantRaw) {
+            const sel = document.getElementById("reqType");
+            if (!sel || sel.disabled) return false;
+            const want = String(wantRaw || "").trim();
+            if (!want) return false;
+            const wantLower = want.toLowerCase();
+            const opts = [...sel.options].filter((o) => String(o.value || "").trim());
+            let match = opts.find((o) => String(o.value).trim() === want);
+            if (!match) match = opts.find((o) => String(o.value).trim().toLowerCase() === wantLower);
+            if (!match) match = opts.find((o) => String(o.textContent || "").trim().toLowerCase() === wantLower);
+            if (!match) {
+                match = opts.find(
+                    (o) =>
+                        String(o.value).toLowerCase().includes(wantLower) ||
+                        String(o.textContent || "").toLowerCase().includes(wantLower)
+                );
+            }
+            if (match) {
+                sel.value = match.value;
+                return true;
+            }
+            return false;
+        }
+
+        async function tryConsumeRepeatServiceRequestDraft() {
+            let want = null;
+            let hadSession = false;
+            try {
+                const raw = sessionStorage.getItem(RESIDENT_SERVICE_REQUEST_REPEAT_KEY);
+                if (raw) {
+                    const d = JSON.parse(raw);
+                    const n = d?.serviceName != null ? String(d.serviceName).trim() : "";
+                    if (n) {
+                        want = n;
+                        hadSession = true;
+                    }
+                }
+            } catch (_e) {
+                want = null;
+            }
+            if (hadSession) {
+                try {
+                    sessionStorage.removeItem(RESIDENT_SERVICE_REQUEST_REPEAT_KEY);
+                } catch (_e) {
+                    /* ignore */
+                }
+            }
+            if (!want) {
+                try {
+                    const p = new URLSearchParams(window.location.search.startsWith("?") ? window.location.search.slice(1) : "");
+                    const q = p.get("service");
+                    if (q) want = String(q).trim();
+                } catch (_e) {
+                    want = null;
+                }
+            }
+            stripServiceQueryParamIfPresent();
+            if (!want) return;
+            const selPre = document.getElementById("reqType");
+            const hasLoadedOptions =
+                selPre &&
+                !selPre.disabled &&
+                [...selPre.options].some((o) => String(o.value || "").trim());
+            if (!hasLoadedOptions) await populateResidentServiceTypeOptions();
+            const applied = selectServiceTypeByName(want);
+            await populateResidentNameField();
+            const reqDate = document.getElementById("reqDate");
+            const reqTime = document.getElementById("reqTime");
+            if (reqDate) reqDate.value = "";
+            if (reqTime) reqTime.value = "";
+            const modal = document.getElementById("requestModal");
+            if (modal) modal.style.display = "flex";
+            applyServicePreferredDateMin();
+            if (!applied) {
+                openFeedbackModal(
+                    "Service not found",
+                    "We could not match that request to a current service in the list. Pick a service from the dropdown."
+                );
+            }
+        }
+
+        function buildRequestStatusCellHtml(req) {
+            const statusText = String(req.status || "Pending");
+            const escaped = escapeHtmlText(statusText);
+            const cls = statusClass(req.status);
+            const badge = `<span class="status-badge ${cls}">${escaped}</span>`;
+            if (String(req.status || "").toLowerCase() !== "ready for pickup") return badge;
+            const apptUrl = RESIDENT_ROUTES.appointments || "appointments.html";
+            return `<div class="status-cell-stack">${badge}<div class="pickup-appointment-hint">Book an <a href="${escapeHtmlText(apptUrl)}">appointment</a> for when you want to pick it up.</div></div>`;
+        }
+
+function statusClass(status) {
+            const normalized = String(status || "").toLowerCase();
+            if (normalized === "pending") return "status-pending";
+            if (normalized === "processing" || normalized === "in progress") return "status-processing";
+            if (normalized === "ready for pickup") return "status-pickup";
+            if (normalized === "completed") return "status-completed";
+            if (normalized === "rejected") return "status-rejected";
+            return "status-pending";
+        }
+
+        async function loadRequests() {
+            const tableBody = document.getElementById('requestTableBody');
+            tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:2rem;">Loading requests...</td></tr>';
+
+            try {
+                const residentUserId = await getResidentUserId();
+                const response = await residentApiFetch(`${API_BASE_URL}/requests?residentUserId=${encodeURIComponent(residentUserId)}`);
+                const result = await response.json();
+                if (!response.ok || !result.ok) {
+                    throw new Error(result.message || 'Unable to load requests.');
+                }
+                latestRequests = result.requests || [];
+                applyRequestFilters();
+            } catch (_error) {
+                latestRequests = [];
+                tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#b91c1c; padding:2rem;">Failed to load requests. Make sure backend is running.</td></tr>';
+            }
+        }
+
+        function applyRequestFilters() {
+            const rawSearch = (requestSearchInput?.value || '').trim().toLowerCase();
+            const statusFilter = (requestStatusFilter?.value || 'all').toLowerCase();
+            latestFilteredRequests = latestRequests.filter((req) => {
+                const ref = String(req.referenceNo || '').toLowerCase();
+                const title = String(req.title || req.serviceType || '').toLowerCase();
+                const status = String(req.status || '').toLowerCase();
+                const matchesSearch = !rawSearch || ref.includes(rawSearch) || title.includes(rawSearch);
+                const matchesStatus = statusFilter === 'all' || status === statusFilter;
+                return matchesSearch && matchesStatus;
+            });
+            renderTable(latestFilteredRequests);
+        }
+
+        function renderTable(requests) {
+            const tableBody = document.getElementById('requestTableBody');
+            const supportingDocMap = loadSupportingDocMap();
+            tableBody.innerHTML = "";
+
+            if (!requests.length) {
+                tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:2rem;">No active request yet.</td></tr>';
+                return;
+            }
+
+            requests.forEach(req => {
+                const supportingDocName = supportingDocMap[req.referenceNo] || null;
+                const supportingDocNames = Array.isArray(supportingDocName)
+                    ? supportingDocName
+                    : supportingDocName
+                        ? [supportingDocName]
+                        : [];
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><b>#${req.referenceNo}</b></td>
+                    <td>
+                        <div>${req.title || req.serviceType}</div>
+                        ${supportingDocNames.length
+                            ? supportingDocNames.map((name) => `<div style="font-size:0.78rem; color:#166534; margin-top:4px;">📎 ${name}</div>`).join('')
+                            : ''}
+                    </td>
+                    <td>${formatDate(req.createdAt || req.preferredDate)}</td>
+                    <td>${buildRequestStatusCellHtml(req)}</td>
+                    <td style="text-align: right;">
+                        <button class="btn-action" onclick="openViewRequestModal('${req.id}')">View</button>
+                        <button class="btn-delete" onclick="openDeleteModal('${req.id}')" title="Delete Request">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        document.getElementById('serviceForm').onsubmit = async function(e) {
+            e.preventDefault();
+
+            const serviceType = document.getElementById('reqType').value;
+            const preferredDate = document.getElementById('reqDate').value;
+            const preferredTimeSlot = document.getElementById('reqTime').value;
+            const todayISO = localDateISO();
+            if (!preferredDate || preferredDate < todayISO) {
+                openFeedbackModal("Invalid date", "Preferred date must be today or a future date.");
+                applyServicePreferredDateMin();
+                return;
+            }
+            const payload = {
+                title: serviceType,
+                serviceType,
+                preferredDate,
+                preferredTimeSlot,
+                supportingDocumentNames: selectedSupportingFiles.map((file) => file.name)
+            };
+
+            try {
+                const response = await residentApiFetch(`${API_BASE_URL}/requests`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...payload })
+                });
+                const result = await response.json();
+                if (!response.ok || !result.ok) {
+                    throw new Error(result.message || 'Unable to submit request.');
+                }
+                if (selectedSupportingFiles.length) {
+                    const refKey = result.request?.referenceNo || null;
+                    if (refKey) {
+                        const supportingDocMap = loadSupportingDocMap();
+                        supportingDocMap[refKey] = selectedSupportingFiles.map((file) => file.name);
+                        saveSupportingDocMap(supportingDocMap);
+                        const previewEntries = await Promise.all(selectedSupportingFiles.map(fileToPreviewEntry));
+                        const supportingDocPreviewMap = loadSupportingDocPreviewMap();
+                        supportingDocPreviewMap[refKey] = previewEntries;
+                        const previewSaved = saveSupportingDocPreviewMap(supportingDocPreviewMap);
+                        if (!previewSaved) {
+                            openFeedbackModal(
+                                "Preview Not Saved",
+                                "Request submitted, but image previews could not be saved locally due to browser storage limits."
+                            );
+                        }
+                    }
+                }
+
+                await loadRequests();
+                openFeedbackModal("Request Submitted", "Request submitted successfully.");
+                closeModal();
+                this.reset();
+                applyServicePreferredDateMin();
+                resetUploadState();
+            } catch (error) {
+                openFeedbackModal("Submission Failed", error.message || "Failed to submit request. Make sure backend is running.");
+            }
+        };
+
+        document.getElementById('confirmDeleteBtn').onclick = async function() {
+            if (!requestIdToDelete) return;
+            try {
+                const response = await residentApiFetch(`${API_BASE_URL}/requests/${requestIdToDelete}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (!response.ok || !result.ok) {
+                    throw new Error(result.message || 'Unable to delete request.');
+                }
+                closeDeleteModal();
+                await loadRequests();
+            } catch (error) {
+                openFeedbackModal("Delete Failed", error.message || "Failed to delete request.");
+            }
+        };
+
+        function connectRealtimeRequests() {
+            if (requestEventStream) requestEventStream.close();
+            requestEventStream = new EventSource(residentSseUrl(`${API_BASE_URL}/requests/events`));
+            requestEventStream.addEventListener('request-updated', () => {
+                loadRequests();
+            });
+            requestEventStream.onerror = () => {
+                // Keep existing data on screen; browser auto-retries EventSource.
+            };
+        }
+
+        document.getElementById("reqDate")?.addEventListener("change", (event) => {
+            const v = String(event.target?.value || "").trim();
+            const todayISO = localDateISO();
+            if (v && v < todayISO) {
+                openFeedbackModal("Invalid date", "You can only select today or a future date.");
+                event.target.value = "";
+            }
+        });
+
+        window.onload = async function () {
+            applyServicePreferredDateMin();
+            loadRequests();
+            connectRealtimeRequests();
+            await populateResidentServiceTypeOptions();
+            await tryConsumeRepeatServiceRequestDraft();
+        };
+
+        window.addEventListener("load", () => {
+            void tryConsumeRepeatServiceRequestDraft();
+        });
+
+        // Close modal when clicking background
+        window.onclick = function(e) {
+            if (e.target.classList.contains('modal-overlay')) {
+                closeModal();
+                closeDeleteModal();
+                closeUploadSuccessModal();
+                closeUploadLimitModal();
+                closeFeedbackModal();
+                closeViewRequestModal();
+                closeImageLightbox();
+                closeLogoutModal();
+            }
+        }
+
+        function handleLogout(event) {
+            event.preventDefault();
+            openLogoutModal();
+        }
+        logoutCancelBtn?.addEventListener("click", closeLogoutModal);
+        feedbackModalOkBtn?.addEventListener("click", closeFeedbackModal);
+        feedbackModal?.addEventListener("click", (event) => {
+            if (event.target === feedbackModal) closeFeedbackModal();
+        });
+        imageLightbox?.addEventListener('click', (event) => {
+            if (event.target === imageLightbox) closeImageLightbox();
+        });
+        lightboxCloseBtn?.addEventListener('click', closeImageLightbox);
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeImageLightbox();
+            }
+        });
+        logoutConfirmBtn?.addEventListener("click", () => {
+            if (window.APP_NAV?.logout) {
+                window.APP_NAV.logout();
+                return;
+            }
+            window.location.href = COMMON_ROUTES.landing;
+        });
+        requestSearchInput?.addEventListener('input', applyRequestFilters);
+        requestStatusFilter?.addEventListener('change', applyRequestFilters);
+    </script>
+    <script src="../shared/resident-faq-chat.js"></script>
+</body>
+</html>

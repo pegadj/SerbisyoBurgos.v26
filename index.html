@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SerbisyoBurgos | Official Web Portal</title>
+    <link rel="icon" type="image/png" href="asset/SB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-green: #043d2e;
+            --hover-green: #16a34a;
+            --text-dark: #1a202c;
+            --glass-green: #f0fdf4;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 72px; /* offset for sticky navbar */
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            overflow-x: hidden;
+        }
+
+        /* ─── NAVBAR ─────────────────────────────────── */
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            padding: 0.85rem 4rem;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            transition: box-shadow 0.3s;
+        }
+
+        .navbar.scrolled {
+            box-shadow: 0 4px 20px rgba(4,61,46,0.12);
+        }
+
+        .logo-nav { height: 45px; width: auto; display: block; }
+
+        .nav-buttons { display: flex; gap: 15px; align-items: center; }
+
+        .btn-nav {
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--primary-green);
+            padding: 8px 0;
+            position: relative;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: color 0.2s;
+        }
+
+        .btn-nav::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--hover-green);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .btn-nav:hover::after,
+        .btn-nav.active::after { width: 100%; }
+        .btn-nav:hover { color: var(--hover-green); }
+
+        .btn-residents {
+            background: var(--primary-green);
+            color: white;
+            padding: 10px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .btn-admins {
+            background: white;
+            color: var(--primary-green);
+            border: 2px solid var(--primary-green);
+            padding: 10px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* ─── SECTION BASE ───────────────────────────── */
+        section {
+            min-height: 100svh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ─── HERO SECTION ───────────────────────────── */
+        #home {
+            background:
+                linear-gradient(rgba(255,255,255,0.25), rgba(255,255,255,0.45)),
+                url('https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&q=80&w=2069')
+                no-repeat center center / cover;
+            justify-content: center;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4rem;
+            padding: 0 0 5rem 0;
+        }
+
+        .hero-text { flex: 1; max-width: 600px; }
+
+        .hero-text h1 {
+            font-size: clamp(3rem, 5.5vw, 4.5rem);
+            font-weight: 800;
+            font-style: italic;
+            color: var(--primary-green);
+            margin: 0 0 1.25rem;
+            line-height: 0.95;
+            letter-spacing: -2px;
+        }
+
+        .bayanihan-text {
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: #000000;
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        /* Glass Card */
+        .hero-cards { position: relative; }
+
+        .glass-card {
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid #ffffff;
+            border-radius: 32px;
+            padding: 2.5rem;
+            width: 400px;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.15);
+        }
+
+        .progress-bar {
+            height: 12px;
+            background: #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 1.5rem 0 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--hover-green);
+            width: 0%;
+            transition: width 2s ease-in-out;
+        }
+
+        .announcement-pill {
+            position: absolute;
+            bottom: -15px;
+            right: -10px;
+            background: #ffffff;
+            padding: 12px 24px;
+            border-radius: 14px;
+            font-weight: 700;
+            color: var(--primary-green);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        /* Scroll indicator */
+        .scroll-hint {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: var(--primary-green);
+            font-size: 0.8rem;
+            font-weight: 600;
+            opacity: 0.7;
+            animation: bounce 2s infinite;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .scroll-hint svg { width: 20px; height: 20px; }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(6px); }
+        }
+
+        #home { position: relative; }
+
+        /* ─── HOW IT WORKS SECTION ───────────────────── */
+        #how-it-works {
+            background: var(--primary-green);
+            justify-content: center;
+            align-items: center;
+            padding: 4rem 2rem;
+        }
+
+        /* ─── CONTACT SECTION ────────────────────────── */
+        #contact {
+            background: var(--primary-green);
+            justify-content: center;
+            align-items: center;
+            padding: 4rem 2rem;
+            border-top: 3px solid rgba(255,255,255,0.08);
+        }
+
+        /* ─── SHARED CARD STYLES ─────────────────────── */
+        .section-card {
+            background: var(--glass-green);
+            border-radius: 24px;
+            padding: 2.5rem 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 550px;
+            text-align: center;
+
+            /* Entrance animation */
+            opacity: 0;
+            transform: translateY(48px);
+            transition: opacity 0.65s cubic-bezier(.22,.68,0,1.2), transform 0.65s cubic-bezier(.22,.68,0,1.2);
+        }
+
+        .section-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .section-card h1 {
+            color: var(--primary-green);
+            font-weight: 800;
+            font-size: 2rem;
+            margin: 0 0 1.5rem;
+        }
+
+        /* Steps */
+        .step-item {
+            text-align: left;
+            background: rgba(255,255,255,0.4);
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            border: 1px solid rgba(4,61,46,0.1);
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: opacity 0.4s ease, transform 0.4s ease, background 0.2s;
+        }
+
+        .step-item:hover { background: rgba(255,255,255,0.65); }
+
+        .step-item.visible { opacity: 1; transform: translateX(0); }
+        .step-item:nth-child(1) { transition-delay: 0.1s; }
+        .step-item:nth-child(2) { transition-delay: 0.22s; }
+        .step-item:nth-child(3) { transition-delay: 0.34s; }
+
+        .step-num {
+            background: var(--primary-green);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            flex-shrink: 0;
+            font-size: 0.9rem;
+        }
+
+        .step-info h3 { margin: 0; font-size: 1rem; color: var(--primary-green); }
+        .step-info p { margin: 0; color: #4a5568; font-size: 0.85rem; line-height: 1.4; }
+
+        /* Contact grid */
+        .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .info-item { text-align: center; }
+        .symbol-icon { width: 28px; height: 28px; color: var(--primary-green); margin-bottom: 0.5rem; }
+        .info-item h3 { font-size: 1rem; color: var(--primary-green); margin-bottom: 0.25rem; font-weight: 800; }
+        .info-item p { font-size: 0.85rem; line-height: 1.4; color: #4a5568; margin: 0; }
+
+        .info-item.animate {
+            opacity: 0;
+            transform: translateY(16px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .info-item.animate.visible { opacity: 1; transform: translateY(0); }
+        .info-item:nth-child(1) { transition-delay: 0.1s; }
+        .info-item:nth-child(2) { transition-delay: 0.2s; }
+        .info-item:nth-child(3) { transition-delay: 0.3s; }
+
+        /* ─── FOOTER ─────────────────────────────────── */
+        .footer {
+            padding: 1.25rem 4rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255,255,255,0.9);
+            border-top: 3px solid #ffffff;
+            font-size: 0.85rem;
+        }
+
+        .footer-links a {
+            margin-left: 2rem;
+            text-decoration: none;
+            color: #4a5568;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+        .footer-links a:hover { color: var(--hover-green); }
+
+        /* ─── MAINTENANCE BANNER ─────────────────────── */
+        #maintenanceLandingBanner {
+            display: none;
+            margin: 0.75rem 4rem;
+            padding: 0.85rem 1.1rem;
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 12px;
+            color: #92400e;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-align: center;
+            line-height: 1.45;
+        }
+
+        /* ─── RESPONSIVE ─────────────────────────────── */
+        @media (max-width: 1024px) {
+            .container { flex-direction: column; text-align: center; padding: 4rem 0; }
+            .navbar, .footer { padding: 1rem 1.5rem; }
+            .footer { flex-direction: column; gap: 0.75rem; }
+            .nav-buttons { flex-wrap: wrap; justify-content: center; gap: 10px; }
+            .glass-card { width: 100%; max-width: 360px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- STICKY NAVBAR -->
+    <nav class="navbar" id="navbar">
+        <a href="#home">
+            <img src="asset/SB.png" alt="SB Logo" class="logo-nav">
+        </a>
+        <div class="nav-buttons">
+            <a href="#how-it-works" class="btn-nav" onclick="navScroll('how-it-works'); return false;">How It Works</a>
+            <a href="#contact" class="btn-nav" onclick="navScroll('contact'); return false;">Contact Us</a>
+            <a href="resident-login.html" class="btn-residents">Residents</a>
+            <a href="admin-login.html" class="btn-admins">Admins</a>
+        </div>
+    </nav>
+
+    <div id="maintenanceLandingBanner" role="status"></div>
+
+    <!-- ── SECTION 1: HERO ── -->
+    <section id="home">
+        <main style="flex:1; display:flex; align-items:center; justify-content:center; padding: 0 2rem;">
+            <div class="container">
+                <div class="hero-text">
+                    <h1>SerbisyoBurgos</h1>
+                    <p class="bayanihan-text">Bayanihan, kalUsugan, kataRungan, paGmamahal, pagbubuklOd at Serbisyong tapat tungo sa pag unlad!</p>
+                </div>
+
+                <div class="hero-cards">
+                    <div class="glass-card">
+                        <div style="display:flex; align-items:center; gap:1rem;">
+                            <div style="background:var(--hover-green); padding:10px; border-radius:10px; color:white;">📄</div>
+                            <div>
+                                <h3 style="margin:0">Online Services</h3>
+                                <p style="margin:0; font-size:0.85rem; color:#4a5568;">Processed in 24 hours</p>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="fill"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.9rem; font-weight:700;">
+                            <span>Applications</span>
+                            <span>75% Complete</span>
+                        </div>
+                    </div>
+                    <div class="announcement-pill">📢 New Announcement</div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Scroll down hint -->
+        <a class="scroll-hint" onclick="navScroll('how-it-works'); return false;" href="#how-it-works">
+            <span>Scroll Down</span>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+        </a>
+    </section>
+
+    <!-- ── SECTION 2: HOW IT WORKS ── -->
+    <section id="how-it-works">
+        <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:4rem 2rem; width:100%;">
+            <div class="section-card" id="hiw-card">
+                <h1>How It Works</h1>
+
+                <div class="step-item" id="step-1">
+                    <div class="step-num">1</div>
+                    <div class="step-info">
+                        <h3>Create Your Account</h3>
+                        <p>Register on the Resident Login with your basic information.</p>
+                    </div>
+                </div>
+
+                <div class="step-item" id="step-2">
+                    <div class="step-num">2</div>
+                    <div class="step-info">
+                        <h3>Login to Dashboard</h3>
+                        <p>Access your personalized portal to add requests and book appointments.</p>
+                    </div>
+                </div>
+
+                <div class="step-item" id="step-3">
+                    <div class="step-num">3</div>
+                    <div class="step-info">
+                        <h3>Explore Services</h3>
+                        <p>Track request status, set appointments, and use the SB Assistant chatbot.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── SECTION 3: CONTACT ── -->
+    <section id="contact">
+        <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:4rem 2rem; width:100%;">
+            <div class="section-card" id="contact-card">
+                <h1>Contact Us</h1>
+                <div class="contact-grid">
+                    <div class="info-item animate" id="ci-1">
+                        <svg class="symbol-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                        <h3>Contact No.</h3>
+                        <p>09489454674</p>
+                    </div>
+                    <div class="info-item animate" id="ci-2">
+                        <svg class="symbol-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <h3>Office Hours</h3>
+                        <p>Mon-Fri<br>9AM - 5PM</p>
+                    </div>
+                    <div class="info-item animate" id="ci-3" style="grid-column:span 2; border-top:1px solid rgba(0,0,0,0.05); padding-top:1rem;">
+                        <svg class="symbol-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        <h3>Location</h3>
+                        <p>353 National Highway, Barangay Burgos,<br>Covered Court, San Marcelino, Zambales</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <span style="color:#4a5568;">© 2026 SerbisyoBurgos. All rights reserved.</span>
+    </footer>
+
+    <script src="shared/routes.js"></script>
+    <script>
+        /* ── Smooth scroll with highlight flash ── */
+        function navScroll(sectionId) {
+            const el = document.getElementById(sectionId);
+            if (!el) return;
+
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Brief highlight flash on the card inside the section
+            const card = el.querySelector('.section-card');
+            if (!card) return;
+
+            card.style.transition = 'box-shadow 0.25s ease, outline 0.25s ease';
+            card.style.outline = '3px solid rgba(22,163,74,0.55)';
+            card.style.outlineOffset = '4px';
+            setTimeout(() => {
+                card.style.outline = '3px solid transparent';
+                card.style.outlineOffset = '4px';
+                setTimeout(() => { card.style.outline = ''; card.style.outlineOffset = ''; }, 350);
+            }, 800);
+        }
+
+        /* ── Navbar active underline on nav buttons ── */
+        const navBtns = document.querySelectorAll('.btn-nav[onclick]');
+        const sections = ['how-it-works', 'contact'];
+
+        window.addEventListener('scroll', () => {
+            // Navbar shadow
+            document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 10);
+
+            // Active state
+            let current = '';
+            sections.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && window.scrollY >= el.offsetTop - 120) current = id;
+            });
+
+            navBtns.forEach(btn => {
+                const target = btn.getAttribute('href')?.replace('#', '');
+                btn.classList.toggle('active', target === current);
+            });
+        }, { passive: true });
+
+        /* ── Intersection Observer for entrance animations ── */
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+
+                const el = entry.target;
+                el.classList.add('visible');
+
+                // Trigger children of How It Works card
+                if (el.id === 'hiw-card') {
+                    el.querySelectorAll('.step-item').forEach(s => s.classList.add('visible'));
+                }
+                // Trigger children of Contact card
+                if (el.id === 'contact-card') {
+                    el.querySelectorAll('.info-item.animate').forEach(i => i.classList.add('visible'));
+                }
+
+                observer.unobserve(el);
+            });
+        }, { threshold: 0.15 });
+
+        observer.observe(document.getElementById('hiw-card'));
+        observer.observe(document.getElementById('contact-card'));
+
+        /* ── Progress bar ── */
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const bar = document.getElementById('fill');
+                if (bar) bar.style.width = '75%';
+            }, 500);
+        });
+
+        /* ── Maintenance notice ── */
+        (async function showMaintenanceLandingNotice() {
+            try {
+                const base = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+                const response = await fetch(`${base}/public/system-status`);
+                const json = await response.json().catch(() => ({}));
+                if (json?.environment !== "maintenance") return;
+                const banner = document.getElementById("maintenanceLandingBanner");
+                if (!banner) return;
+                banner.style.display = "block";
+                banner.textContent =
+                    "The portal is in maintenance mode. You can still open this page and sign in; resident and staff services are paused until a system administrator restores production.";
+            } catch (_e) { /* ignore */ }
+        })();
+    </script>
+</body>
+</html>
