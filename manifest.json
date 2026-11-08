@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "SerbisyoBurgos",
+  "short_name": "SerbisyoBurgos",
+  "description": "Barangay Burgos online services: requests, appointments and announcements.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "icons": [
+    {
+      "src": "asset/SB.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "asset/SB.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

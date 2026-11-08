@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SerbisyoBurgos | Official Web Portal</title>
     <link rel="icon" type="image/png" href="asset/SB.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#16a34a">
+    <link rel="apple-touch-icon" href="asset/SB.png">
+    <script src="shared/pwa.js" data-install-button defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     
     <style>
@@ -563,7 +567,7 @@
         /* ── Maintenance notice ── */
         (async function showMaintenanceLandingNotice() {
             try {
-                const base = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
+                const base = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
                 const response = await fetch(`${base}/public/system-status`);
                 const json = await response.json().catch(() => ({}));
                 if (json?.environment !== "maintenance") return;

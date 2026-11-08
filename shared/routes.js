@@ -67,7 +67,7 @@ admin: {
   function inferApiBaseUrl() {
     try {
       const href = globalScope.location?.href;
-      if (!href || href.startsWith("file:")) return "https://serbisyoburgos-ver-26.onrender.com";
+      if (!href || href.startsWith("file:")) return "https://sb-draft1.onrender.com";
       const u = new URL(href);
       // localhost / 127.0.0.1 / private IPs = local dev, use :4000
       const isLocal =
@@ -82,7 +82,7 @@ admin: {
       /* ignore */
     }
     // Any other host (Vercel, Render, custom domain) → use the real backend
-    return "https://serbisyoburgos-ver-26.onrender.com";
+    return "https://sb-draft1.onrender.com";
   }
 
   const existingApi = typeof globalScope.API_BASE_URL === "string" ? globalScope.API_BASE_URL.trim() : "";
@@ -90,3 +90,14 @@ admin: {
     globalScope.API_BASE_URL = inferApiBaseUrl();
   }
 })(window);
+
+// Load the shared mobile layout (sidebar menu, stacked grids) on pages that have a sidebar.
+(function loadMobileLayout() {
+  try {
+    var s = document.currentScript;
+    if (!s || !s.src) return;
+    var m = document.createElement("script");
+    m.src = new URL("mobile.js", s.src).href;
+    document.head.appendChild(m);
+  } catch (_e) { /* ignore */ }
+})();
