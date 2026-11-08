@@ -18,6 +18,7 @@ const {
   verifyPassword
 } = require("./config/auth");
 const { User } = require("./models/User");
+const { isSmsConfigured, normalizePhNumber, sendSmsBatch } = require("./config/sms");
 const { CATEGORY, storeFile, deleteFile, streamFile } = require("./config/upload");
 const { ServiceCatalog } = require("./models/ServiceCatalog");
 const CommunityAnnouncement = require("./models/CommunityAnnouncement");
@@ -3292,6 +3293,45 @@ app.get("/resident/announcements", async (req, res) => {
   });
 });
 
+// ---- SMS (TextBee) for announcements ----
+async function collectResidentSmsNumbers() {
+  const rows = await User.find({
+    role: "resident",
+    isActive: true,
+    accountStatus: "active",
+    contactNumber: { $nin: [null, ""] }
+  })
+    .select("contactNumber")
+    .lean();
+  const valid = new Set();
+  let invalid = 0;
+  for (const row of rows) {
+    const n = normalizePhNumber(row.contactNumber);
+    if (n) valid.add(n);
+    else invalid += 1;
+  }
+  return { numbers: [...valid], invalid };
+}
+
+function buildAnnouncementSms({ category, title, body }) {
+  const head = `Barangay Burgos - ${category}\n${title}\n`;
+  const room = Math.max(0, 300 - head.length);
+  const text = String(body || "").replace(/\s+/g, " ").trim();
+  const tail = text.length > room ? text.slice(0, Math.max(0, room - 1)).trimEnd() + "…" : text;
+  return head + tail;
+}
+
+app.get("/admin/sms/recipient-count", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  try {
+    const { numbers, invalid } = await collectResidentSmsNumbers();
+    return res.json({ ok: true, configured: isSmsConfigured(), recipients: numbers.length, skippedInvalid: invalid });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to count SMS recipients.", detail: error.message });
+  }
+});
+
 app.post("/admin/announcements", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
@@ -3328,6 +3368,34 @@ app.post("/admin/announcements", async (req, res) => {
   const createdRow = normalizeAnnouncementRow(created.toObject());
   broadcastAnnouncementEvent({ type: "created", announcement: createdRow });
 
+  // Optional SMS blast via TextBee (runs in the background so posting stays fast).
+  let smsInfo = { requested: false };
+  if (req.body?.sendSms === true) {
+    if (!isSmsConfigured()) {
+      smsInfo = { requested: true, queued: 0, message: "SMS is not configured on the server." };
+    } else {
+      try {
+        const { numbers, invalid } = await collectResidentSmsNumbers();
+        const smsText = buildAnnouncementSms({ category: safeCategory || "Community News", title: safeTitle, body: safeBody });
+        smsInfo = { requested: true, queued: numbers.length, skippedInvalid: invalid };
+        if (numbers.length) {
+          void sendSmsBatch(numbers, smsText).then((r) => {
+            console.log(`[sms] announcement ${createdRow.id}: sent ${r.sent}, failed ${r.failed}`, r.errors);
+            void insertPortalAuditEvent({
+              action: "Updated Record",
+              description: `SMS for announcement ID ${createdRow.id}: ${r.sent} sent, ${r.failed} failed.`,
+              profile: auth.profile,
+              metadata: { entity: "announcement_sms", announcementId: createdRow.id, sent: r.sent, failed: r.failed }
+            });
+          });
+        }
+      } catch (error) {
+        smsInfo = { requested: true, queued: 0, message: "Announcement posted, but SMS could not be started." };
+        console.error("[sms] failed to start:", error.message);
+      }
+    }
+  }
+
   void insertPortalAuditEvent({
     action: "Updated Record",
     description: `Posted community announcement ID ${createdRow.id}. Category: "${safeCategory}". Title: "${safeTitle}". Posted by role: ${createdRow.postedByRole || auth.profile?.role || "—"}.`,
@@ -3344,7 +3412,8 @@ app.post("/admin/announcements", async (req, res) => {
   return res.status(201).json({
     ok: true,
     message: "Announcement posted.",
-    announcement: createdRow
+    announcement: createdRow,
+    sms: smsInfo
   });
 });
 
@@ -3995,6 +4064,152 @@ function mapDirectoryProfileRow(row) {
   }
   return profile;
 }
+
+// ---------------------------------------------------------------------------
+// Resident Profiling (staff portal): list / view / update resident records.
+// Open to staff, admin and system-admin portal roles.
+// ---------------------------------------------------------------------------
+const RESIDENT_SEX = ["Male", "Female"];
+const RESIDENT_CIVIL = ["Single", "Married", "Widowed", "Separated"];
+const RESIDENT_VOTER = ["Registered", "Not Registered"];
+
+function escapeRegexLiteral(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function mapResidentProfilingRow(row) {
+  const rp = row.residentProfile || {};
+  return {
+    id: String(row._id),
+    fullName: row.fullName || "",
+    email: row.email || "",
+    contactNumber: row.contactNumber || "",
+    accountStatus: mapAccountStatusToUiLabel(row.accountStatus),
+    selfRegistered: Boolean(row.residentSelfRegistered),
+    registeredAt: row.createdAt || null,
+    sex: rp.sex || "",
+    birthDate: rp.birthDate || null,
+    civilStatus: rp.civilStatus || "",
+    purok: rp.purok || "",
+    address: rp.address || "",
+    occupation: rp.occupation || "",
+    voterStatus: rp.voterStatus || "",
+    remarks: rp.remarks || "",
+    profileUpdatedBy: rp.updatedByEmail || "",
+    profileUpdatedAt: rp.updatedAt || null
+  };
+}
+
+app.get("/staff/residents", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+
+  const limit = Math.min(100, Math.max(1, Number.parseInt(req.query?.limit, 10) || 25));
+  const offset = Math.max(0, Number.parseInt(req.query?.offset, 10) || 0);
+  const filter = { role: "resident" };
+
+  const q = String(req.query?.q || "").trim().slice(0, 80);
+  if (q) {
+    const rx = new RegExp(escapeRegexLiteral(q), "i");
+    filter.$or = [
+      { fullName: rx },
+      { email: rx },
+      { contactNumber: rx },
+      { "residentProfile.purok": rx },
+      { "residentProfile.address": rx }
+    ];
+  }
+  const purok = String(req.query?.purok || "").trim().slice(0, 80);
+  if (purok) filter["residentProfile.purok"] = purok;
+
+  try {
+    const [total, rows] = await Promise.all([
+      User.countDocuments(filter),
+      User.find(filter)
+        .select("email fullName contactNumber accountStatus residentSelfRegistered createdAt residentProfile")
+        .sort({ fullName: 1 })
+        .skip(offset)
+        .limit(limit)
+        .lean()
+    ]);
+    return res.json({ ok: true, residents: rows.map(mapResidentProfilingRow), total, limit, offset });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to load residents.", detail: error.message });
+  }
+});
+
+app.get("/staff/residents/:id", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ ok: false, message: "Invalid resident id." });
+  }
+  try {
+    const row = await User.findOne({ _id: id, role: "resident" })
+      .select("email fullName contactNumber accountStatus residentSelfRegistered createdAt residentProfile")
+      .lean();
+    if (!row) return res.status(404).json({ ok: false, message: "Resident not found." });
+    const [requestCount, appointmentCount] = await Promise.all([
+      ServiceRequest.countDocuments({ residentUserId: id }),
+      Appointment.countDocuments({ residentUserId: id })
+    ]);
+    return res.json({
+      ok: true,
+      resident: { ...mapResidentProfilingRow(row), requestCount, appointmentCount }
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to load resident.", detail: error.message });
+  }
+});
+
+app.patch("/staff/residents/:id", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ ok: false, message: "Invalid resident id." });
+  }
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const clean = (v, max) => String(v ?? "").trim().slice(0, max);
+  const pickEnum = (v, list) => (list.includes(v) ? v : "");
+
+  let birthDate = null;
+  if (body.birthDate) {
+    const d = new Date(body.birthDate);
+    if (Number.isNaN(d.getTime()) || d > new Date() || d.getFullYear() < 1900) {
+      return res.status(400).json({ ok: false, message: "Birth date is not valid." });
+    }
+    birthDate = d;
+  }
+
+  const next = {
+    sex: pickEnum(body.sex, RESIDENT_SEX),
+    birthDate,
+    civilStatus: pickEnum(body.civilStatus, RESIDENT_CIVIL),
+    purok: clean(body.purok, 80),
+    address: clean(body.address, 250),
+    occupation: clean(body.occupation, 120),
+    voterStatus: pickEnum(body.voterStatus, RESIDENT_VOTER),
+    remarks: clean(body.remarks, 500),
+    updatedByEmail: auth.profile.email || "",
+    updatedAt: new Date()
+  };
+
+  try {
+    const updated = await User.findOneAndUpdate(
+      { _id: id, role: "resident" },
+      { $set: { residentProfile: next } },
+      { new: true }
+    )
+      .select("email fullName contactNumber accountStatus residentSelfRegistered createdAt residentProfile")
+      .lean();
+    if (!updated) return res.status(404).json({ ok: false, message: "Resident not found." });
+    return res.json({ ok: true, resident: mapResidentProfilingRow(updated) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to save resident profile.", detail: error.message });
+  }
+});
 
 app.get("/admin/profiles", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);

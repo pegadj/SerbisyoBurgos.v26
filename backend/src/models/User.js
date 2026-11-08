@@ -24,6 +24,20 @@ const staffPermissionsSchema = new Schema({
   documentGenerator: { type: Boolean, default: false },
 }, { _id: false });
 
+// Resident profiling record — filled in by barangay staff (Resident Profiling tab).
+const residentProfileSchema = new Schema({
+  sex: { type: String, enum: ['', 'Male', 'Female'], default: '' },
+  birthDate: { type: Date, default: null },
+  civilStatus: { type: String, enum: ['', 'Single', 'Married', 'Widowed', 'Separated'], default: '' },
+  purok: { type: String, trim: true, maxlength: 80, default: '' },
+  address: { type: String, trim: true, maxlength: 250, default: '' },
+  occupation: { type: String, trim: true, maxlength: 120, default: '' },
+  voterStatus: { type: String, enum: ['', 'Registered', 'Not Registered'], default: '' },
+  remarks: { type: String, trim: true, maxlength: 500, default: '' },
+  updatedByEmail: { type: String, default: '' },
+  updatedAt: { type: Date, default: null },
+}, { _id: false });
+
 const userSchema = new Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   // REAL, actively-used credential store now that Supabase Auth is gone —
@@ -69,6 +83,9 @@ const userSchema = new Schema({
   // Was identity_verification_url (Supabase Storage public URL) — same
   // GridFS-file-id treatment as avatarFileId above.
   identityVerificationFileId: { type: Schema.Types.ObjectId, default: null },
+
+  // --- Resident Profiling tab (staff-maintained) ---
+  residentProfile: { type: residentProfileSchema, default: undefined },
 }, {
   timestamps: true,
 });

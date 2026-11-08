@@ -536,6 +536,11 @@
                         <textarea id="advContent" placeholder="Describe your announcement details..." style="min-height: 180px;"></textarea>
                     </div>
 
+                    <label style="display:flex;align-items:flex-start;gap:10px;margin-top:0.75rem;font-size:0.85rem;color:#475569;cursor:pointer;">
+                        <input type="checkbox" id="advSendSms" checked style="margin-top:3px;">
+                        <span>Also send as SMS to residents with a contact number<br><small id="advSmsCount" style="color:#64748b;">Checking recipients…</small></span>
+                    </label>
+
                     <div style="display: flex; gap: 12px; margin-top: 1rem;">
                         <button class="btn-post" style="flex: 2;" type="button" id="btnPublish">Publish to Residents Bulletin Board</button>
                         <button type="button" style="flex: 1; background: #f1f5f9; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; color: #475569;" id="btnSaveDraft">Save Draft</button>
@@ -586,7 +591,7 @@
     <div id="publishSuccessModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="publishSuccessTitle">
         <div class="confirm-modal">
             <h3 id="publishSuccessTitle" style="font-size:1.05rem; color:var(--brand-dark); margin-bottom:0.55rem;">Announcement posted</h3>
-            <p style="font-size:0.9rem; color:var(--text-muted); line-height:1.5;">
+            <p id="publishSuccessText" style="font-size:0.9rem; color:var(--text-muted); line-height:1.5;">
                 Your advisory was posted successfully and is now visible on the resident bulletin board.
             </p>
             <div class="confirm-actions">
@@ -621,7 +626,7 @@
     <script>
         (async function() { const auth = await window.SB_ADMIN_ACCESS?.requireRole("admin"); if (!auth) return; })();
 
-        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
 
         function getAdminAccessToken() {
@@ -974,7 +979,8 @@ const tag = document.getElementById("previewTag");
                     body: JSON.stringify({
                         category: categoryInput.value,
                         title: titleInput.value.trim(),
-                        body: contentInput.value.trim()
+                        body: contentInput.value.trim(),
+                        sendSms: Boolean(document.getElementById("advSendSms")?.checked)
                     })
                 });
                 const result = await response.json();
@@ -985,6 +991,13 @@ const tag = document.getElementById("previewTag");
                 contentInput.value = "";
                 updatePreview();
                 await loadAnnouncementsTable();
+                const okText = document.getElementById("publishSuccessText");
+                if (okText) {
+                    const base = "Your advisory was posted successfully and is now visible on the resident bulletin board.";
+                    okText.textContent = result.sms?.requested
+                        ? (result.sms.queued > 0 ? `${base} SMS is being sent to ${result.sms.queued} resident(s).` : `${base} ${result.sms.message || "No SMS was sent (no valid numbers)."}`)
+                        : base;
+                }
                 openPublishSuccessModal();
             } catch (err) {
                 await showDialog({
@@ -996,6 +1009,19 @@ const tag = document.getElementById("previewTag");
                 btnPublish.disabled = false;
             }
         }
+
+        (async function loadSmsRecipientCount() {
+            const label = document.getElementById("advSmsCount");
+            const box = document.getElementById("advSendSms");
+            try {
+                const token = getAdminAccessToken();
+                const r = await fetch(`${API_BASE_URL}/admin/sms/recipient-count`, { headers: { Authorization: `Bearer ${token}` } });
+                const d = await r.json();
+                if (!r.ok || !d.ok) throw new Error();
+                if (!d.configured) { label.textContent = "SMS is not set up on the server yet."; box.checked = false; box.disabled = true; return; }
+                label.textContent = `Will text ${d.recipients} resident(s).`;
+            } catch (_e) { label.textContent = "Could not check recipients."; }
+        })();
 
         btnPublish?.addEventListener("click", openPublishConfirmModal);
         publishConfirmCancelBtn?.addEventListener("click", closePublishConfirmModal);

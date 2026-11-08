@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resident Profiling | SerbisyoBurgos</title>
+    <link rel="icon" type="image/png" href="../asset/SB.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand-green: #16a34a;
+            --brand-dark: #043d2e;
+            --brand-blue: #2563eb;
+            --bg-light: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-width: 260px;
+            --white: #ffffff;
+            
+            /* Status Colors */
+            --status-pending-bg: #fef9c3;
+            --status-pending-text: #854d0e;
+            --status-processing-bg: #dbeafe;
+            --status-processing-text: #1d4ed8;
+            --status-pickup-bg: #f0fdf4;
+            --status-pickup-text: #16a34a;
+            --status-completed-bg: #f1f5f9;
+            --status-completed-text: #475569;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); color: var(--text-main); display: flex; min-height: 100vh; }
+
+        /* SIDEBAR NAVIGATION */
+        aside {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            color: var(--brand-dark);
+            font-size: 1.25rem;
+        }
+
+        .sidebar-header img {
+            width: 32px;
+            border-radius: 50%;
+            background: white;
+            padding: 3px;
+            border: 3px solid var(--brand-dark);
+        }
+
+        nav { flex-grow: 1; padding: 1rem; }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.85rem 1rem;
+            text-decoration: none;
+            color: var(--text-muted);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+
+        .nav-link:hover { background: #f8fafc; color: var(--brand-green); transform: translateY(-2px); opacity: 0.9; }
+        .nav-link.active { background: #f0fdf4; color: var(--brand-green); font-weight: 600; }
+
+        .sidebar-footer { padding: 1.5rem; border-top: 1px solid #f1f5f9; margin-top: auto; }
+
+        /* Logout Button Style */
+        .logout-btn {
+            width: 100%;
+            height: 45px; /* Added specific height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff1f2;
+            color: #e11d48;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.95rem; /* Slightly larger text */
+            transition: all 0.2s ease;
+            border: none;
+            margin-top: 10px;
+        }
+
+        .logout-btn:hover {
+            background: #ffe4e6;
+        }
+
+        /* Sidebar theme */
+        aside {
+            background: #5f9632;
+            border-right: 1px solid rgba(4, 61, 46, 0.18);
+        }
+        .sidebar-header {
+            padding: 1.75rem 1.25rem 1.25rem;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.75rem;
+            color: white;
+            font-weight: 800;
+            text-align: center;
+        }
+        .sidebar-header img {
+            width: 54px !important;
+            height: 54px !important;
+            object-fit: contain;
+        }
+        .nav-link { color: rgba(255, 255, 255, 0.9); }
+        .nav-link:hover { background: #4f7f29; color: white; transform: none; opacity: 1; }
+        .nav-link.active { background: #426c22; color: white; }
+        .logout-btn { background: rgba(255, 255, 255, 0.14); color: white; }
+        .logout-btn:hover,
+        .logout-btn:focus-visible { background: #b91c1c; }
+        .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.18); }
+
+        /* MAIN LAYOUT */
+        main { margin-left: var(--sidebar-width); flex-grow: 1; padding: 2.5rem; }
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--white);
+            padding: 6px 16px 6px 6px;
+            border-radius: 30px;
+            border: 1px solid #e2e8f0;
+        }
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            background: var(--brand-green);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+        .header-section { margin-bottom: 2rem; display: flex; align-items: center; gap: 1rem; }
+        .top-bar .header-section { margin-bottom: 0; }
+        .back-link { text-decoration: none; color: var(--text-muted); font-size: 1.5rem; }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-card {
+            width: 100%;
+            max-width: 420px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px rgba(2, 6, 23, 0.2);
+        }
+        .modal-title { font-size: 1.1rem; font-weight: 700; color: var(--brand-dark); margin-bottom: 0.6rem; }
+        .modal-text { font-size: 0.92rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.25rem; }
+        .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+        .modal-btn {
+            border: none;
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .modal-btn-cancel { background: #f1f5f9; color: #334155; }
+        .modal-btn-confirm { background: #e11d48; color: white; }
+
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .toolbar { display:flex; flex-wrap:wrap; gap:.75rem; margin-bottom:1rem; }
+        .toolbar input, .toolbar select, .field input, .field select, .field textarea {
+            font: inherit; padding:.65rem .85rem; border:1px solid #cbd5e1; border-radius:10px; background:#fff; color:var(--text-main); }
+        .toolbar input { flex:1; min-width:220px; }
+        .card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; overflow:hidden; }
+        .table-wrap { overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:.9rem; }
+        th { text-align:left; padding:.85rem 1rem; background:#f8fafc; color:var(--text-muted); font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; }
+        td { padding:.85rem 1rem; border-top:1px solid #f1f5f9; vertical-align:middle; }
+        tbody tr { cursor:pointer; } tbody tr:hover { background:#f0fdf4; }
+        .badge { display:inline-block; padding:.2rem .6rem; border-radius:999px; font-size:.75rem; font-weight:600; background:#f1f5f9; color:#475569; }
+        .badge.ok { background:#dcfce7; color:#166534; } .badge.bad { background:#fee2e2; color:#991b1b; }
+        .empty { padding:2.5rem; text-align:center; color:var(--text-muted); }
+        .pager { display:flex; justify-content:space-between; align-items:center; padding:.85rem 1rem; border-top:1px solid #f1f5f9; font-size:.85rem; color:var(--text-muted); }
+        .btn { font:inherit; font-weight:600; padding:.6rem 1.1rem; border-radius:10px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; }
+        .btn:disabled { opacity:.5; cursor:not-allowed; }
+        .btn-primary { background:var(--brand-green); border-color:var(--brand-green); color:#fff; }
+        .drawer-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:200; justify-content:flex-end; }
+        .drawer-overlay.show { display:flex; }
+        .drawer { width:min(520px,100%); background:#fff; height:100%; overflow-y:auto; padding:1.75rem; }
+        .drawer h2 { color:var(--brand-dark); margin-bottom:.25rem; }
+        .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1rem; }
+        .field { display:flex; flex-direction:column; gap:.35rem; } .field.full { grid-column:1/-1; }
+        .field label { font-size:.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; }
+        .field input[readonly] { background:#f8fafc; }
+        .stats { display:flex; gap:1rem; margin-top:1rem; }
+        .stat { flex:1; background:#f0fdf4; border-radius:12px; padding:.75rem 1rem; } .stat b { font-size:1.4rem; color:var(--brand-dark); display:block; }
+        .msg { margin-top:1rem; font-size:.85rem; } .msg.err { color:#b91c1c; } .msg.ok { color:#166534; }
+        @media (max-width:700px){ .grid2{grid-template-columns:1fr;} main{margin-left:0;padding:1rem;} aside{display:none;} }
+    </style>
+</head>
+<body>
+    <aside>
+        <div class="sidebar-header"><img src="../asset/SB.png" width="32"> SerbisyoBurgos</div>
+        <nav>
+            <a href="staff-dashboard.html" class="nav-link" id="dashboardHomeLink">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                Dashboard
+            </a>
+            
+             <a href="appointment-scheduling.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                Appointment Scheduling
+            </a>
+
+            <a href="request-processing.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                    <path d="M9 14l2 2 4-4"></path>
+                </svg>
+                Request Processing
+            </a>
+
+            <a href="document-generator.html" class="nav-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+                Document Generator
+            </a>
+
+            <a href="resident-profiling.html" class="nav-link active">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                Resident Profiling
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="index.html" class="logout-btn" id="adminLogoutBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <main>
+        <div class="top-bar">
+            <div class="header-section">
+                <div>
+                    <h1 style="font-size: 1.75rem; color: var(--brand-dark);">Resident Profiling</h1>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Registered residents and their profile records.</p>
+                </div>
+            </div>
+            <div class="user-profile">
+                <div class="user-avatar" id="topbarUserAvatar">BS</div>
+                <div style="line-height: 1.2;">
+                    <p id="topbarUserName" style="font-weight: 700; font-size: 0.85rem;">Barangay Staff</p>
+                    <p id="topbarUserRole" style="font-size: 0.75rem; color: var(--text-muted);">Personnel</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <input id="searchInput" type="search" placeholder="Search name, email, contact, purok or address…">
+            <input id="purokFilter" type="text" placeholder="Filter by purok" style="flex:0 0 180px;min-width:140px;">
+        </div>
+
+        <div class="card">
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Name</th><th>Contact</th><th>Purok</th><th>Sex</th><th>Age</th><th>Account</th></tr></thead>
+                    <tbody id="residentRows"><tr><td colspan="6" class="empty">Loading residents…</td></tr></tbody>
+                </table>
+            </div>
+            <div class="pager">
+                <span id="pageInfo"></span>
+                <span><button class="btn" id="prevBtn">Previous</button> <button class="btn" id="nextBtn">Next</button></span>
+            </div>
+        </div>
+    </main>
+
+    <div id="drawer" class="drawer-overlay" role="dialog" aria-modal="true" aria-labelledby="drawerName">
+        <div class="drawer">
+            <h2 id="drawerName">Resident</h2>
+            <p id="drawerEmail" style="color:var(--text-muted);font-size:.9rem;"></p>
+            <div class="stats">
+                <div class="stat"><b id="statRequests">0</b>Service requests</div>
+                <div class="stat"><b id="statAppts">0</b>Appointments</div>
+            </div>
+            <div class="grid2">
+                <div class="field"><label>Contact number</label><input id="fContact" readonly></div>
+                <div class="field"><label>Registered</label><input id="fRegistered" readonly></div>
+                <div class="field"><label for="fSex">Sex</label><select id="fSex"><option value="">—</option><option>Male</option><option>Female</option></select></div>
+                <div class="field"><label for="fBirth">Birth date</label><input id="fBirth" type="date"></div>
+                <div class="field"><label for="fCivil">Civil status</label><select id="fCivil"><option value="">—</option><option>Single</option><option>Married</option><option>Widowed</option><option>Separated</option></select></div>
+                <div class="field"><label for="fVoter">Voter status</label><select id="fVoter"><option value="">—</option><option>Registered</option><option>Not Registered</option></select></div>
+                <div class="field"><label for="fPurok">Purok</label><input id="fPurok" maxlength="80"></div>
+                <div class="field"><label for="fOcc">Occupation</label><input id="fOcc" maxlength="120"></div>
+                <div class="field full"><label for="fAddress">Address</label><input id="fAddress" maxlength="250"></div>
+                <div class="field full"><label for="fRemarks">Remarks</label><textarea id="fRemarks" rows="3" maxlength="500"></textarea></div>
+            </div>
+            <p id="drawerMsg" class="msg"></p>
+            <p id="drawerAudit" style="color:var(--text-muted);font-size:.75rem;margin-top:.5rem;"></p>
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.25rem;">
+                <button class="btn" id="closeBtn">Close</button>
+                <button class="btn btn-primary" id="saveBtn">Save profile</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="logoutModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+        <div class="modal-card">
+            <h2 class="modal-title" id="logoutModalTitle">Confirm Logout</h2>
+            <p class="modal-text">Are you sure you want to logout from the admin portal?</p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="logoutCancelBtn">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-confirm" id="logoutConfirmBtn">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/routes.js"></script>
+    <script src="../shared/maintenance-check.js"></script>
+    <script>
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+        const STAFF_ROUTES = window.APP_ROUTES?.staff || { login: "../admin-login.html", dashboard: "staff-dashboard.html" };
+        const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "index.html" };
+        document.querySelectorAll('a[href="staff-dashboard.html"]').forEach((a) => { a.href = STAFF_ROUTES.dashboard; });
+        document.querySelectorAll('a[href="index.html"]').forEach((a) => { a.href = COMMON_ROUTES.landing; });
+
+        const $ = (id) => document.getElementById(id);
+        const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        const initials = (n) => { const p = String(n || "").trim().split(/\s+/).filter(Boolean); return p.length ? (p.length === 1 ? p[0].slice(0, 2) : p[0][0] + p[p.length - 1][0]).toUpperCase() : "?"; };
+
+        function getSession() {
+            try { return JSON.parse(sessionStorage.getItem("adminAuth") || "null"); } catch (_e) { return null; }
+        }
+        function authHeaders() {
+            const t = getSession()?.session?.accessToken;
+            return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+        }
+        async function api(path, opts = {}) {
+            const res = await fetch(`${API_BASE_URL}${path}`, { ...opts, headers: { ...authHeaders(), ...(opts.headers || {}) } });
+            const data = await res.json().catch(() => ({}));
+            if (res.status === 401 || res.status === 403) { window.location.href = STAFF_ROUTES.login; throw new Error("Not authorized"); }
+            if (!res.ok || data.ok === false) throw new Error(data.message || "Request failed");
+            return data;
+        }
+
+        async function init() {
+            const s = getSession();
+            if (!s?.user || s.user.role !== "staff" || !s.session?.accessToken) { window.location.href = STAFF_ROUTES.login; return; }
+            try {
+                const r = await fetch(`${API_BASE_URL}/auth/admin/authorize/staff`, { headers: { Authorization: `Bearer ${s.session.accessToken}` } });
+                if (!r.ok) throw new Error("denied");
+                if (await window.SB_MAINTENANCE?.redirectStaffPortalFromMaintenanceIfNeeded?.()) return;
+            } catch (_e) { window.location.href = STAFF_ROUTES.login; return; }
+            const name = s.user.fullName || s.user.email || "Staff";
+            $("topbarUserName").textContent = name;
+            $("topbarUserAvatar").textContent = initials(name);
+            loadResidents();
+        }
+
+        // ---- list ----
+        const PAGE = 25;
+        let offset = 0, total = 0, timer = null, active = null;
+
+        function ageFrom(iso) {
+            if (!iso) return "—";
+            const b = new Date(iso); if (Number.isNaN(b.getTime())) return "—";
+            const n = new Date(); let a = n.getFullYear() - b.getFullYear();
+            if (n < new Date(n.getFullYear(), b.getMonth(), b.getDate())) a--;
+            return a >= 0 ? a : "—";
+        }
+
+        async function loadResidents() {
+            const q = $("searchInput").value.trim(), purok = $("purokFilter").value.trim();
+            const qs = new URLSearchParams({ limit: PAGE, offset });
+            if (q) qs.set("q", q);
+            if (purok) qs.set("purok", purok);
+            $("residentRows").innerHTML = '<tr><td colspan="6" class="empty">Loading residents…</td></tr>';
+            try {
+                const data = await api(`/staff/residents?${qs}`);
+                total = data.total;
+                $("residentRows").innerHTML = data.residents.length ? data.residents.map((r) => `
+                    <tr data-id="${esc(r.id)}">
+                        <td><strong>${esc(r.fullName)}</strong><br><span style="color:var(--text-muted);font-size:.8rem;">${esc(r.email)}</span></td>
+                        <td>${esc(r.contactNumber || "—")}</td><td>${esc(r.purok || "—")}</td><td>${esc(r.sex || "—")}</td>
+                        <td>${ageFrom(r.birthDate)}</td>
+                        <td><span class="badge ${r.accountStatus === "Active" ? "ok" : "bad"}">${esc(r.accountStatus)}</span></td>
+                    </tr>`).join("") : '<tr><td colspan="6" class="empty">No residents found.</td></tr>';
+                const from = total ? offset + 1 : 0;
+                $("pageInfo").textContent = `Showing ${from}–${Math.min(offset + PAGE, total)} of ${total}`;
+                $("prevBtn").disabled = offset === 0;
+                $("nextBtn").disabled = offset + PAGE >= total;
+            } catch (e) {
+                $("residentRows").innerHTML = `<tr><td colspan="6" class="empty">${esc(e.message)}</td></tr>`;
+            }
+        }
+        function reloadFromStart() { clearTimeout(timer); timer = setTimeout(() => { offset = 0; loadResidents(); }, 300); }
+        $("searchInput").addEventListener("input", reloadFromStart);
+        $("purokFilter").addEventListener("input", reloadFromStart);
+        $("prevBtn").addEventListener("click", () => { offset = Math.max(0, offset - PAGE); loadResidents(); });
+        $("nextBtn").addEventListener("click", () => { offset += PAGE; loadResidents(); });
+        $("residentRows").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-id]"); if (tr) openResident(tr.dataset.id); });
+
+        // ---- detail drawer ----
+        const fields = { sex: "fSex", civilStatus: "fCivil", voterStatus: "fVoter", purok: "fPurok", occupation: "fOcc", address: "fAddress", remarks: "fRemarks" };
+        function setMsg(text, kind) { const m = $("drawerMsg"); m.textContent = text || ""; m.className = "msg" + (kind ? " " + kind : ""); }
+
+        async function openResident(id) {
+            active = id; setMsg(""); $("drawer").classList.add("show");
+            $("drawerName").textContent = "Loading…"; $("drawerEmail").textContent = "";
+            try {
+                const { resident: r } = await api(`/staff/residents/${encodeURIComponent(id)}`);
+                $("drawerName").textContent = r.fullName;
+                $("drawerEmail").textContent = r.email;
+                $("statRequests").textContent = r.requestCount ?? 0;
+                $("statAppts").textContent = r.appointmentCount ?? 0;
+                $("fContact").value = r.contactNumber || "—";
+                $("fRegistered").value = r.registeredAt ? new Date(r.registeredAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "—";
+                $("fBirth").value = r.birthDate ? String(r.birthDate).slice(0, 10) : "";
+                Object.entries(fields).forEach(([k, el]) => { $(el).value = r[k] || ""; });
+                $("drawerAudit").textContent = r.profileUpdatedAt ? `Last updated ${new Date(r.profileUpdatedAt).toLocaleString()} by ${r.profileUpdatedBy || "staff"}` : "Profile not filled in yet.";
+            } catch (e) { setMsg(e.message, "err"); }
+        }
+        $("closeBtn").addEventListener("click", () => $("drawer").classList.remove("show"));
+        $("drawer").addEventListener("click", (e) => { if (e.target === $("drawer")) $("drawer").classList.remove("show"); });
+
+        $("saveBtn").addEventListener("click", async () => {
+            if (!active) return;
+            const body = { birthDate: $("fBirth").value || null };
+            Object.entries(fields).forEach(([k, el]) => { body[k] = $(el).value; });
+            $("saveBtn").disabled = true; setMsg("Saving…");
+            try {
+                await api(`/staff/residents/${encodeURIComponent(active)}`, { method: "PATCH", body: JSON.stringify(body) });
+                setMsg("Profile saved.", "ok");
+                $("drawerAudit").textContent = `Last updated just now by ${getSession()?.user?.email || "you"}`;
+                loadResidents();
+            } catch (e) { setMsg(e.message, "err"); }
+            finally { $("saveBtn").disabled = false; }
+        });
+
+        // ---- logout ----
+        $("adminLogoutBtn").addEventListener("click", (e) => { e.preventDefault(); $("logoutModal").classList.add("show"); });
+        $("logoutCancelBtn").addEventListener("click", () => $("logoutModal").classList.remove("show"));
+        $("logoutConfirmBtn").addEventListener("click", () => {
+            if (window.APP_NAV?.logout) { window.APP_NAV.logout(); return; }
+            sessionStorage.removeItem("adminAuth");
+            window.location.href = COMMON_ROUTES.landing;
+        });
+
+        init();
+    </script>
+</body>
+</html>
