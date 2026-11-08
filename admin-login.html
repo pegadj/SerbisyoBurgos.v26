@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Portal Login | SerbisyoBurgos</title>
     <link rel="icon" type="image/png" href="asset/SB.png">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#16a34a">
-    <link rel="apple-touch-icon" href="asset/SB.png">
-    <script src="shared/pwa.js" defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         :root { --primary-green: #043d2e; --brand-green: #16a34a; --hover-green: #15803d; --bg-light: #f8fafc; --text-gray: #64748b; }
@@ -71,7 +67,7 @@
 <script src="shared/routes.js"></script>
 <script src="shared/maintenance-check.js"></script>
 <script>
-    const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+    const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
     const STAFF_ROUTES = window.APP_ROUTES?.staff || { dashboard: "staff/staff-dashboard.html" };
     const ADMIN_ROUTES = window.APP_ROUTES?.admin || { dashboard: "admin/service-mngmt.html" };
     const SYSTEM_ADMIN_ROUTES = window.APP_ROUTES?.systemAdmin || { dashboard: "system-admin/sysad-dashboard.html" };
