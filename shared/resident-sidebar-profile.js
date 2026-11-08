@@ -44,7 +44,7 @@
   function resolveFileUrl(url) {
     const u = String(url || "").trim();
     if (!u) return u;
-    const base = String(global.API_BASE_URL || "https://sb-draft1.onrender.com").replace(/\/$/, "");
+    const base = String(global.API_BASE_URL || "https://serbisyoburgos-ver-26.onrender.com").replace(/\/$/, "");
     const absolute = /^https?:\/\//i.test(u) ? u : `${base}${u.startsWith("/") ? "" : "/"}${u}`;
     try {
       const token = global.getResidentAccessToken?.();
@@ -82,7 +82,7 @@
   }
 
   async function hydrateUserFromContext() {
-    const baseRaw = String(global.API_BASE_URL || "https://sb-draft1.onrender.com").replace(/\/$/, "");
+    const baseRaw = String(global.API_BASE_URL || "https://serbisyoburgos-ver-26.onrender.com").replace(/\/$/, "");
     try {
       const raw = global.sessionStorage.getItem("residentAuth");
       if (!raw) return;

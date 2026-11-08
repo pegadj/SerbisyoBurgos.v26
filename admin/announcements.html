@@ -621,7 +621,7 @@
     <script>
         (async function() { const auth = await window.SB_ADMIN_ACCESS?.requireRole("admin"); if (!auth) return; })();
 
-        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
 
         function getAdminAccessToken() {

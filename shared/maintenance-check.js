@@ -3,7 +3,7 @@
  * Include after shared/routes.js when using SB_MAINTENANCE.
  */
 (function initMaintenanceCheck(globalScope) {
-  const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+  const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
 
   async function fetchPortalEnvironment() {
     try {

@@ -1,13 +1,13 @@
 /**
  * Wires the resident floating FAQ chat to POST /faq/chat (Groq + FAQ DB).
  * Expects #chatToggle, #chatWindow, #chatBody, #chatInput, .chat-footer button.
- * API base: script[data-api-base] or https://sb-draft1.onrender.com
+ * API base: script[data-api-base] or https://serbisyoburgos-ver-26.onrender.com
  */
 (function residentFaqChatInit(global) {
   const doc = global.document;
   const scriptEl = doc.querySelector('script[src*="resident-faq-chat.js"]');
   const rawBase =
-    (scriptEl && scriptEl.getAttribute("data-api-base")) || global.__SB_API_BASE__ || "https://sb-draft1.onrender.com";
+    (scriptEl && scriptEl.getAttribute("data-api-base")) || global.__SB_API_BASE__ || "https://serbisyoburgos-ver-26.onrender.com";
   const apiBase = String(rawBase || "").replace(/\/$/, "");
 
   function qs(id) {

@@ -16,7 +16,7 @@
       /* ignore */
     }
     const w = String(globalScope.API_BASE_URL || "").trim();
-    return w ? w.replace(/\/$/, "") : "https://sb-draft1.onrender.com";
+    return w ? w.replace(/\/$/, "") : "https://serbisyoburgos-ver-26.onrender.com";
   }
 
   function resolveFileUrl(url) {

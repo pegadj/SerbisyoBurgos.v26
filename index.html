@@ -563,7 +563,7 @@
         /* ── Maintenance notice ── */
         (async function showMaintenanceLandingNotice() {
             try {
-                const base = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+                const base = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
                 const response = await fetch(`${base}/public/system-status`);
                 const json = await response.json().catch(() => ({}));
                 if (json?.environment !== "maintenance") return;
