@@ -601,6 +601,12 @@
                 </div>
 
                 <div class="form-group">
+                    <label>Purpose (optional)</label>
+                    <input type="text" id="reqPurpose" maxlength="160" placeholder="e.g. Employment, Scholarship, School enrollment" autocomplete="off">
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">What the document is for. It is printed on certificates such as the Barangay Clearance.</p>
+                </div>
+
+                <div class="form-group">
                     <label>Supporting Documents</label>
                     <div class="upload-area">
                         <p style="font-weight: 500;">Click to upload or drag and drop</p>
@@ -1436,6 +1442,7 @@ function statusClass(status) {
                 serviceType,
                 preferredDate,
                 preferredTimeSlot,
+                purpose: (document.getElementById('reqPurpose')?.value || '').trim() || undefined,
                 supportingDocumentNames: selectedSupportingFiles.map((file) => file.name)
             };
 
