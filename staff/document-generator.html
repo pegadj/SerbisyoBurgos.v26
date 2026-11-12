@@ -168,279 +168,120 @@
             min-height: calc(11in * 0.58 + 4rem);
         }
 
-        /* THE CERTIFICATE — US Letter size */
+        /* THE CERTIFICATE — US Letter, laid out to match the barangay's Word templates */
         .certificate-page {
             width: 8.5in;
-            min-height: 11in;
-            background: white;
-            padding: 0;
+            height: 11in;
+            background: #fff;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            display: flex;
-            flex-direction: column;
             position: relative;
-            color: black;
+            color: #000;
             flex-shrink: 0;
             transform: scale(0.58);
             transform-origin: top center;
             margin-bottom: calc(-11in * 0.42);
-            font-family: 'Times New Roman', Times, serif;
+            font-family: 'Bookman Old Style', 'Bookman', 'URW Bookman', 'ITC Bookman', 'Palatino Linotype', Georgia, serif;
             overflow: hidden;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
+        .certificate-page > * { position: absolute; }
+        #clearanceContent, #indigencyContent { inset: 0; }
+        #clearanceContent > *, #indigencyContent > * { position: absolute; }
 
-        /* ── Clearance layout helpers ── */
-        .bc-doc { display: flex; flex-direction: column; width: 100%; height: 100%; }
-
-        /* Header band */
-        .bc-header-band {
-            background: linear-gradient(180deg, #1a5fa8 0%, #2176c7 40%, #4a9de0 80%, #87ceeb 100%);
-            padding: 18px 28px 14px 28px;
-            display: flex;
-            align-items: center;
-            gap: 0;
-            border-bottom: 4px solid #0d2e6e;
-        }
-        .bc-header-seal {
-            width: 88px; height: 88px;
-            border-radius: 50%;
-            border: 3px solid rgba(255,255,255,0.7);
-            background: white;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 8pt; font-weight: 700; color: #1a5fa8; text-align: center;
-            flex-shrink: 0;
-            overflow: hidden;
-        }
-        .bc-header-seal svg { width: 82px; height: 82px; }
-        .bc-header-center {
-            flex: 1;
-            text-align: center;
-            color: white;
-            line-height: 1.3;
-        }
-        .bc-header-center .republic { font-size: 11.5pt; font-style: italic; }
-        .bc-header-center .province { font-size: 10.5pt; font-style: italic; }
-        .bc-header-center .barangay-name {
-            font-size: 26pt; font-weight: 900; letter-spacing: 1px;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
-            font-family: 'Georgia', serif;
-        }
-        .bc-header-center .office-name {
-            font-size: 13pt; font-weight: 700;
-            font-family: 'Georgia', serif;
-            font-style: italic;
-        }
-        .bc-header-seal2 {
-            width: 88px; height: 88px;
-            border-radius: 50%;
-            border: 3px solid rgba(255,255,255,0.7);
-            background: white;
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-            overflow: hidden;
-        }
-        .bc-header-seal2 svg { width: 82px; height: 82px; }
-
-        /* Divider lines */
-        .bc-divider { height: 6px; background: #0d2e6e; }
-        .bc-divider2 { height: 3px; background: #c0392b; margin-top: 1px; }
-
-        /* Document body */
-        .bc-body {
-            flex: 1;
-            padding: 22px 38px 14px 38px;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            min-height: 100%;
-        }
-
-        /* Watermark */
-        .bc-watermark {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 420px; height: 420px;
-            opacity: 0.07;
+        /* Page border (Word "thin-thick-thin") */
+        .doc-border {
+            inset: 0.33in;
+            border: 1px solid #000;
+            box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 5px #000, inset 0 0 0 7px #fff, inset 0 0 0 8px #000;
             pointer-events: none;
+            z-index: 5;
+        }
+        /* Seal watermark, 6.6in square, washed out like Word's "washout" picture effect */
+        .doc-watermark {
+            left: 50%; top: 5.9in;
+            width: 8.8in; height: 8.8in;
+            transform: translate(-50%, -50%);
+            opacity: 0.17;
+            mix-blend-mode: multiply;
             z-index: 0;
         }
-
-        .bc-doc-title {
-            text-align: center;
-            font-size: 20pt;
-            font-weight: 900;
-            text-decoration: underline;
-            letter-spacing: 2px;
-            margin-bottom: 8px;
-            position: relative; z-index: 1;
+        .doc-letterhead { left: 50%; transform: translateX(-50%); top: 0.4in; z-index: 1; }
+        .doc-rule { left: 0.56in; width: 7.35in; height: 0; border-top: 3px solid #1d1d1d; z-index: 1; }
+        .doc-office {
+            left: 0; right: 0; text-align: center; z-index: 2;
+            font-family: 'Copperplate Gothic Bold', 'Copperplate', 'Trebuchet MS', Arial, sans-serif;
+            font-weight: 700; line-height: 1; font-variant: small-caps; letter-spacing: 0.3px;
         }
+        .doc-title {
+            left: 0; right: 0; text-align: center; z-index: 2;
+            font-family: 'Copperplate Gothic Bold', 'Copperplate', 'Trebuchet MS', Arial, sans-serif;
+            font-weight: 700; font-size: 16pt; line-height: 1;
+        }
+        .doc-notvalid {
+            z-index: 2;
+            border: 0.5pt solid #000; background: #fff;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            font-family: 'Forte', Arial, sans-serif; font-size: 9pt; line-height: 1.15;
+        }
+        .doc-sig-name { font-weight: 700; font-size: 12pt; text-transform: uppercase; }
+        .doc-sig-title { font-size: 12pt; }
+        .u-val { text-decoration: underline; text-transform: uppercase; }
+        .u-val.keep-case { text-transform: none; }
+
+        /* ── Barangay Clearance ── */
         .bc-subtitle {
-            text-align: justify;
-            font-size: 11pt;
-            font-weight: 700;
-            line-height: 1.5;
-            margin-bottom: 18px;
-            position: relative; z-index: 1;
-            width: 100%;
+            left: 1in; right: 1in; top: 2.62in; z-index: 2;
+            text-align: center; font-weight: 700; font-size: 12pt; line-height: 1.35;
         }
-
-        /* Fields + right column */
-        .bc-content-row {
-            display: flex;
-            gap: 20px;
-            position: relative; z-index: 1;
-            margin-bottom: 10px;
-        }
-        .bc-fields { flex: 1; }
-        .bc-field-row {
-            display: flex;
-            align-items: flex-end;
-            margin-bottom: 9px;
-            font-size: 12pt;
-        }
-        .bc-field-label { font-weight: 700; min-width: 128px; white-space: nowrap; }
-        .bc-field-value {
-            flex: 1;
-            border-bottom: 1.5px solid #000;
-            min-height: 20px;
-            padding: 0 4px 1px 4px;
-            font-size: 12pt;
-        }
-
-        /* Right column */
-        .bc-right {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            min-width: 210px;
-        }
-        .bc-photo-box {
-            width: 130px; height: 148px;
-            border: 1.5px solid #000;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 9pt; color: #888;
-        }
-        .bc-thumb-row { display: flex; gap: 10px; }
+        .bc-fields { left: 1in; top: 3.42in; width: 4.7in; z-index: 2; font-size: 12pt; line-height: 1.37; }
+        .bc-row { display: flex; }
+        .bc-row .lbl { width: 1.52in; font-weight: 700; flex-shrink: 0; }
+        .bc-row .sep { font-weight: 700; width: 0.14in; flex-shrink: 0; }
+        .bc-row .val { flex: 1; }
+        .bc-row .val.strong { font-weight: 700; }
+        .bc-photo { left: 6.34in; top: 3.33in; width: 1.47in; height: 1.42in; border: 1px solid #000; z-index: 2; }
         .bc-thumb {
-            width: 88px; height: 90px;
-            border: 1.5px solid #000;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: flex-end;
-            padding-bottom: 5px;
-            font-size: 8pt; color: #333; text-align: center; line-height: 1.2;
+            top: 5.14in; width: 0.97in; height: 0.86in; border: 1px solid #000; z-index: 2;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            font-family: Calibri, Carlito, Arial, sans-serif; font-weight: 700; font-size: 5.5pt;
         }
-        .bc-sig-area { text-align: center; width: 200px; }
-        .bc-sig-line { border-top: 1.5px solid #000; margin-bottom: 3px; }
-        .bc-sig-label { font-size: 10pt; }
+        .bc-sig { left: 6.2in; width: 1.7in; top: 6.38in; text-align: center; z-index: 2; border-top: 1px solid #000; padding-top: 2px; font-family: Calibri, Carlito, Arial, sans-serif; font-size: 10pt; }
+        .bc-para { left: 1in; right: 0.95in; text-align: justify; font-size: 12pt; line-height: 1.42; z-index: 2; }
+        .bc-sign-block { left: 4.45in; width: 3.1in; top: 8.05in; text-align: center; z-index: 2; }
+        .bc-foot { left: 0.55in; top: 9.78in; z-index: 2; font-family: Calibri, Carlito, Arial, sans-serif; font-size: 10pt; line-height: 1.3; }
+        .bc-foot .row { display: flex; }
+        .bc-foot .k { width: 0.78in; }
+        .bc-note { left: 0.55in; top: 10.3in; z-index: 2; font-family: Calibri, Carlito, Arial, sans-serif; font-size: 10pt; }
 
-        /* Body paragraphs */
-        .bc-para {
-            font-size: 11.5pt;
-            text-align: justify;
-            line-height: 1.75;
-            margin-bottom: 10px;
-            position: relative; z-index: 1;
-        }
-        .bc-issued-line {
-            font-size: 11.5pt;
-            text-align: justify;
-            line-height: 1.75;
-            margin-bottom: 14px;
-            position: relative; z-index: 1;
-        }
+        /* ── Certificate of Indigency ── */
+        .ci-body { left: 0.85in; right: 0.85in; top: 2.7in; z-index: 2; font-size: 12pt; line-height: 1.45; }
+        .ci-body p { text-align: justify; margin: 0 0 0.12in 0; text-indent: 0.5in; }
+        .ci-body p.plain { text-indent: 0; margin-bottom: 0.28in; font-size: 11pt; }
+        .ci-sign-block { left: 4.4in; width: 3.2in; top: 7.0in; text-align: center; z-index: 2; }
+        .doc-footer { left: 50%; transform: translateX(-50%); width: 8in; bottom: -0.09in; z-index: 2; } /* sits in the margin, below the page border */
 
-        /* Signatory */
-        .bc-signatory {
-            text-align: right;
-            margin-top: 10px;
-            margin-bottom: 16px;
-            position: relative; z-index: 1;
-        }
-        .bc-sig-name { font-size: 13pt; font-weight: 900; }
-        .bc-sig-title { font-size: 11pt; }
-
-        /* Bottom section */
-        .bc-bottom-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 20px;
-            position: relative; z-index: 1;
-            margin-bottom: 6px;
-        }
-        .bc-not-valid {
-            border: 2px solid #444;
-            padding: 5px 10px;
-            font-size: 9pt;
-            font-weight: 700;
-            font-style: italic;
-            color: #333;
-            white-space: nowrap;
-            line-height: 1.4;
-        }
-        .bc-footer-info {
-            font-size: 9.5pt;
-            line-height: 1.65;
-            flex: 1;
-        }
-        .bc-footer-info .underline { text-decoration: underline; }
-
-        /* Bottom motto band */
-        .bc-motto-band {
-            background: #c0392b;
-            color: #FFD700;
-            text-align: center;
-            font-size: 11pt;
-            font-weight: 700;
-            padding: 7px 20px;
-            letter-spacing: 0.3px;
-            margin-top: auto;
-        }
-        .bc-motto-band em { font-style: normal; }
-
-        /* Indigency uses old style */
-        .cert-body { text-align: justify; line-height: 1.8; font-size: 1.1rem; padding: 40px; }
-        .cert-title { font-size: 2rem; font-weight: 700; margin: 22px 0 20px 0; text-transform: uppercase; text-align: center; }
-        .cert-footer { display: flex; justify-content: space-between; padding-top: 40px; }
-        .cert-header {
-            border-bottom: 3px solid #000;
-            padding: 36px 40px 20px 40px;
-            margin-bottom: 0;
-            text-align: center;
-            background: #fff;
-        }
-        .cert-header h3 {
-            font-size: 11pt;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            color: #000;
-            margin: 0 0 2px 0;
-        }
-        .cert-header h4 {
-            font-size: 10pt;
-            font-weight: 600;
-            color: #000;
-            margin: 2px 0;
-        }
-        .cert-header h2 {
-            font-size: 13pt;
-            font-weight: 900;
-            color: #000;
-            margin: 6px 0 0 0;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
+        /* Print: exactly one Letter page, nothing else */
+        @page { size: 8.5in 11in; margin: 0; }
         @media print {
-            aside, .config-panel, .top-bar { display: none !important; }
-            main { margin-left: 0; padding: 0; }
-            .preview-panel { background: none; padding: 0; overflow: visible; min-height: unset; }
+            html, body { background: #fff !important; display: block !important; min-height: 0 !important; }
+            aside, .config-panel, .top-bar, .modal-overlay { display: none !important; }
+            main { margin: 0 !important; padding: 0 !important; display: block !important; }
+            .generator-container { display: block !important; }
+            .preview-panel { background: none !important; padding: 0 !important; overflow: visible !important; min-height: 0 !important; display: block !important; }
             .certificate-page {
-                box-shadow: none; border: none;
-                width: 8.5in; min-height: 11in;
-                transform: none;
-                margin-bottom: 0;
+                box-shadow: none !important;
+                transform: none !important;
+                margin: 0 !important;
+                width: 8.5in; height: 11in;
+                break-after: avoid; page-break-after: avoid;
             }
         }
+
+        .field-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.4; }
+        .form-section-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin: 0.25rem 0 0.9rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+        .form-row-2 { display: grid; grid-template-columns: 110px 1fr; gap: 0.75rem; }
+
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -475,17 +316,6 @@
         .modal-btn-cancel { background: #f1f5f9; color: #334155; }
         .modal-btn-confirm { background: #e11d48; color: white; }
 
-        @media print {
-            aside, .config-panel, .top-bar { display: none !important; }
-            main { margin-left: 0; padding: 0; }
-            .preview-panel { background: none; padding: 0; overflow: visible; min-height: unset; }
-            .certificate-page { 
-                box-shadow: none; border: none; 
-                width: 210mm; min-height: 297mm;
-                transform: none;
-                margin-bottom: 0;
-            }
-        }
 
         @media (max-width: 1200px) {
             .generator-container { grid-template-columns: 1fr; }
@@ -569,8 +399,8 @@
 
         <div class="generator-container">
             <div class="config-panel">
-<div class="form-group">
-                    <label>Document Type</label>
+                <div class="form-group">
+                    <label for="docType">Document Type</label>
                     <select id="docType" onchange="updateFormFields()">
                         <option value="Barangay Clearance">Barangay Clearance</option>
                         <option value="Certificate of Indigency">Certificate of Indigency</option>
@@ -580,23 +410,23 @@
                 <!-- Barangay Clearance Fields -->
                 <div id="clearanceFields">
                     <div class="form-group">
-                        <label>Full Name</label>
-                        <input type="text" id="resName" placeholder="Enter full name..." onkeyup="updatePreview()">
+                        <label for="resName">Full Name</label>
+                        <input type="text" id="resName" placeholder="Enter full name..." oninput="updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label>Address</label>
-                        <input type="text" id="resAddress" placeholder="Enter address..." onkeyup="updatePreview()">
+                        <label for="resAddress">Address</label>
+                        <input type="text" id="resAddress" value="Brgy. Burgos, San Marcelino, Zambales" oninput="updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label>Date of Birth</label>
+                        <label for="resDateOfBirth">Date of Birth</label>
                         <input type="date" id="resDateOfBirth" onchange="updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label>Place of Birth</label>
-                        <input type="text" id="resPlaceOfBirth" placeholder="Enter place of birth..." onkeyup="updatePreview()">
+                        <label for="resPlaceOfBirth">Place of Birth</label>
+                        <input type="text" id="resPlaceOfBirth" placeholder="e.g. San Narciso, Zambales" oninput="updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label>Civil Status</label>
+                        <label for="resCivilStatus">Civil Status</label>
                         <select id="resCivilStatus" onchange="updatePreview()">
                             <option value="">Select...</option>
                             <option value="Single">Single</option>
@@ -607,7 +437,7 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Gender</label>
+                        <label for="resGender">Gender</label>
                         <select id="resGender" onchange="updatePreview()">
                             <option value="">Select...</option>
                             <option value="Male">Male</option>
@@ -615,85 +445,52 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Purpose</label>
-                        <input type="text" id="docPurpose" placeholder="e.g. Employment" onkeyup="updatePreview()">
+                        <label for="docPurpose">Purpose</label>
+                        <input type="text" id="docPurpose" placeholder="e.g. Loan" oninput="updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label>OR Number</label>
-                        <input type="text" id="orNumber" placeholder="Enter OR No." onkeyup="updatePreview()">
-                    </div>
-                    <div class="form-group">
-                        <label>CTC Number</label>
-                        <input type="text" id="ctcNumber" placeholder="Enter CTC No." onkeyup="updatePreview()">
-                    </div>
-                    <div class="form-group">
-                        <label>Date of Issue</label>
-                        <input type="date" id="issueDate" onchange="updatePreview()">
-                    </div>
-                    <div class="form-group">
-                        <label>Issued This (Day)</label>
-                        <input type="number" id="issueDay" placeholder="e.g. 14" min="1" max="31" onkeyup="updatePreview()" onchange="updatePreview()">
-                    </div>
-                    <div class="form-group">
-                        <label>Issued This (Month)</label>
-                        <select id="issueMonth" onchange="updatePreview()">
-                            <option value="">Select month...</option>
-                            <option>January</option><option>February</option><option>March</option>
-                            <option>April</option><option>May</option><option>June</option>
-                            <option>July</option><option>August</option><option>September</option>
-                            <option>October</option><option>November</option><option>December</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Issued This (Year)</label>
-                        <input type="number" id="issueYear" placeholder="e.g. 2026" min="2000" max="2100" onkeyup="updatePreview()" onchange="updatePreview()">
+                        <label for="orNumber">OR Number</label>
+                        <input type="text" id="orNumber" placeholder="Enter OR No." oninput="updatePreview()">
                     </div>
                 </div>
 
                 <!-- Certificate of Indigency Fields -->
                 <div id="indigencyFields" style="display: none;">
                     <div class="form-group">
-                        <label>Resident Full Name</label>
-                        <input type="text" id="resNameIndigency" placeholder="Enter full name..." onkeyup="updatePreview()">
+                        <label for="resNameIndigency">Resident Full Name</label>
+                        <input type="text" id="resNameIndigency" placeholder="Enter full name..." oninput="syncFamilyName(); updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label>Resident Surname</label>
-                        <input type="text" id="resSurname" placeholder="Enter surname..." onkeyup="updatePreview()">
+                        <label>Family Name</label>
+                        <div class="form-row-2">
+                            <select id="resTitleIndigency" onchange="updatePreview()" aria-label="Title">
+                                <option value="MR.">MR.</option>
+                                <option value="MS.">MS.</option>
+                                <option value="MRS.">MRS.</option>
+                            </select>
+                            <input type="text" id="resSurname" placeholder="Surname" oninput="familyNameEdited = true; updatePreview()">
+                        </div>
+                        <p class="field-hint">Prints as “the family of MR. ____”. Filled from the last word of the full name; edit it if the surname differs.</p>
                     </div>
                     <div class="form-group">
-                        <label>Purok No.</label>
-                        <input type="text" id="resPurok" placeholder="e.g. 3" onkeyup="updatePreview()">
+                        <label for="docPurposeIndigency">Purpose</label>
+                        <input type="text" id="docPurposeIndigency" placeholder="e.g. Medical Assistance" oninput="updatePreview()">
+                        <p class="field-hint">Completes “…as requirement in availing for ____”.</p>
                     </div>
-                    <div class="form-group">
-                        <label>Street Name</label>
-                        <input type="text" id="resStreet" placeholder="Enter street name..." onkeyup="updatePreview()">
-                    </div>
-                    <div class="form-group">
-                        <label>Purpose</label>
-                        <input type="text" id="docPurposeIndigency" placeholder="e.g. Scholarship" onkeyup="updatePreview()">
-                    </div>
-                    <div class="form-group">
-                        <label>Date of Issue</label>
-                        <input type="date" id="issueDateIndigency" onchange="updatePreview()">
-                    </div>
-                    <div class="form-group">
-                        <label>Issued This (Day)</label>
-                        <input type="number" id="issueDayIndigency" placeholder="e.g. 14" min="1" max="31" onkeyup="updatePreview()" onchange="updatePreview()">
-                    </div>
-                    <div class="form-group">
-                        <label>Issued This (Month)</label>
-                        <select id="issueMonthIndigency" onchange="updatePreview()">
-                            <option value="">Select month...</option>
-                            <option>January</option><option>February</option><option>March</option>
-                            <option>April</option><option>May</option><option>June</option>
-                            <option>July</option><option>August</option><option>September</option>
-                            <option>October</option><option>November</option><option>December</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Issued This (Year)</label>
-                        <input type="number" id="issueYearIndigency" placeholder="e.g. 2026" min="2000" max="2100" onkeyup="updatePreview()" onchange="updatePreview()">
-                    </div>
+                </div>
+
+                <div class="form-section-title">Issuance</div>
+                <div class="form-group">
+                    <label for="issueDate">Date of Issue</label>
+                    <input type="date" id="issueDate" onchange="updatePreview()">
+                </div>
+                <div class="form-group">
+                    <label for="signatoryName">Signatory</label>
+                    <input type="text" id="signatoryName" value="HON. LILIBETH C. BALLON" oninput="updatePreview()">
+                </div>
+                <div class="form-group">
+                    <label for="signatoryTitle">Signatory Title</label>
+                    <input type="text" id="signatoryTitle" value="Acting Punong Barangay" oninput="updatePreview()">
                 </div>
 
                 <button class="btn-generate" onclick="window.print()">
@@ -701,109 +498,74 @@
                 </button>
             </div>
 
-<div class="preview-panel">
+            <div class="preview-panel">
                 <div class="certificate-page" id="printableCert">
-                    <div class="cert-header">
-                        <h3>Republic of the Philippines</h3>
-                        <h4>Province of Zambales</h4>
-                        <h4>Municipality of San Marcelino</h4>
-                        <div style="border-bottom: 1.5px solid #000; margin: 8px 40px;"></div>
-                        <h2><strong>BARANGAY BURGOS</strong></h2>
-                        <h2><strong>OFFICE OF THE PUNONG BARANGAY</strong></h2>
-                    </div>
+                    <img class="doc-watermark" src="../asset/docs/watermark.jpg" alt="">
+                    <div class="doc-border"></div>
+                    <img class="doc-footer" src="../asset/docs/Footer.png" alt="Bayanihan, kalUsugan, kataRungan, paGmamahal, pagbubuklOd at Serbisyong tapat tungo sa pag-unlad">
 
-                    <h1 class="cert-title" id="previewTitle">BARANGAY CLEARANCE</h1>
-
-                    <!-- Clearance Certificate Content -->
+                    <!-- ═══════════ BARANGAY CLEARANCE ═══════════ -->
                     <div id="clearanceContent">
-                        <div class="bc-body">
-                            <div class="bc-subtitle">This is to certify that the person whose Name and Signature appear hereon has requested a CLEARANCE from this office.</div>
+                        <img class="doc-letterhead" src="../asset/docs/Header.png" alt="Republic of the Philippines, Province of Zambales, Municipality of San Marcelino, Barangay Burgos" style="width: 7.7in; height: 1.31in;">
+                        <div class="doc-office" style="top: 1.49in; font-size: 12.5pt;">Office of the punong barangay</div>
+                        <div class="doc-rule" style="top: 1.75in;"></div>
+                        <div class="doc-title" style="top: 2.2in;">BARANGAY CLEARANCE</div>
 
-                            <!-- Fields + Right column (photo, thumbs, signature) -->
-                            <div class="bc-content-row">
-                                <!-- Left: form fields -->
-                                <div class="bc-fields">
-                                    <div class="bc-field-row">
-                                        <span class="bc-field-label">Name:</span>
-                                        <span class="bc-field-value" id="previewName">[RESIDENT NAME]</span>
-                                    </div>
-                                    <div class="bc-field-row">
-                                        <span class="bc-field-label">Address:</span>
-                                        <span class="bc-field-value" id="previewAddress">[ADDRESS]</span>
-                                    </div>
-                                    <div class="bc-field-row">
-                                        <span class="bc-field-label">Date of Birth:</span>
-                                        <span class="bc-field-value" id="previewDateOfBirth">[DATE OF BIRTH]</span>
-                                    </div>
-                                    <div class="bc-field-row">
-                                        <span class="bc-field-label">Place of Birth:</span>
-                                        <span class="bc-field-value" id="previewPlaceOfBirth">[PLACE OF BIRTH]</span>
-                                    </div>
-                                    <div class="bc-field-row">
-                                        <span class="bc-field-label">Civil Status:</span>
-                                        <span class="bc-field-value" id="previewCivilStatus">[CIVIL STATUS]</span>
-                                    </div>
-                                    <div class="bc-field-row" style="margin-bottom: 4px;">
-                                        <span class="bc-field-label">Gender:</span>
-                                        <span class="bc-field-value" id="previewGender">[GENDER]</span>
-                                    </div>
-                                    <div class="bc-field-row" style="margin-top: 4px;">
-                                        <span class="bc-field-label">Purpose:</span>
-                                        <span class="bc-field-value" id="previewPurpose">[PURPOSE]</span>
-                                    </div>
-                                </div>
+                        <div class="bc-subtitle">This is to certify that the person whose Name and Signature appear hereon has requested a CLEARANCE from this office.</div>
 
-                                <!-- Right: photo + thumbs + signature below -->
-                                <div class="bc-right">
-                                    <div class="bc-photo-box">2x2 Photo</div>
-                                    <div class="bc-thumb-row">
-                                        <div class="bc-thumb">Left<br>Thumb Mark</div>
-                                        <div class="bc-thumb">Right<br>Thumb Mark</div>
-                                    </div>
-                                    <!-- Signature line below the 3 boxes -->
-                                    <div style="width: 100%; margin-top: 8px; text-align: center;">
-                                        <div style="border-top: 1.5px solid #000; margin-bottom: 3px;"></div>
-                                        <div style="font-size: 10pt;">Signature</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Body paragraphs -->
-                            <p class="bc-para" style="margin-top: 14px;">This is to certify that the subject person is known to me personally to be a person of good moral standing in the community and a law-abiding citizen. She/he has no Pending Case or Derogatory Record in our Office.</p>
-                            <p class="bc-issued-line">Issued this <span id="previewIssuedDay">___</span> day of <span id="previewIssuedMonth">__________</span>, <span id="previewIssuedYear">______</span> at Barangay Burgos, San Marcelino, Zambales.</p>
-
-                            <!-- Signatory: right-aligned block, text centered within it -->
-                            <div style="text-align: center; margin-top: 16px; margin-bottom: 20px; position: relative; z-index: 1; width: 260px; margin-left: auto;">
-                                <div class="bc-sig-name">HON. RIZALINO F. RAGADIO</div>
-                                <div class="bc-sig-title">Punong Barangay</div>
-                            </div>
-
-                            <!-- Bottom-left: Not Valid box stacked above OR/CTC/Note -->
-                            <div style="position: relative; z-index: 1; display: inline-flex; flex-direction: column; align-items: flex-start; gap: 6px;">
-                                <div class="bc-not-valid">Not Valid without<br>Official Seal</div>
-                                <div class="bc-footer-info">
-                                    <span>OR No.: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id="previewOrNumber">[OR NO.]</span></span><br>
-                                    <span>CTC No.: &nbsp;&nbsp;&nbsp;<span id="previewCtcNumber">[CTC NO.]</span></span><br>
-                                    <span>Issued at: &nbsp;San Marcelino, Zambales</span><br>
-                                    <span>Issued on: &nbsp;<span id="previewIssuedOn">[DATE]</span></span>
-                                </div>
-                                <p style="font-size: 9pt; font-style: italic; margin: 0;">Note: This is valid (3) months only after date of issuance</p>
-                            </div>
-
+                        <div class="bc-fields">
+                            <div class="bc-row"><span class="lbl">Name</span><span class="sep">:</span><span class="val strong"><span class="u-val" id="previewName">[RESIDENT NAME]</span></span></div>
+                            <div class="bc-row"><span class="lbl">Address</span><span class="sep">:</span><span class="val"><span class="u-val keep-case" id="previewAddress">[ADDRESS]</span></span></div>
+                            <div class="bc-row"><span class="lbl">Date of Birth</span><span class="sep">:</span><span class="val"><span class="u-val keep-case" id="previewDateOfBirth">[DATE OF BIRTH]</span></span></div>
+                            <div class="bc-row"><span class="lbl">Place of Birth</span><span class="sep">:</span><span class="val"><span class="u-val keep-case" id="previewPlaceOfBirth">[PLACE OF BIRTH]</span></span></div>
+                            <div class="bc-row"><span class="lbl">Civil Status</span><span class="sep">:</span><span class="val"><span class="u-val keep-case" id="previewCivilStatus">[CIVIL STATUS]</span></span></div>
+                            <div class="bc-row"><span class="lbl">Gender</span><span class="sep">:</span><span class="val"><span class="u-val keep-case" id="previewGender">[GENDER]</span></span></div>
+                            <div class="bc-row"><span class="lbl">Purpose</span><span class="sep">:</span><span class="val strong"><span class="u-val keep-case" id="previewPurpose">[PURPOSE]</span></span></div>
                         </div>
+
+                        <div class="bc-photo"></div>
+                        <div class="bc-thumb" style="left: 5.86in;">Left Thumb Mark</div>
+                        <div class="bc-thumb" style="left: 6.99in;">Right Thumb Mark</div>
+                        <div class="bc-sig">Signature</div>
+
+                        <p class="bc-para" style="top: 6.78in;">This is to certify that the subject person is known to me personally to be a person of good moral standing in the community and a law-abiding citizen. She/he has no Pending Case or Derogatory Record in our Office.</p>
+                        <p class="bc-para" style="top: 7.62in;">Issued this <span id="previewIssuedDay">___</span><sup id="previewIssuedOrd" style="font-size: 0.65em;"></sup> day of <span id="previewIssuedMonth">__________</span>, <span id="previewIssuedYear">______</span> at Barangay Burgos, San Marcelino, Zambales.</p>
+
+                        <div class="bc-sign-block">
+                            <div class="doc-sig-name" id="previewSignatoryName">HON. LILIBETH C. BALLON</div>
+                            <div class="doc-sig-title" id="previewSignatoryTitle">Acting Punong Barangay</div>
+                        </div>
+
+                        <div class="doc-notvalid" style="left: 0.58in; top: 9.2in; width: 1.29in; height: 0.42in;">Not Valid without<br>Official Seal</div>
+                        <div class="bc-foot">
+                            <div class="row"><span class="k">OR No.</span><span>:&nbsp; <span id="previewOrNumber">&nbsp;</span></span></div>
+                            <div class="row"><span class="k">Issued at</span><span>:&nbsp; San Marcelino, Zambales</span></div>
+                            <div class="row"><span class="k">Issued on</span><span>:&nbsp; <span id="previewIssuedOn">[DATE]</span></span></div>
+                        </div>
+                        <div class="bc-note">Note: This is valid (3) months only after date of issuance</div>
                     </div>
 
-                    <!-- Indigency Certificate Content (hidden by default) -->
-                    <div id="indigencyContent" class="cert-body" style="display: none; position: relative;">
-                        <p>TO WHOM IT MAY CONCERN:</p><br>
-                        <p>This is to certify that <strong id="previewNameIndigency">[RESIDENT NAME]</strong> of legal age and a bonafide resident of Purok, Street, Barangay Burgos, San Marcelino, Zambales is categorized that his/her family belongs to an INDIGENT sector of the community.</p><br>
-                        <p>It further certifies that based on our survey that has been conducted the family of <strong><span id="previewSurname">[SURNAME]</span></strong> does not exceed the Annual Regional Poverty Threshold Level as determined by the National Economic & Development Authority and under survival level, and found to be indigent.</p><br>
-                        <p>This certification is being issued upon the request of above-named person as requirement in availing for <strong><span id="previewPurposeIndigency">[PURPOSE]</span></strong>.</p><br>
-                        <p>Issued this <span id="previewIssuedDayIndigency">___</span> day of <span id="previewIssuedMonthIndigency">__________</span>, <span id="previewIssuedYearIndigency">______</span> at Barangay Burgos, San Marcelino, Zambales.</p>
-                        <!-- Not Valid without Official Seal — bottom left -->
-                        <div style="margin-top: 2rem;">
-                            <div class="bc-not-valid" style="display: inline-block;">Not Valid without<br>Official Seal</div>
+                    <!-- ═══════════ CERTIFICATE OF INDIGENCY ═══════════ -->
+                    <div id="indigencyContent" style="display: none;">
+                        <img class="doc-letterhead" src="../asset/docs/Header.png" alt="Republic of the Philippines, Province of Zambales, Municipality of San Marcelino, Barangay Burgos" style="width: 7.7in; height: 1.31in;">
+                        <div class="doc-office" style="top: 1.49in; font-size: 12.5pt;">Office of the punong barangay</div>
+                        <div class="doc-rule" style="top: 1.75in;"></div>
+                        <div class="doc-title" style="top: 2.1in;">CERTIFICATE OF INDIGENCY</div>
+
+                        <div class="ci-body">
+                            <p class="plain">TO WHOM IT MAY CONCERN:</p>
+                            <p>This is to certify that <strong class="u-none" id="previewNameIndigency" style="text-transform: uppercase;">[RESIDENT NAME]</strong> of legal age and a bona fide resident of Barangay Burgos, San Marcelino, Zambales is categorized that his/her family belongs to an <strong>INDIGENT</strong> sector of the community.</p>
+                            <p>It further certifies that based on our survey that has been conducted the family of <strong><span id="previewTitleIndigency">MR.</span> <span id="previewSurname" style="text-transform: uppercase;">[SURNAME]</span></strong> does not exceed the Annual Regional Poverty Threshold Level as determined by the National Economic &amp; Development Authority and under survival level, and found to be indigent<strong>.</strong></p>
+                            <p>This certification is being issued upon the request of above-named person as requirement in availing for <strong><span id="previewPurposeIndigency" style="text-transform: uppercase;">[PURPOSE]</span>.</strong></p>
+                            <p>Issued this <span id="previewIssuedDayIndigency">___</span><sup id="previewIssuedOrdIndigency" style="font-size: 0.65em;"></sup> day of <span id="previewIssuedMonthIndigency">__________</span> <span id="previewIssuedYearIndigency">______</span> at Barangay Burgos, San Marcelino, Zambales.</p>
                         </div>
+
+                        <div class="ci-sign-block">
+                            <div class="doc-sig-name" id="previewSignatoryNameIndigency">HON. LILIBETH C. BALLON</div>
+                            <div class="doc-sig-title" id="previewSignatoryTitleIndigency">Acting Punong Barangay</div>
+                        </div>
+
+                        <div class="doc-notvalid" style="left: 0.58in; top: 9.2in; width: 1.21in; height: 0.46in;">Not Valid without<br>Official Seal</div>
                     </div>
                 </div>
             </div>
@@ -826,7 +588,7 @@
     <script src="../shared/staff-page-guard.js" data-staff-permission="documentGenerator"></script>
     <script>
         const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
-        const STAFF_ROUTES = window.APP_ROUTES?.staff || { login: "../admin-login.html", dashboard: "staff-dashboard.html" };
+        const STAFF_ROUTES = window.APP_ROUTES?.staff || { login: "../login.html", dashboard: "staff-dashboard.html" };
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "index.html" };
         function applyStaffRouteLinks() {
             document.querySelectorAll('a[href="staff-dashboard.html"]').forEach((link) => {
@@ -935,97 +697,98 @@
         });
         applySessionSidebar();
 
-// Show/hide form fields and preview based on document type
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        let familyNameEdited = false;
+
+        const $ = (id) => document.getElementById(id);
+        const setText = (id, value, fallback) => { const el = $(id); if (el) el.textContent = (value && String(value).trim()) || fallback; };
+
+        function ordinalSuffix(n) {
+            const v = n % 100;
+            if (v >= 11 && v <= 13) return "th";
+            return ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th";
+        }
+
+        function todayIso() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        }
+
+        // Parse yyyy-mm-dd without timezone shifts.
+        function parseIso(value) {
+            const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || "");
+            if (!m) return null;
+            return { year: +m[1], month: +m[2] - 1, day: +m[3] };
+        }
+
+        function longDate(parts) {
+            return `${MONTHS[parts.month]} ${parts.day}, ${parts.year}`;
+        }
+
+        // Last word of the full name -> family name, until the staff member edits it by hand.
+        function syncFamilyName() {
+            if (familyNameEdited) return;
+            const words = $("resNameIndigency").value.trim().split(/\s+/).filter(Boolean);
+            $("resSurname").value = words.length > 1 ? words[words.length - 1] : "";
+        }
+
+        // Show/hide form fields and preview based on document type
         function updateFormFields() {
-            const docType = document.getElementById('docType').value;
-            const clearanceFields = document.getElementById('clearanceFields');
-            const indigencyFields = document.getElementById('indigencyFields');
-            const clearanceContent = document.getElementById('clearanceContent');
-            const indigencyContent = document.getElementById('indigencyContent');
-            
-            if (docType === "Barangay Clearance") {
-                clearanceFields.style.display = "block";
-                indigencyFields.style.display = "none";
-                clearanceContent.style.display = "block";
-                indigencyContent.style.display = "none";
-            } else if (docType === "Certificate of Indigency") {
-                clearanceFields.style.display = "none";
-                indigencyFields.style.display = "block";
-                clearanceContent.style.display = "none";
-                indigencyContent.style.display = "block";
-            }
+            const isClearance = $("docType").value === "Barangay Clearance";
+            $("clearanceFields").style.display = isClearance ? "block" : "none";
+            $("indigencyFields").style.display = isClearance ? "none" : "block";
+            $("clearanceContent").style.display = isClearance ? "block" : "none";
+            $("indigencyContent").style.display = isClearance ? "none" : "block";
             updatePreview();
         }
 
         // Reflect current form values in the printable certificate preview.
         function updatePreview() {
-            const docType = document.getElementById('docType').value;
-            document.getElementById('previewTitle').innerText = docType.toUpperCase();
-            
-            if (docType === "Barangay Clearance") {
-                // Update clearance preview fields
-                document.getElementById('previewName').innerText = document.getElementById('resName').value || "[RESIDENT NAME]";
-                document.getElementById('previewAddress').innerText = document.getElementById('resAddress').value || "[ADDRESS]";
-                document.getElementById('previewGender').innerText = document.getElementById('resGender').value || "[GENDER]";
-                
-                // Format date of birth
-                const dobVal = document.getElementById('resDateOfBirth').value;
-                if(dobVal) {
-                    const dobObj = new Date(dobVal);
-                    document.getElementById('previewDateOfBirth').innerText = dobObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-                } else {
-                    document.getElementById('previewDateOfBirth').innerText = "[DATE OF BIRTH]";
-                }
-                
-                document.getElementById('previewPlaceOfBirth').innerText = document.getElementById('resPlaceOfBirth').value || "[PLACE OF BIRTH]";
-                document.getElementById('previewCivilStatus').innerText = document.getElementById('resCivilStatus').value || "[CIVIL STATUS]";
-                document.getElementById('previewPurpose').innerText = document.getElementById('docPurpose').value || "[PURPOSE]";
-                document.getElementById('previewOrNumber').innerText = document.getElementById('orNumber').value || "[OR NO.]";
-                document.getElementById('previewCtcNumber').innerText = document.getElementById('ctcNumber').value || "[CTC NO.]";
-                
-                const dateVal = document.getElementById('issueDate').value;
-                if(dateVal) {
-                    const dateObj = new Date(dateVal + 'T00:00:00');
-                    const formatted = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-                    document.getElementById('previewDate') && (document.getElementById('previewDate').innerText = formatted);
-                    document.getElementById('previewIssuedOn').innerText = formatted;
-                    // Auto-fill day/month/year fields if empty
-                    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-                    if (!document.getElementById('issueDay').value) document.getElementById('issueDay').value = dateObj.getDate();
-                    if (!document.getElementById('issueMonth').value) document.getElementById('issueMonth').value = months[dateObj.getMonth()];
-                    if (!document.getElementById('issueYear').value) document.getElementById('issueYear').value = dateObj.getFullYear();
-                } else {
-                    document.getElementById('previewDate') && (document.getElementById('previewDate').innerText = "[DATE]");
-                    document.getElementById('previewIssuedOn').innerText = "[DATE]";
-                }
+            const isClearance = $("docType").value === "Barangay Clearance";
+            const issue = parseIso($("issueDate").value);
+            const sigName = $("signatoryName").value.trim() || "HON. LILIBETH C. BALLON";
+            const sigTitle = $("signatoryTitle").value.trim() || "Acting Punong Barangay";
+            document.title = `${$("docType").value} | SerbisyoBurgos`;
 
-                // Issued this ___ day of __________, ______
-                document.getElementById('previewIssuedDay').innerText = document.getElementById('issueDay').value || "___";
-                document.getElementById('previewIssuedMonth').innerText = document.getElementById('issueMonth').value || "__________";
-                document.getElementById('previewIssuedYear').innerText = document.getElementById('issueYear').value || "______";
-            } else if (docType === "Certificate of Indigency") {
-                // Update indigency preview fields
-                document.getElementById('previewNameIndigency').innerText = document.getElementById('resNameIndigency').value || "[RESIDENT NAME]";
-                document.getElementById('previewSurname').innerText = document.getElementById('resSurname').value || "[SURNAME]";
-                document.getElementById('previewPurposeIndigency').innerText = document.getElementById('docPurposeIndigency').value || "[PURPOSE]";
+            if (isClearance) {
+                setText("previewName", $("resName").value, "[RESIDENT NAME]");
+                setText("previewAddress", $("resAddress").value, "[ADDRESS]");
+                setText("previewPlaceOfBirth", $("resPlaceOfBirth").value, "[PLACE OF BIRTH]");
+                setText("previewCivilStatus", $("resCivilStatus").value, "[CIVIL STATUS]");
+                setText("previewGender", $("resGender").value, "[GENDER]");
+                setText("previewPurpose", $("docPurpose").value, "[PURPOSE]");
+                setText("previewOrNumber", $("orNumber").value, "\u00A0");
 
-                const dateValInd = document.getElementById('issueDateIndigency').value;
-                if(dateValInd) {
-                    const dateObjInd = new Date(dateValInd + 'T00:00:00');
-                    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-                    if (!document.getElementById('issueDayIndigency').value) document.getElementById('issueDayIndigency').value = dateObjInd.getDate();
-                    if (!document.getElementById('issueMonthIndigency').value) document.getElementById('issueMonthIndigency').value = months[dateObjInd.getMonth()];
-                    if (!document.getElementById('issueYearIndigency').value) document.getElementById('issueYearIndigency').value = dateObjInd.getFullYear();
-                }
+                const dob = parseIso($("resDateOfBirth").value);
+                setText("previewDateOfBirth", dob ? longDate(dob) : "", "[DATE OF BIRTH]");
 
-                document.getElementById('previewIssuedDayIndigency').innerText = document.getElementById('issueDayIndigency').value || "___";
-                document.getElementById('previewIssuedMonthIndigency').innerText = document.getElementById('issueMonthIndigency').value || "__________";
-                document.getElementById('previewIssuedYearIndigency').innerText = document.getElementById('issueYearIndigency').value || "______";
+                setText("previewIssuedDay", issue ? issue.day : "", "___");
+                setText("previewIssuedOrd", issue ? ordinalSuffix(issue.day) : "", "");
+                setText("previewIssuedMonth", issue ? MONTHS[issue.month] : "", "__________");
+                setText("previewIssuedYear", issue ? issue.year : "", "______");
+                setText("previewIssuedOn", issue ? longDate(issue) : "", "[DATE]");
+                setText("previewSignatoryName", sigName, "");
+                setText("previewSignatoryTitle", sigTitle, "");
+            } else {
+                setText("previewNameIndigency", $("resNameIndigency").value, "[RESIDENT NAME]");
+                setText("previewTitleIndigency", $("resTitleIndigency").value, "MR.");
+                setText("previewSurname", $("resSurname").value, "[SURNAME]");
+                setText("previewPurposeIndigency", $("docPurposeIndigency").value, "[PURPOSE]");
+
+                setText("previewIssuedDayIndigency", issue ? issue.day : "", "___");
+                setText("previewIssuedOrdIndigency", issue ? ordinalSuffix(issue.day) : "", "");
+                setText("previewIssuedMonthIndigency", issue ? MONTHS[issue.month] : "", "__________");
+                setText("previewIssuedYearIndigency", issue ? issue.year : "", "______");
+                setText("previewSignatoryNameIndigency", sigName, "");
+                setText("previewSignatoryTitleIndigency", sigTitle, "");
             }
         }
 
-        // Initialize preview
-        window.onload = updateFormFields;
+        // Initialize: default the issue date to today, then render.
+        window.onload = () => {
+            $("issueDate").value = todayIso();
+            updateFormFields();
+        };
     </script>
 </body>
 </html>

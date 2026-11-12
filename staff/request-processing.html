@@ -299,6 +299,12 @@
         .btn-send-revision:hover { filter: brightness(0.95); }
         .timeline-note { font-size: 0.82rem; color: var(--text-muted); margin-top: 6px; line-height: 1.45; }
 
+        .btn-generate-doc {
+            display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+            background: var(--brand-green); color: #fff; font-weight: 600; font-size: 0.9rem;
+            padding: 0.7rem 1.25rem; border-radius: 10px; transition: background 0.2s ease;
+        }
+        .btn-generate-doc:hover { background: #15803d; }
         .status-badge { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; }
         .right-stack { display: flex; flex-direction: column; gap: 2rem; }
         .timeline-empty { font-size: 0.9rem; color: var(--text-muted); padding: 0.25rem 0 0.5rem; }
@@ -426,6 +432,13 @@
                     <div class="info-item info-item--span-full info-item--multiline"><label>Resident Name</label><p id="fieldResident">Loading…</p></div>
                     <div class="info-item info-item--span-full info-item--multiline"><label>Subject</label><p id="fieldSubject">Loading…</p></div>
                 </div>
+                <div id="generateDocWrap" style="display: none; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid #f1f5f9;">
+                    <a id="generateDocLink" class="btn-generate-doc" href="document-generator.html">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                        <span id="generateDocLabel">Generate document</span>
+                    </a>
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 8px;">Opens the Document Generator pre-filled with this resident’s details.</p>
+                </div>
             </div>
 
             <div class="right-stack">
@@ -493,7 +506,7 @@
     <script src="../shared/staff-page-guard.js" data-staff-permission="requestProcessing"></script>
     <script>
         const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
-        const STAFF_ROUTES = window.APP_ROUTES?.staff || { login: "../admin-login.html", dashboard: "staff-dashboard.html" };
+        const STAFF_ROUTES = window.APP_ROUTES?.staff || { login: "../login.html", dashboard: "staff-dashboard.html" };
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "index.html" };
         function applyStaffRouteLinks() {
             document.querySelectorAll('a[href="staff-dashboard.html"]').forEach((link) => {
@@ -819,6 +832,15 @@
             return purposeLine || "Appointment";
         }
 
+        function documentTemplateFor(r) {
+            if (r && r.documentTemplate) return r.documentTemplate;
+            const t = String((r && (r.serviceType || r.title)) || "").toLowerCase();
+            if (/business/.test(t)) return null;
+            if (/clearance/.test(t)) return "Barangay Clearance";
+            if (/indigen/.test(t)) return "Certificate of Indigency";
+            return null;
+        }
+
         function applyRequestToUI(request, itemType = "request") {
             if (!request) return;
             const isAppointment = itemType === "appointment";
@@ -848,6 +870,27 @@
                             ? `${request.preferredDate || "Date TBD"}${request.preferredTimeSlot ? ` · ${request.preferredTimeSlot}` : ""}`
                             : "No preferred slot provided";
                     metaLine.textContent = `Reference #${referenceNo} · ${pref}`;
+                }
+            }
+
+            // "Generate document" shortcut: only for service requests that have a template, not rejected,
+            // and only for staff who are allowed to use the Document Generator.
+            const genWrap = document.getElementById("generateDocWrap");
+            const genLink = document.getElementById("generateDocLink");
+            if (genWrap && genLink) {
+                let allowed = true;
+                try {
+                    const perms = JSON.parse(sessionStorage.getItem("adminAuth") || "{}")?.user?.staffPermissions;
+                    if (perms && perms.documentGenerator === false) allowed = false;
+                } catch (_e) { /* keep default */ }
+                const template = !isAppointment ? documentTemplateFor(request) : null;
+                if (allowed && template && currentStatus !== "Rejected" && request.id) {
+                    genLink.href = `document-generator.html?requestId=${encodeURIComponent(request.id)}&referenceNo=${encodeURIComponent(request.referenceNo || "")}&template=${encodeURIComponent(template)}`;
+                    const label = document.getElementById("generateDocLabel");
+                    if (label) label.textContent = `Generate ${template}`;
+                    genWrap.style.display = "block";
+                } else {
+                    genWrap.style.display = "none";
                 }
             }
 

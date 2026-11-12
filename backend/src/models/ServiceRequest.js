@@ -20,6 +20,7 @@ const serviceRequestSchema = new Schema({
   referenceNo: { type: String, required: true, unique: true }, // "REQ-####"
   title: { type: String, required: true },
   serviceType: { type: String, required: true },
+  purpose: { type: String, default: null }, // optional: what the document is for (e.g. Employment, Scholarship)
   preferredDate: { type: String, required: true }, // YYYY-MM-DD
   preferredTimeSlot: { type: String, required: true },
   status: {

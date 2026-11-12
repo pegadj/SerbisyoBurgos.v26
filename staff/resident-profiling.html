@@ -229,6 +229,37 @@
         .stats { display:flex; gap:1rem; margin-top:1rem; }
         .stat { flex:1; background:#f0fdf4; border-radius:12px; padding:.75rem 1rem; } .stat b { font-size:1.4rem; color:var(--brand-dark); display:block; }
         .msg { margin-top:1rem; font-size:.85rem; } .msg.err { color:#b91c1c; } .msg.ok { color:#166534; }
+        .toolbar .btn { white-space:nowrap; }
+        .toolbar select { min-width:150px; }
+        .btn-danger-ghost { border-color:#fecaca; color:#b91c1c; }
+        .id-chip { display:inline-block; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.75rem; background:#f1f5f9; color:#334155; padding:.1rem .45rem; border-radius:6px; margin-left:.4rem; }
+        .badge.warn { background:#fef3c7; color:#92400e; }
+        .dlg-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,.5); z-index:300; align-items:center; justify-content:center; padding:1rem; }
+        .dlg-overlay.show { display:flex; }
+        .dlg { background:#fff; border-radius:16px; width:min(560px,100%); max-height:92vh; overflow-y:auto; padding:1.5rem; }
+        .dlg h2 { color:var(--brand-dark); margin-bottom:.25rem; }
+        .dlg .hint { color:var(--text-muted); font-size:.85rem; }
+        .cred-box { background:#f0fdf4; border:1px dashed #16a34a; border-radius:12px; padding:1rem 1.25rem; margin:1rem 0; }
+        .cred-row { display:flex; justify-content:space-between; gap:1rem; padding:.35rem 0; font-size:.95rem; }
+        .cred-row b { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:1.05rem; word-break:break-all; }
+        .check { display:flex; gap:.5rem; align-items:flex-start; font-size:.9rem; margin-top:1rem; cursor:pointer; }
+        .icon-btn { width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #cbd5e1; border-radius:10px; background:#fff; color:#334155; cursor:pointer; position:relative; padding:0; }
+        .icon-btn:hover, .icon-btn:focus-visible { background:#f0fdf4; border-color:#16a34a; color:#166534; }
+        .icon-btn.icon-primary { background:var(--brand-green); border-color:var(--brand-green); color:#fff; }
+        .icon-btn.icon-primary:hover, .icon-btn.icon-primary:focus-visible { background:var(--brand-dark); border-color:var(--brand-dark); color:#fff; }
+        .icon-btn:disabled { opacity:.5; cursor:not-allowed; }
+        [data-tip]:hover::after, [data-tip]:focus-visible::after { content:attr(data-tip); position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); background:#0f172a; color:#fff; font-size:.75rem; font-weight:500; padding:.3rem .6rem; border-radius:6px; white-space:nowrap; z-index:60; pointer-events:none; }
+        #sortBtn[aria-expanded="true"]::after { display:none; }
+        .menu-wrap { position:relative; }
+        .menu { position:absolute; top:calc(100% + 6px); left:0; background:#fff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 30px rgba(15,23,42,.15); min-width:190px; z-index:70; padding:.25rem; }
+        .menu[hidden] { display:none; }
+        .menu button { display:block; width:100%; text-align:left; font:inherit; font-size:.9rem; padding:.55rem .75rem; border:0; background:none; border-radius:8px; cursor:pointer; color:#0f172a; }
+        .menu button:hover, .menu button.on { background:#f0fdf4; color:#166534; font-weight:600; }
+        .drop { border:2px dashed #cbd5e1; border-radius:12px; padding:1rem; margin:1rem 0 .5rem; }
+        .prev-table { width:100%; font-size:.8rem; margin-top:.5rem; } .prev-table th, .prev-table td { padding:.3rem .5rem; }
+        .bar { height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden; margin-top:.75rem; } .bar span { display:block; height:100%; width:0; background:#16a34a; transition:width .2s; }
+        .chips { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.5rem; }
+        .chip { background:#f1f5f9; border-radius:999px; padding:.15rem .6rem; font-size:.75rem; }
         @media (max-width:700px){ .grid2{grid-template-columns:1fr;} main{margin-left:0;padding:1rem;} aside{display:none;} }
     </style>
 </head>
@@ -292,7 +323,7 @@
             <div class="header-section">
                 <div>
                     <h1 style="font-size: 1.75rem; color: var(--brand-dark);">Resident Profiling</h1>
-                    <p style="color: var(--text-muted); font-size: 0.9rem;">Registered residents and their profile records.</p>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Issue resident accounts and keep their profile records.</p>
                 </div>
             </div>
             <div class="user-profile">
@@ -305,14 +336,32 @@
         </div>
 
         <div class="toolbar">
-            <input id="searchInput" type="search" placeholder="Search name, email, contact, purok or address…">
-            <input id="purokFilter" type="text" placeholder="Filter by purok" style="flex:0 0 180px;min-width:140px;">
+            <input id="searchInput" type="search" placeholder="Search name, Resident ID, email, contact, purok…">
+            <input id="purokFilter" type="text" placeholder="Purok" style="flex:0 0 130px;min-width:110px;">
+            <div class="menu-wrap">
+                <button class="icon-btn" id="sortBtn" type="button" data-tip="Sort: Name A–Z" aria-label="Sort residents" aria-haspopup="true" aria-expanded="false"></button>
+                <div class="menu" id="sortMenu" hidden>
+                    <button type="button" data-sort="name">Name A–Z</button>
+                    <button type="button" data-sort="name_desc">Name Z–A</button>
+                    <button type="button" data-sort="newest">Newest registered</button>
+                    <button type="button" data-sort="updated">Recently updated</button>
+                </div>
+            </div>
+            <button class="icon-btn" id="importBtn" type="button" data-tip="Import RBI records" aria-label="Import RBI records">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </button>
+            <button class="icon-btn" id="exportBtn" type="button" data-tip="Export to CSV" aria-label="Export to CSV">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
+            <button class="icon-btn icon-primary" id="addBtn" type="button" data-tip="Add resident" aria-label="Add resident">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
+            </button>
         </div>
 
         <div class="card">
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Name</th><th>Contact</th><th>Purok</th><th>Sex</th><th>Age</th><th>Account</th></tr></thead>
+                    <thead><tr><th>Resident</th><th>Contact</th><th>Purok</th><th>Sex</th><th>Age</th><th>Status</th></tr></thead>
                     <tbody id="residentRows"><tr><td colspan="6" class="empty">Loading residents…</td></tr></tbody>
                 </table>
             </div>
@@ -323,10 +372,11 @@
         </div>
     </main>
 
+    <!-- Resident drawer -->
     <div id="drawer" class="drawer-overlay" role="dialog" aria-modal="true" aria-labelledby="drawerName">
         <div class="drawer">
             <h2 id="drawerName">Resident</h2>
-            <p id="drawerEmail" style="color:var(--text-muted);font-size:.9rem;"></p>
+            <p style="color:var(--text-muted);font-size:.9rem;">Resident ID: <span id="drawerRid" class="id-chip" style="margin-left:0;">—</span> <span id="drawerEmail"></span></p>
             <div class="stats">
                 <div class="stat"><b id="statRequests">0</b>Service requests</div>
                 <div class="stat"><b id="statAppts">0</b>Appointments</div>
@@ -343,11 +393,90 @@
                 <div class="field full"><label for="fAddress">Address</label><input id="fAddress" maxlength="250"></div>
                 <div class="field full"><label for="fRemarks">Remarks</label><textarea id="fRemarks" rows="3" maxlength="500"></textarea></div>
             </div>
+            <label class="check"><input type="checkbox" id="fSmsOptOut"><span>Do not send SMS announcements to this resident</span></label>
             <p id="drawerMsg" class="msg"></p>
             <p id="drawerAudit" style="color:var(--text-muted);font-size:.75rem;margin-top:.5rem;"></p>
-            <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.25rem;">
-                <button class="btn" id="closeBtn">Close</button>
-                <button class="btn btn-primary" id="saveBtn">Save profile</button>
+            <div style="display:flex;gap:.75rem;justify-content:space-between;flex-wrap:wrap;margin-top:1.25rem;">
+                <button class="btn btn-danger-ghost" id="resetPwBtn" type="button">Reset password…</button>
+                <span style="display:flex;gap:.75rem;">
+                    <button class="btn" id="closeBtn" type="button">Close</button>
+                    <button class="btn btn-primary" id="saveBtn" type="button">Save profile</button>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add resident -->
+    <div id="addDlg" class="dlg-overlay" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+        <div class="dlg">
+            <h2 id="addTitle">Add resident</h2>
+            <p class="hint">Creates a login for the resident. A Resident ID and password are generated for you unless you type your own.</p>
+            <div class="grid2">
+                <div class="field full"><label for="aName">Full name *</label><input id="aName" maxlength="120" autocomplete="off"></div>
+                <div class="field"><label for="aRid">Resident ID <small>(optional)</small></label><input id="aRid" maxlength="20" placeholder="Auto, e.g. SB-00001" autocomplete="off"></div>
+                <div class="field"><label for="aPw">Password <small>(optional)</small></label><input id="aPw" maxlength="128" placeholder="Auto-generated" autocomplete="new-password"></div>
+                <div class="field"><label for="aContact">Contact number</label><input id="aContact" maxlength="20" placeholder="09XXXXXXXXX"></div>
+                <div class="field"><label for="aEmail">Email <small>(optional)</small></label><input id="aEmail" type="email" maxlength="254" autocomplete="off"></div>
+                <div class="field"><label for="aSex">Sex</label><select id="aSex"><option value="">—</option><option>Male</option><option>Female</option></select></div>
+                <div class="field"><label for="aBirth">Birth date</label><input id="aBirth" type="date"></div>
+                <div class="field"><label for="aPurok">Purok</label><input id="aPurok" maxlength="80"></div>
+                <div class="field"><label for="aCivil">Civil status</label><select id="aCivil"><option value="">—</option><option>Single</option><option>Married</option><option>Widowed</option><option>Separated</option></select></div>
+                <div class="field full"><label for="aAddress">Address</label><input id="aAddress" maxlength="250"></div>
+            </div>
+            <p id="addMsg" class="msg"></p>
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1rem;">
+                <button class="btn" id="addCancel" type="button">Cancel</button>
+                <button class="btn btn-primary" id="addSubmit" type="button">Create account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import RBI -->
+    <div id="importDlg" class="dlg-overlay" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+        <div class="dlg">
+            <h2 id="importTitle">Import RBI records</h2>
+            <p class="hint">Upload your Record of Barangay Inhabitants as an <strong>.xlsx</strong> or <strong>.csv</strong> file. Each row becomes a resident record with an automatic Resident ID. Imported residents <strong>cannot log in yet</strong>: use <em>Issue login</em> on a resident later, only for those who need the online system. <a href="#" id="tplLink">Download template</a></p>
+            <div class="drop"><input type="file" id="importFile" accept=".csv,.xlsx,.xls"></div>
+            <div id="importPreview"></div>
+            <div class="bar" id="importBarWrap" hidden><span id="importBar"></span></div>
+            <p id="importMsg" class="msg"></p>
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;flex-wrap:wrap;margin-top:1rem;">
+                <button class="btn" id="importReport" type="button" hidden>Download report</button>
+                <button class="btn" id="importClose" type="button">Close</button>
+                <button class="btn btn-primary" id="importGo" type="button" disabled>Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Credentials (shown once) -->
+    <div id="credDlg" class="dlg-overlay" role="dialog" aria-modal="true" aria-labelledby="credTitle">
+        <div class="dlg">
+            <h2 id="credTitle">Account ready</h2>
+            <p class="hint" id="credFor"></p>
+            <div class="cred-box">
+                <div class="cred-row"><span>Resident ID</span><b id="credId"></b></div>
+                <div class="cred-row"><span>Password</span><b id="credPw"></b></div>
+            </div>
+            <p class="hint"><strong>This password is shown only once.</strong> Print the slip or copy it now and give it to the resident. They can change it after logging in.</p>
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;flex-wrap:wrap;margin-top:1rem;">
+                <button class="btn" id="credCopy" type="button">Copy</button>
+                <button class="btn" id="credPrint" type="button">Print slip</button>
+                <button class="btn btn-primary" id="credDone" type="button">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset password -->
+    <div id="resetDlg" class="dlg-overlay" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
+        <div class="dlg">
+            <h2 id="resetTitle">Reset password</h2>
+            <p class="hint" id="resetFor"></p>
+            <div class="field" style="margin-top:1rem;"><label for="rPw">New password <small>(leave blank to auto-generate)</small></label><input id="rPw" maxlength="128" autocomplete="new-password"></div>
+            <p class="hint" style="margin-top:.75rem;">The resident will be signed out everywhere and must use the new password.</p>
+            <p id="resetMsg" class="msg"></p>
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1rem;">
+                <button class="btn" id="resetCancel" type="button">Cancel</button>
+                <button class="btn btn-primary" id="resetSubmit" type="button">Reset password</button>
             </div>
         </div>
     </div>
@@ -363,11 +492,12 @@
         </div>
     </div>
 
+    <script src="../shared/staff-page-guard.js" data-staff-permission="residentProfiling"></script>
     <script src="../shared/routes.js"></script>
     <script src="../shared/maintenance-check.js"></script>
     <script>
-        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
-        const STAFF_ROUTES = window.APP_ROUTES?.staff || { login: "../admin-login.html", dashboard: "staff-dashboard.html" };
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+        const STAFF_ROUTES = window.APP_ROUTES?.staff || { login: "../login.html", dashboard: "staff-dashboard.html" };
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "index.html" };
         document.querySelectorAll('a[href="staff-dashboard.html"]').forEach((a) => { a.href = STAFF_ROUTES.dashboard; });
         document.querySelectorAll('a[href="index.html"]').forEach((a) => { a.href = COMMON_ROUTES.landing; });
@@ -379,15 +509,15 @@
         function getSession() {
             try { return JSON.parse(sessionStorage.getItem("adminAuth") || "null"); } catch (_e) { return null; }
         }
-        function authHeaders() {
-            const t = getSession()?.session?.accessToken;
-            return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
-        }
+        function token() { return getSession()?.session?.accessToken || ""; }
         async function api(path, opts = {}) {
-            const res = await fetch(`${API_BASE_URL}${path}`, { ...opts, headers: { ...authHeaders(), ...(opts.headers || {}) } });
+            const res = await fetch(`${API_BASE_URL}${path}`, {
+                ...opts,
+                headers: { Authorization: `Bearer ${token()}`, "Content-Type": "application/json", ...(opts.headers || {}) }
+            });
             const data = await res.json().catch(() => ({}));
-            if (res.status === 401 || res.status === 403) { window.location.href = STAFF_ROUTES.login; throw new Error("Not authorized"); }
-            if (!res.ok || data.ok === false) throw new Error(data.message || "Request failed");
+            if (res.status === 401) { window.location.href = STAFF_ROUTES.login; throw new Error("Please log in again."); }
+            if (!res.ok || data.ok === false) throw new Error(data.message || "Request failed.");
             return data;
         }
 
@@ -405,7 +535,31 @@
             loadResidents();
         }
 
-        // ---- list ----
+        // ---------- sort (icon + menu) ----------
+        let sortKey = "name";
+        const SORT_LABELS = { name: "Name A–Z", name_desc: "Name Z–A", newest: "Newest registered", updated: "Recently updated" };
+        const ICON_ATTRS = 'viewBox="0 0 28 28" width="26" height="26" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+        const LETTER = (ch, y) => `<text x="3" y="${y}" font-size="12" font-weight="700" fill="#0b6b3a" font-family="Arial,sans-serif">${ch}</text>`;
+        const SORT_ICONS = {
+            name: `<svg ${ICON_ATTRS}>${LETTER("A", 12)}${LETTER("Z", 25)}<path d="M21 4v19M16.5 18.5 21 23l4.5-4.5" stroke="#2563eb" stroke-width="2.2"/></svg>`,
+            name_desc: `<svg ${ICON_ATTRS}>${LETTER("Z", 12)}${LETTER("A", 25)}<path d="M21 24V5M16.5 9.5 21 5l4.5 4.5" stroke="#2563eb" stroke-width="2.2"/></svg>`,
+            clock: `<svg ${ICON_ATTRS}><circle cx="14" cy="14" r="9" stroke="#0b6b3a" stroke-width="2.2"/><path d="M14 8v6l4 2.5" stroke="#2563eb" stroke-width="2.2"/></svg>`
+        };
+        function applySortUi() {
+            $("sortBtn").innerHTML = SORT_ICONS[sortKey] || SORT_ICONS.clock;
+            $("sortBtn").dataset.tip = "Sort: " + SORT_LABELS[sortKey];
+            document.querySelectorAll("#sortMenu button").forEach((b) => b.classList.toggle("on", b.dataset.sort === sortKey));
+        }
+        function setSortMenu(open) { $("sortMenu").hidden = !open; $("sortBtn").setAttribute("aria-expanded", String(open)); }
+        $("sortBtn").addEventListener("click", (e) => { e.stopPropagation(); setSortMenu($("sortMenu").hidden); });
+        $("sortMenu").addEventListener("click", (e) => {
+            const b = e.target.closest("button[data-sort]"); if (!b) return;
+            sortKey = b.dataset.sort; applySortUi(); setSortMenu(false); offset = 0; loadResidents();
+        });
+        document.addEventListener("click", () => setSortMenu(false));
+        applySortUi();
+
+        // ---------- list ----------
         const PAGE = 25;
         let offset = 0, total = 0, timer = null, active = null;
 
@@ -416,22 +570,28 @@
             if (n < new Date(n.getFullYear(), b.getMonth(), b.getDate())) a--;
             return a >= 0 ? a : "—";
         }
-
-        async function loadResidents() {
+        function filterParams() {
+            const qs = new URLSearchParams();
             const q = $("searchInput").value.trim(), purok = $("purokFilter").value.trim();
-            const qs = new URLSearchParams({ limit: PAGE, offset });
             if (q) qs.set("q", q);
             if (purok) qs.set("purok", purok);
+            qs.set("sort", sortKey);
+            return qs;
+        }
+
+        async function loadResidents() {
+            const qs = filterParams();
+            qs.set("limit", PAGE); qs.set("offset", offset);
             $("residentRows").innerHTML = '<tr><td colspan="6" class="empty">Loading residents…</td></tr>';
             try {
                 const data = await api(`/staff/residents?${qs}`);
                 total = data.total;
                 $("residentRows").innerHTML = data.residents.length ? data.residents.map((r) => `
                     <tr data-id="${esc(r.id)}">
-                        <td><strong>${esc(r.fullName)}</strong><br><span style="color:var(--text-muted);font-size:.8rem;">${esc(r.email)}</span></td>
+                        <td><strong>${esc(r.fullName)}</strong>${r.residentId ? `<span class="id-chip">${esc(r.residentId)}</span>` : ""}<br><span style="color:var(--text-muted);font-size:.8rem;">${esc(r.email || "No email")}</span></td>
                         <td>${esc(r.contactNumber || "—")}</td><td>${esc(r.purok || "—")}</td><td>${esc(r.sex || "—")}</td>
                         <td>${ageFrom(r.birthDate)}</td>
-                        <td><span class="badge ${r.accountStatus === "Active" ? "ok" : "bad"}">${esc(r.accountStatus)}</span></td>
+                        <td><span class="badge ${r.accountStatus === "Active" ? "ok" : "bad"}">${esc(r.accountStatus)}</span>${r.loginIssued === false ? ' <span class="badge warn">No login yet</span>' : ""}${r.smsOptOut ? ' <span class="badge warn">No SMS</span>' : ""}${r.profileUpdatedAt ? "" : ' <span class="badge">Not profiled</span>'}</td>
                     </tr>`).join("") : '<tr><td colspan="6" class="empty">No residents found.</td></tr>';
                 const from = total ? offset + 1 : 0;
                 $("pageInfo").textContent = `Showing ${from}–${Math.min(offset + PAGE, total)} of ${total}`;
@@ -442,50 +602,349 @@
             }
         }
         function reloadFromStart() { clearTimeout(timer); timer = setTimeout(() => { offset = 0; loadResidents(); }, 300); }
-        $("searchInput").addEventListener("input", reloadFromStart);
-        $("purokFilter").addEventListener("input", reloadFromStart);
+        ["searchInput", "purokFilter"].forEach((id) => $(id).addEventListener("input", reloadFromStart));
         $("prevBtn").addEventListener("click", () => { offset = Math.max(0, offset - PAGE); loadResidents(); });
         $("nextBtn").addEventListener("click", () => { offset += PAGE; loadResidents(); });
         $("residentRows").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-id]"); if (tr) openResident(tr.dataset.id); });
 
-        // ---- detail drawer ----
+        // ---------- export ----------
+        $("exportBtn").addEventListener("click", async () => {
+            const btn = $("exportBtn"); btn.disabled = true; const tip = btn.dataset.tip; btn.dataset.tip = "Exporting…";
+            try {
+                const res = await fetch(`${API_BASE_URL}/staff/residents/export?${filterParams()}`, { headers: { Authorization: `Bearer ${token()}` } });
+                if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message || "Export failed."); }
+                const blob = await res.blob();
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `residents-${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+            } catch (e) { alert(e.message); }
+            finally { btn.disabled = false; btn.dataset.tip = tip; }
+        });
+
+        // ---------- detail drawer ----------
         const fields = { sex: "fSex", civilStatus: "fCivil", voterStatus: "fVoter", purok: "fPurok", occupation: "fOcc", address: "fAddress", remarks: "fRemarks" };
-        function setMsg(text, kind) { const m = $("drawerMsg"); m.textContent = text || ""; m.className = "msg" + (kind ? " " + kind : ""); }
+        let activeResident = null;
+        function setMsg(el, text, kind) { el.textContent = text || ""; el.className = "msg" + (kind ? " " + kind : ""); }
 
         async function openResident(id) {
-            active = id; setMsg(""); $("drawer").classList.add("show");
-            $("drawerName").textContent = "Loading…"; $("drawerEmail").textContent = "";
+            active = id; setMsg($("drawerMsg"), ""); $("drawer").classList.add("show");
+            $("drawerName").textContent = "Loading…"; $("drawerEmail").textContent = ""; $("drawerRid").textContent = "—";
             try {
                 const { resident: r } = await api(`/staff/residents/${encodeURIComponent(id)}`);
+                activeResident = r;
                 $("drawerName").textContent = r.fullName;
-                $("drawerEmail").textContent = r.email;
+                $("drawerRid").textContent = r.residentId || "—";
+                $("drawerEmail").textContent = r.email ? "· " + r.email : "";
                 $("statRequests").textContent = r.requestCount ?? 0;
                 $("statAppts").textContent = r.appointmentCount ?? 0;
                 $("fContact").value = r.contactNumber || "—";
                 $("fRegistered").value = r.registeredAt ? new Date(r.registeredAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "—";
                 $("fBirth").value = r.birthDate ? String(r.birthDate).slice(0, 10) : "";
                 Object.entries(fields).forEach(([k, el]) => { $(el).value = r[k] || ""; });
+                $("fSmsOptOut").checked = Boolean(r.smsOptOut);
+                $("resetPwBtn").textContent = r.loginIssued === false ? "Issue login…" : "Reset password…";
                 $("drawerAudit").textContent = r.profileUpdatedAt ? `Last updated ${new Date(r.profileUpdatedAt).toLocaleString()} by ${r.profileUpdatedBy || "staff"}` : "Profile not filled in yet.";
-            } catch (e) { setMsg(e.message, "err"); }
+            } catch (e) { setMsg($("drawerMsg"), e.message, "err"); }
         }
         $("closeBtn").addEventListener("click", () => $("drawer").classList.remove("show"));
         $("drawer").addEventListener("click", (e) => { if (e.target === $("drawer")) $("drawer").classList.remove("show"); });
 
         $("saveBtn").addEventListener("click", async () => {
             if (!active) return;
-            const body = { birthDate: $("fBirth").value || null };
+            const body = { birthDate: $("fBirth").value || null, smsOptOut: $("fSmsOptOut").checked };
             Object.entries(fields).forEach(([k, el]) => { body[k] = $(el).value; });
-            $("saveBtn").disabled = true; setMsg("Saving…");
+            $("saveBtn").disabled = true; setMsg($("drawerMsg"), "Saving…");
             try {
                 await api(`/staff/residents/${encodeURIComponent(active)}`, { method: "PATCH", body: JSON.stringify(body) });
-                setMsg("Profile saved.", "ok");
+                setMsg($("drawerMsg"), "Profile saved.", "ok");
                 $("drawerAudit").textContent = `Last updated just now by ${getSession()?.user?.email || "you"}`;
                 loadResidents();
-            } catch (e) { setMsg(e.message, "err"); }
+            } catch (e) { setMsg($("drawerMsg"), e.message, "err"); }
             finally { $("saveBtn").disabled = false; }
         });
 
-        // ---- logout ----
+        // ---------- credentials dialog + print slip ----------
+        let lastCreds = null;
+        function showCredentials(c, who, title) {
+            lastCreds = { ...c, fullName: who };
+            $("credTitle").textContent = title;
+            $("credFor").textContent = who;
+            $("credId").textContent = c.residentId || "—";
+            $("credPw").textContent = c.password;
+            $("credDlg").classList.add("show");
+        }
+        $("credDone").addEventListener("click", () => { $("credDlg").classList.remove("show"); $("credPw").textContent = ""; lastCreds = null; });
+        $("credCopy").addEventListener("click", async () => {
+            if (!lastCreds) return;
+            const text = `Resident ID: ${lastCreds.residentId}\nPassword: ${lastCreds.password}`;
+            try { await navigator.clipboard.writeText(text); $("credCopy").textContent = "Copied!"; }
+            catch (_e) { $("credCopy").textContent = "Copy failed"; }
+            setTimeout(() => { $("credCopy").textContent = "Copy"; }, 1500);
+        });
+        $("credPrint").addEventListener("click", () => {
+            if (!lastCreds) return;
+            const loginUrl = new URL("../login.html", window.location.href).href;
+            const w = window.open("", "_blank", "width=520,height=700");
+            if (!w) { alert("Please allow pop-ups to print the slip."); return; }
+            w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Resident account slip</title>
+                <style>body{font-family:system-ui,Arial,sans-serif;padding:32px;color:#0f172a}h1{font-size:20px;margin:0 0 4px;color:#043d2e}
+                .sub{color:#64748b;font-size:13px;margin-bottom:24px}.box{border:2px dashed #16a34a;border-radius:12px;padding:18px 22px;background:#f0fdf4}
+                .row{display:flex;justify-content:space-between;padding:8px 0;font-size:15px}.row b{font-family:ui-monospace,Consolas,monospace;font-size:18px}
+                ol{font-size:13px;color:#334155;line-height:1.7;padding-left:18px}.foot{margin-top:28px;font-size:12px;color:#64748b}</style></head><body>
+                <h1>SerbisyoBurgos — Resident Account</h1><div class="sub">Barangay Burgos online services</div>
+                <p><strong>${esc(lastCreds.fullName)}</strong></p>
+                <div class="box"><div class="row"><span>Resident ID</span><b>${esc(lastCreds.residentId)}</b></div>
+                <div class="row"><span>Password</span><b>${esc(lastCreds.password)}</b></div></div>
+                <ol><li>Open <strong>${esc(loginUrl)}</strong></li><li>Enter your Resident ID and password, then log in.</li>
+                <li>Open your profile and change your password right away.</li><li>Keep this slip private. Do not share your password.</li></ol>
+                <div class="foot">Lost your password? Visit the barangay office to get a new one.</div>`);
+            w.document.close(); w.focus();
+            setTimeout(() => w.print(), 250);
+        });
+
+        // ---------- add resident ----------
+        const addIds = ["aName", "aRid", "aPw", "aContact", "aEmail", "aSex", "aBirth", "aPurok", "aCivil", "aAddress"];
+        $("addBtn").addEventListener("click", () => { addIds.forEach((id) => { $(id).value = ""; }); setMsg($("addMsg"), ""); $("addDlg").classList.add("show"); $("aName").focus(); });
+        $("addCancel").addEventListener("click", () => $("addDlg").classList.remove("show"));
+        $("addSubmit").addEventListener("click", async () => {
+            const name = $("aName").value.trim();
+            if (!name) { setMsg($("addMsg"), "Full name is required.", "err"); return; }
+            const body = {
+                fullName: name, residentId: $("aRid").value.trim(), password: $("aPw").value,
+                contactNumber: $("aContact").value.trim(), email: $("aEmail").value.trim(),
+                sex: $("aSex").value, birthDate: $("aBirth").value || null, purok: $("aPurok").value.trim(),
+                civilStatus: $("aCivil").value, address: $("aAddress").value.trim()
+            };
+            $("addSubmit").disabled = true; setMsg($("addMsg"), "Creating account…");
+            try {
+                const data = await api("/staff/residents", { method: "POST", body: JSON.stringify(body) });
+                $("addDlg").classList.remove("show");
+                showCredentials(data.credentials, data.resident.fullName, "Account created");
+                offset = 0; loadResidents();
+            } catch (e) { setMsg($("addMsg"), e.message, "err"); }
+            finally { $("addSubmit").disabled = false; }
+        });
+
+        // ---------- reset password ----------
+        $("resetPwBtn").addEventListener("click", () => {
+            if (!activeResident) return;
+            const issuing = activeResident.loginIssued === false;
+            $("resetTitle").textContent = issuing ? "Issue login" : "Reset password";
+            $("resetSubmit").textContent = issuing ? "Issue login" : "Reset password";
+            $("resetFor").textContent = `${activeResident.fullName} (${activeResident.residentId || "no Resident ID"})`;
+            $("rPw").value = ""; setMsg($("resetMsg"), ""); $("resetDlg").classList.add("show");
+        });
+        $("resetCancel").addEventListener("click", () => $("resetDlg").classList.remove("show"));
+        $("resetSubmit").addEventListener("click", async () => {
+            if (!active || !activeResident) return;
+            $("resetSubmit").disabled = true; setMsg($("resetMsg"), "Resetting…");
+            try {
+                const data = await api(`/staff/residents/${encodeURIComponent(active)}/reset-password`, { method: "POST", body: JSON.stringify({ password: $("rPw").value }) });
+                $("resetDlg").classList.remove("show");
+                showCredentials(data.credentials, activeResident.fullName, activeResident.loginIssued === false ? "Login issued" : "New password issued");
+                activeResident.loginIssued = true; $("resetPwBtn").textContent = "Reset password…"; loadResidents();
+            } catch (e) { setMsg($("resetMsg"), e.message, "err"); }
+            finally { $("resetSubmit").disabled = false; }
+        });
+
+
+        // ---------- import RBI (CSV / Excel) ----------
+        const HEADER_ALIASES = {
+            lastName: ["last name", "lastname", "surname", "family name"],
+            firstName: ["first name", "firstname", "given name"],
+            middleName: ["middle name", "middlename", "middle initial", "mi"],
+            suffix: ["suffix", "ext", "extension"],
+            fullName: ["full name", "fullname", "name", "complete name", "resident name"],
+            sex: ["sex", "gender"],
+            birthDate: ["birth date", "birthdate", "date of birth", "birthday", "dob", "birth"],
+            civilStatus: ["civil status", "civilstatus", "marital status", "status"],
+            purok: ["purok", "sitio", "zone", "area"],
+            address: ["address", "residence", "complete address", "street"],
+            occupation: ["occupation", "work", "profession", "job"],
+            voterStatus: ["voter status", "voter", "registered voter", "voters"],
+            contactNumber: ["contact number", "contact", "mobile", "mobile number", "phone", "phone number", "cellphone", "cell no", "cp no"],
+            email: ["email", "email address", "e-mail"],
+            remarks: ["remarks", "notes", "note"]
+        };
+        const TEMPLATE_HEADERS = ["Last Name", "First Name", "Middle Name", "Suffix", "Sex", "Birth Date", "Civil Status", "Purok", "Address", "Occupation", "Voter Status", "Contact Number", "Email", "Remarks"];
+        const BATCH = 40;
+        let importRows = [], importLocal = [], importResults = [];
+
+        const normHeader = (h) => String(h ?? "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+        function mapHeaders(headerRow) {
+            const map = {}, unknown = [];
+            headerRow.forEach((h, idx) => {
+                const n = normHeader(h); if (!n) return;
+                const key = Object.keys(HEADER_ALIASES).find((k) => HEADER_ALIASES[k].includes(n) || k.toLowerCase() === n.replace(/ /g, ""));
+                if (key && !(key in map)) map[key] = idx; else if (!key) unknown.push(String(h).trim());
+            });
+            return { map, unknown };
+        }
+
+        function parseCsv(text) {
+            if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+            const firstLine = text.split(/\r?\n/, 1)[0] || "";
+            const delim = [",", ";", "\t"].map((d) => [d, firstLine.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+            const rows = []; let row = [], cur = "", q = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                if (q) {
+                    if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c;
+                } else if (c === '"') q = true;
+                else if (c === delim) { row.push(cur); cur = ""; }
+                else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(cur); rows.push(row); row = []; cur = ""; }
+                else cur += c;
+            }
+            if (cur !== "" || row.length) { row.push(cur); rows.push(row); }
+            return rows;
+        }
+
+        function loadSheetJs() {
+            if (window.XLSX) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                const el = document.createElement("script");
+                el.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+                el.onload = resolve;
+                el.onerror = () => reject(new Error("Could not load the Excel reader. Check your internet connection, or save the file as CSV and try again."));
+                document.head.appendChild(el);
+            });
+        }
+
+        const pad2 = (n) => String(n).padStart(2, "0");
+        function toIsoDate(v) {
+            if (v === "" || v == null) return { value: "" };
+            let y, m, d;
+            if (typeof v === "number" && v > 1 && v < 80000 && window.XLSX) {
+                const o = window.XLSX.SSF.parse_date_code(v); if (!o) return { error: true }; y = o.y; m = o.m; d = o.d;
+            } else {
+                const t = String(v).trim(); let mt;
+                if ((mt = t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/))) { y = +mt[1]; m = +mt[2]; d = +mt[3]; }
+                else if ((mt = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/))) {
+                    let a = +mt[1], b = +mt[2]; y = +mt[3];
+                    if (y < 100) y += y <= 26 ? 2000 : 1900;
+                    if (a > 12 && b <= 12) { d = a; m = b; } else { m = a; d = b; }
+                } else { const dt = new Date(t); if (Number.isNaN(dt.getTime())) return { error: true }; y = dt.getFullYear(); m = dt.getMonth() + 1; d = dt.getDate(); }
+            }
+            const dt = new Date(Date.UTC(y, m - 1, d));
+            if (!(y >= 1900) || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d || dt > new Date()) return { error: true };
+            return { value: `${y}-${pad2(m)}-${pad2(d)}` };
+        }
+        const normSex = (v) => { const t = String(v || "").trim().toLowerCase(); return t.startsWith("m") ? "Male" : t.startsWith("f") ? "Female" : ""; };
+        const normCivil = (v) => { const t = String(v || "").trim().toLowerCase(); if (!t) return ""; if (t.startsWith("sep")) return "Separated"; if (t.startsWith("s")) return "Single"; if (t.startsWith("m")) return "Married"; if (t.startsWith("w") || t.startsWith("bal")) return "Widowed"; return ""; };
+        const normVoter = (v) => { const t = String(v ?? "").trim().toLowerCase(); if (!t) return ""; if (/^(n|no|not|un|false|0)/.test(t)) return "Not Registered"; if (/^(y|yes|reg|true|1)/.test(t)) return "Registered"; return ""; };
+        function normPhone(v) { let t = String(v ?? "").trim(); if (/^9\d{9}$/.test(t)) t = "0" + t; return t; }
+
+        function buildRows(table) {
+            const headerIdx = table.findIndex((r) => r.some((c) => String(c ?? "").trim() !== ""));
+            if (headerIdx < 0) return { error: "The file is empty." };
+            const { map, unknown } = mapHeaders(table[headerIdx]);
+            const hasName = "fullName" in map || "firstName" in map || "lastName" in map;
+            if (!hasName) return { error: "Could not find a name column. Use the template: it needs Last Name and First Name (or Full Name)." };
+            const get = (r, k) => (k in map ? r[map[k]] : "");
+            const rows = [], seen = new Set(); let dupInFile = 0, warnings = 0;
+            table.slice(headerIdx + 1).forEach((r, i) => {
+                if (!r.some((c) => String(c ?? "").trim() !== "")) return;
+                const rowNumber = headerIdx + 2 + i;
+                let name = String(get(r, "fullName") ?? "").trim();
+                if (!name) name = [get(r, "firstName"), get(r, "middleName"), get(r, "lastName"), get(r, "suffix")].map((x) => String(x ?? "").trim()).filter(Boolean).join(" ");
+                const bd = toIsoDate(get(r, "birthDate")), notes = [];
+                if (bd.error) { notes.push("Birth date not understood (left blank)"); warnings++; }
+                const row = {
+                    rowNumber, fullName: name, sex: normSex(get(r, "sex")), birthDate: bd.value || null,
+                    civilStatus: normCivil(get(r, "civilStatus")), purok: String(get(r, "purok") ?? "").trim(),
+                    address: String(get(r, "address") ?? "").trim(), occupation: String(get(r, "occupation") ?? "").trim(),
+                    voterStatus: normVoter(get(r, "voterStatus")), contactNumber: normPhone(get(r, "contactNumber")),
+                    email: String(get(r, "email") ?? "").trim(), remarks: String(get(r, "remarks") ?? "").trim(), notes
+                };
+                if (!name) { rows.push({ ...row, local: { result: "Failed", note: "Full name is missing" } }); return; }
+                const key = row.birthDate ? name.toLowerCase() + "|" + row.birthDate : "";
+                if (key && seen.has(key)) { dupInFile++; rows.push({ ...row, local: { result: "Skipped", note: "Duplicate row in this file" } }); return; }
+                if (key) seen.add(key);
+                rows.push(row);
+            });
+            return { rows, recognized: Object.keys(map), unknown, dupInFile, warnings };
+        }
+
+        function resetImportUi() {
+            importRows = []; importLocal = []; importResults = [];
+            $("importFile").value = ""; $("importPreview").innerHTML = ""; setMsg($("importMsg"), "");
+            $("importBarWrap").hidden = true; $("importBar").style.width = "0"; $("importReport").hidden = true;
+            $("importGo").disabled = true; $("importGo").textContent = "Import"; $("importFile").disabled = false;
+        }
+        $("importBtn").addEventListener("click", () => { resetImportUi(); $("importDlg").classList.add("show"); });
+        $("importClose").addEventListener("click", () => { $("importDlg").classList.remove("show"); });
+        $("tplLink").addEventListener("click", (e) => {
+            e.preventDefault();
+            const sample = ["Dela Cruz", "Juan", "Santos", "", "Male", "1990-05-21", "Married", "Purok 1", "123 Rizal St.", "Farmer", "Registered", "09171234567", "", ""];
+            const csv = "\uFEFF" + [TEMPLATE_HEADERS, sample].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+            downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), "rbi-import-template.csv");
+        });
+        function downloadBlob(blob, name) {
+            const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+            document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        }
+
+        $("importFile").addEventListener("change", async () => {
+            const file = $("importFile").files[0]; if (!file) return;
+            setMsg($("importMsg"), "Reading file…"); $("importGo").disabled = true; $("importPreview").innerHTML = "";
+            try {
+                let table;
+                if (/\.xlsx?$/i.test(file.name)) {
+                    await loadSheetJs();
+                    const wb = window.XLSX.read(await file.arrayBuffer(), { type: "array" });
+                    table = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: "" });
+                } else {
+                    table = parseCsv(await file.text());
+                }
+                const built = buildRows(table);
+                if (built.error) { setMsg($("importMsg"), built.error, "err"); return; }
+                importLocal = built.rows.filter((r) => r.local); importRows = built.rows.filter((r) => !r.local);
+                const names = { lastName: "Last Name", firstName: "First Name", middleName: "Middle Name", suffix: "Suffix", fullName: "Full Name", sex: "Sex", birthDate: "Birth Date", civilStatus: "Civil Status", purok: "Purok", address: "Address", occupation: "Occupation", voterStatus: "Voter Status", contactNumber: "Contact", email: "Email", remarks: "Remarks" };
+                const sample = importRows.slice(0, 5).map((r) => `<tr><td>${esc(r.fullName)}</td><td>${esc(r.sex || "—")}</td><td>${esc(r.birthDate || "—")}</td><td>${esc(r.purok || "—")}</td></tr>`).join("");
+                $("importPreview").innerHTML = `
+                    <p><strong>${importRows.length}</strong> record(s) ready to import${importLocal.length ? `, <strong>${importLocal.length}</strong> skipped in the file (missing name or duplicate)` : ""}${built.warnings ? `, ${built.warnings} with a birth date that couldn't be read` : ""}.</p>
+                    <div class="chips">${built.recognized.map((k) => `<span class="chip">${esc(names[k] || k)}</span>`).join("")}</div>
+                    ${built.unknown.length ? `<p class="hint" style="margin-top:.5rem;">Ignored columns: ${esc(built.unknown.join(", "))}</p>` : ""}
+                    ${sample ? `<table class="prev-table"><thead><tr><th>Name</th><th>Sex</th><th>Birth date</th><th>Purok</th></tr></thead><tbody>${sample}</tbody></table>` : ""}`;
+                setMsg($("importMsg"), importRows.length ? "" : "Nothing to import.", importRows.length ? "" : "err");
+                $("importGo").textContent = `Import ${importRows.length} record(s)`; $("importGo").disabled = importRows.length === 0;
+            } catch (e) { setMsg($("importMsg"), e.message || "Could not read the file.", "err"); }
+        });
+
+        $("importGo").addEventListener("click", async () => {
+            if (!importRows.length) return;
+            $("importGo").disabled = true; $("importFile").disabled = true; $("importBarWrap").hidden = false; importResults = [];
+            let created = 0, skipped = 0, failed = 0, done = 0;
+            try {
+                for (let i = 0; i < importRows.length; i += BATCH) {
+                    const batch = importRows.slice(i, i + BATCH).map(({ notes, local, ...r }) => r);
+                    const data = await api("/staff/residents/import", { method: "POST", body: JSON.stringify({ rows: batch }) });
+                    data.created.forEach((c) => importResults.push({ rowNumber: c.rowNumber, name: c.fullName, result: "Added", residentId: c.residentId, note: "" }));
+                    data.skipped.forEach((c) => importResults.push({ rowNumber: c.rowNumber, name: c.fullName, result: "Skipped", residentId: "", note: c.reason }));
+                    data.failed.forEach((c) => importResults.push({ rowNumber: c.rowNumber, name: c.fullName, result: "Failed", residentId: "", note: c.reason }));
+                    created += data.created.length; skipped += data.skipped.length; failed += data.failed.length; done += batch.length;
+                    $("importBar").style.width = Math.round((done / importRows.length) * 100) + "%";
+                    setMsg($("importMsg"), `Importing… ${done} of ${importRows.length}`);
+                }
+                setMsg($("importMsg"), `Done: ${created} added, ${skipped + importLocal.filter((r) => r.local.result === "Skipped").length} skipped, ${failed + importLocal.filter((r) => r.local.result === "Failed").length} failed.`, created ? "ok" : "err");
+            } catch (e) {
+                setMsg($("importMsg"), `Stopped after ${done} of ${importRows.length} rows: ${e.message}. Rows already added are saved; re-importing the same file will skip them.`, "err");
+            }
+            importLocal.forEach((r) => importResults.push({ rowNumber: r.rowNumber, name: r.fullName, result: r.local.result, residentId: "", note: r.local.note }));
+            importRows.forEach((r) => { if (r.notes?.length) { const x = importResults.find((o) => o.rowNumber === r.rowNumber); if (x) x.note = [x.note, ...r.notes].filter(Boolean).join("; "); } });
+            importResults.sort((a, b) => a.rowNumber - b.rowNumber);
+            $("importReport").hidden = false; $("importGo").hidden = true; offset = 0; loadResidents();
+        });
+        $("importReport").addEventListener("click", () => {
+            const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+            const lines = [["Row", "Name", "Result", "Resident ID", "Note"].map(q).join(",")].concat(importResults.map((r) => [r.rowNumber, r.name, r.result, r.residentId, r.note].map(q).join(",")));
+            downloadBlob(new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" }), `rbi-import-report-${new Date().toISOString().slice(0, 10)}.csv`);
+        });
+        $("importClose").addEventListener("click", () => { $("importGo").hidden = false; });
+
+        // ---------- logout ----------
         $("adminLogoutBtn").addEventListener("click", (e) => { e.preventDefault(); $("logoutModal").classList.add("show"); });
         $("logoutCancelBtn").addEventListener("click", () => $("logoutModal").classList.remove("show"));
         $("logoutConfirmBtn").addEventListener("click", () => {

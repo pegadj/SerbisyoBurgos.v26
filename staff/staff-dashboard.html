@@ -244,6 +244,14 @@ color: white;
             background-color: #15803d; /* Darker green on hover */
         }
 
+        .btn-review--outline {
+            background-color: #ffffff;
+            color: var(--brand-green);
+            border: 1.5px solid var(--brand-green);
+            margin-left: 8px;
+        }
+        .btn-review--outline:hover { background-color: #f0fdf4; }
+
         .pagination {
             display: none;
             justify-content: flex-end;
@@ -446,7 +454,7 @@ color: white;
     <script src="../shared/staff-page-guard.js" data-staff-permission="dashboard"></script>
     <script>
         const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
-        const STAFF_ROUTES = window.APP_ROUTES?.staff || { login: "../admin-login.html", dashboard: "staff-dashboard.html" };
+        const STAFF_ROUTES = window.APP_ROUTES?.staff || { login: "../login.html", dashboard: "staff-dashboard.html" };
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "index.html" };
         function applyStaffRouteLinks() {
             document.querySelectorAll('a[href="staff-dashboard.html"]').forEach((link) => {
@@ -665,6 +673,10 @@ color: white;
                     ? escapeHtml(req.timeLabel || "—")
                     : escapeHtml(req.preferredTimeSlot || "—");
                 const dateLabel = isAppointment ? "Appointment Date" : "Date Submitted";
+                const docTemplate = !isAppointment ? documentTemplateFor(req) : null;
+                const docLink = canUseDocumentGenerator() && docTemplate && req.status !== "Rejected" && requestId
+                    ? `<a class="btn-review btn-review--outline" href="document-generator.html?requestId=${encodeURIComponent(requestId)}&referenceNo=${referenceParam}&template=${encodeURIComponent(docTemplate)}" title="Open the Document Generator pre-filled with this resident's details">Generate ${escapeHtml(docTemplate)}</a>`
+                    : "";
 
                 return `
                     <div class="request-card" data-title="${safeTitle}" data-preferred-date="${preferredDateKey}">
@@ -682,10 +694,29 @@ color: white;
                             <a class="btn-review js-view-request" href="request-processing.html?type=${typeParam}&requestId=${requestId}&referenceNo=${referenceParam}" data-request-id="${requestId}" data-item-type="${escapeHtml(req.itemType || "request")}">
                                 View Request
                             </a>
+                            ${docLink}
                         </div>
                     </div>
                 `;
             }).join("");
+        }
+
+        function documentTemplateFor(r) {
+            if (r && r.documentTemplate) return r.documentTemplate;
+            const t = String((r && (r.serviceType || r.title)) || "").toLowerCase();
+            if (/business/.test(t)) return null;
+            if (/clearance/.test(t)) return "Barangay Clearance";
+            if (/indigen/.test(t)) return "Certificate of Indigency";
+            return null;
+        }
+
+        function canUseDocumentGenerator() {
+            try {
+                const perms = JSON.parse(sessionStorage.getItem("adminAuth") || "{}")?.user?.staffPermissions;
+                return !(perms && perms.documentGenerator === false);
+            } catch (_e) {
+                return true;
+            }
         }
 
         function handleViewRequestClick(event) {
