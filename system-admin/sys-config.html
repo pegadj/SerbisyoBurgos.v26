@@ -236,7 +236,19 @@
         .toggle-group { display: flex; flex-direction: column; gap: 12px; }
         .toggle-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f8fafc; border-radius: 8px; }
 
-        .btn-delete { color: #dc2626; border: none; background: none; cursor: pointer; }
+        .btn-delete {
+            color: #dc2626; border: none; background: none; cursor: pointer; position: relative;
+            width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
+        }
+        .btn-delete:hover { background: #fee2e2; }
+        .btn-delete[data-tooltip]::after {
+            content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px); right: 0;
+            background: #0f172a; color: #fff; font-size: 0.75rem; font-weight: 600; line-height: 1;
+            padding: 6px 10px; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none;
+            transform: translateY(3px); transition: opacity 0.15s ease, transform 0.15s ease; z-index: 60;
+        }
+        .btn-delete[data-tooltip]:hover::after, .btn-delete[data-tooltip]:focus-visible::after { opacity: 1; transform: translateY(0); }
         .btn-save {
             background: var(--brand-green);
             color: white;
@@ -376,6 +388,7 @@
                 <div class="form-group">
                     <label>Barangay Name</label>
                     <input type="text" value="Barangay Burgos Web Portal Services" disabled>
+                    <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.35rem;">Fixed for this pilot (Barangay Burgos only).</p>
                 </div>
                 <div class="form-group">
                     <label for="systemEnvironmentSelect">System Environment</label>
@@ -408,7 +421,7 @@
                 <!-- Service Request Section -->
                 <div id="service-types-section" style="display: block;">
                     <h3>🏷️ Service Request Types</h3>
-                    <p class="page-subtitle" style="margin-bottom: 1.5rem;">Categories shown in service request forms and filters.</p>
+                    <p class="page-subtitle" style="margin-bottom: 1.5rem;">Categories shown in service request forms and filters. Barangay administrators can also edit requirements and processing times under Service Management.</p>
                     
                     <form id="addServiceTypeForm" class="input-group" action="#" method="post" style="margin-bottom: 20px;">
                         <input type="text" id="service-name" name="serviceName" placeholder="(e.g. Certificate of Residency)" style="flex: 2;" autocomplete="off">
@@ -419,8 +432,7 @@
                     <div class="values-list" id="serviceTypesList"></div>
 
                     <p class="section-warning" style="font-size: 0.75rem; color: #64748b; margin-top: 1rem;">
-                        Warning: Removed categories are permanently deleted from all system records and cannot be recovered.
-                    </p>
+                        Note: Removing a type hides it from request forms and filters. Existing requests, appointments and audit history that already use it are kept.</p>
                 </div>
 
                 <!-- Appointment Types Section -->
@@ -435,10 +447,9 @@
 
                     <div class="values-list" id="appointmentTypesList"></div>
 
-                    <!-- MOVE THE WARNING HERE -->
+                    <!-- Removal note -->
                     <p class="section-warning" style="font-size: 0.75rem; color: #64748b; margin-top: 1rem;">
-                        Warning: Removed categories are permanently deleted from all system records and cannot be recovered.
-                    </p>
+                        Note: Removing a type hides it from request forms and filters. Existing requests, appointments and audit history that already use it are kept.</p>
                 </div>
             </div>
         </div>
@@ -586,7 +597,7 @@
                 card.className = "value-card";
                 card.dataset.serviceId = String(s.id);
                 const docs = s.requiredDocuments ? ` (${escapeHtml(s.requiredDocuments)})` : "";
-                card.innerHTML = `<span>${escapeHtml(s.name)}${docs}</span><button type="button" class="btn-delete" aria-label="Remove">🗑️</button>`;
+                card.innerHTML = `<span>${escapeHtml(s.name)}${docs}</span><button type="button" class="btn-delete" data-tooltip="Remove service type" aria-label="Remove service type"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>`;
                 list.appendChild(card);
             }
             if (!list.children.length) {
@@ -613,7 +624,7 @@
                 const card = document.createElement("div");
                 card.className = "value-card";
                 card.dataset.purposeId = String(p.id);
-                card.innerHTML = `<span>${escapeHtml(p.label)}</span><button type="button" class="btn-delete" aria-label="Remove">🗑️</button>`;
+                card.innerHTML = `<span>${escapeHtml(p.label)}</span><button type="button" class="btn-delete" data-tooltip="Remove appointment type" aria-label="Remove appointment type"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>`;
                 list.appendChild(card);
             }
             if (!list.children.length) {
@@ -669,7 +680,7 @@
                 if (!environmentConfirmModal || !environmentConfirmMessage) return;
                 const isMaintenance = pendingEnvironmentValue === "maintenance";
                 const extra = isMaintenance
-                    ? " Maintenance mode may limit what residents can do until you switch back to Production."
+                    ? " While in Maintenance mode, residents, staff and barangay admins are blocked from the portal and only system administrators can sign in, until you switch back to Production."
                     : " Production is the standard live operating mode.";
                 environmentConfirmMessage.textContent =
                     `Apply "${pendingEnvironmentLabel}" as the system environment? ${extra}`;
@@ -703,7 +714,7 @@
                     environmentSelect.value = committedEnvironmentValue;
                     showConfigMessage(
                         committedEnvironmentValue === "maintenance"
-                            ? "Maintenance mode is active. Resident and staff portals are restricted until you switch back to Production."
+                            ? "Maintenance mode is active. Residents, staff and barangay admins are locked out; only system administrators can use the portal until you switch back to Production."
                             : `System environment set to ${label}. Full portal access is restored.`
                     );
                     closeEnvironmentConfirmModal();
@@ -880,7 +891,7 @@
             function confirmCategoryDeletion(btn) {
                 pendingCard = btn.closest('.value-card');
                 if (!pendingCard) return;
-                const categoryName = pendingCard.querySelector('span')?.textContent.trim() || 'this category';
+                const categoryName = pendingCard.querySelector('span')?.textContent.trim() || 'this type';
 
                 // Create/find modal
                 let modal = document.querySelector('.delete-confirm-modal');
@@ -889,13 +900,13 @@
                     modal.className = 'modal-overlay delete-confirm-modal';
                     modal.innerHTML = `
                         <div class="confirm-modal">
-                            <h3 style="font-size:1.05rem; color:var(--brand-dark); margin-bottom:0.55rem;">Delete this category?</h3>
+                            <h3 style="font-size:1.05rem; color:var(--brand-dark); margin-bottom:0.55rem;">Remove this type?</h3>
                             <p class="delete-confirm-message" style="font-size:0.9rem; color:var(--text-muted); line-height:1.5;">
-                                Warning: Removed categories are permanently deleted from all system records and cannot be recovered. This cannot be undone.
+                                Removing a type hides it from request forms and filters. Existing records that already use it are kept.
                             </p>
                             <div class="confirm-actions">
                                 <button type="button" class="btn-cancel delete-confirm-cancel">Cancel</button>
-                                <button type="button" class="btn-confirm danger delete-confirm-submit">Delete</button>
+                                <button type="button" class="btn-confirm danger delete-confirm-submit">Remove</button>
                             </div>
                         </div>
                     `;
@@ -913,7 +924,7 @@
 
                 // Update message with category name
                 modal.querySelector('.delete-confirm-message').textContent = 
-                    `Permanently delete "${categoryName}"? Warning: Removed categories are permanently deleted from all system records and cannot be recovered. This cannot be undone.`;
+                    `Remove "${categoryName}"? It will be hidden from request forms and filters. Existing records that already use it are kept.`;
 
                 modal.classList.add('show');
                 modal.setAttribute('aria-hidden', 'false');

@@ -443,15 +443,16 @@
         
         <div style="display: flex; gap: 10px; margin-bottom: 20px;">
             <div style="position: relative; flex: 1;">
-                    <input type="text" id="searchInput" class="search-bar" oninput="searchLogs()" placeholder="Search by actions or email..." 
+                    <input type="text" id="searchInput" class="search-bar" oninput="searchLogs()" placeholder="Search actions, descriptions or email..." 
                     style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff;">
                 <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #888;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="11" cy="11" r="8"></circle>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
             </div>
-            <select id="actionFilter" onchange="filterByAction(this.value)" style="padding: 10px 20px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff; min-width: 160px;">
+            <select id="actionFilter" onchange="onAuditFilterChanged()" style="padding: 10px 20px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff; min-width: 160px;">
                 <option value="">All Actions</option>
+                <option value="Authentication">Authentication</option>
                 <option value="Status Update">Status Update</option>
                 <option value="Completed Request">Completed Request</option>
                 <option value="Rejected Request">Rejected Request</option>
@@ -461,8 +462,15 @@
                 <option value="Archived Record">Archived Record</option>
                 <option value="Deleted Record">Deleted Record</option>
             </select>
+            <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#64748b;white-space:nowrap;">From
+                <input type="date" id="dateFrom" onchange="onAuditFilterChanged()" style="padding: 9px 10px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff;">
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#64748b;white-space:nowrap;">To
+                <input type="date" id="dateTo" onchange="onAuditFilterChanged()" style="padding: 9px 10px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff;">
+            </label>
+            <button type="button" id="clearFiltersBtn" onclick="clearAuditFilters()" style="padding: 10px 16px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff; color: #475569; font-weight: 600; cursor: pointer; display: none;">Clear</button>
         </div>
-
+        <p id="auditFilterError" role="alert" style="display: none; font-size: 0.8rem; color: #b91c1c; margin: -10px 0 12px;"></p>
         <p id="auditLogsMeta" style="display: none; font-size: 0.8rem; color: #b45309; margin-bottom: 12px;"></p>
 
         <div class="card" style="background: #ffffff; border: 1px solid #e2e8f0; padding: 0; overflow: hidden;">
@@ -573,35 +581,61 @@
             window.location.href = COMMON_ROUTES.landing;
         });
 
-        function filterByAction(action) {
-            const tbody = document.getElementById("auditLogsBody");
-            if (!tbody) return;
-            const rows = tbody.querySelectorAll("tr[data-action]");
-            rows.forEach(function (row) {
-                if (action === "" || row.getAttribute("data-action") === action) {
-                    row.style.display = "";
-                } else {
-                    row.style.display = "none";
-                }
-            });
-        }
+        // Search / action / date filters are applied by the server across the whole log
+        // (not just the 15 rows on screen), then the list reloads from page 1.
+        let auditSearchTimer = null;
+        let auditRequestSeq = 0;
 
+        function currentAuditFilters() {
+            return {
+                q: (document.getElementById("searchInput")?.value || "").trim(),
+                action: document.getElementById("actionFilter")?.value || "",
+                from: document.getElementById("dateFrom")?.value || "",
+                to: document.getElementById("dateTo")?.value || ""
+            };
+        }
+        function auditFiltersActive() {
+            const f = currentAuditFilters();
+            return Boolean(f.q || f.action || f.from || f.to);
+        }
+        function syncClearButton() {
+            const btn = document.getElementById("clearFiltersBtn");
+            if (btn) btn.style.display = auditFiltersActive() ? "inline-block" : "none";
+        }
+        function onAuditFilterChanged() {
+            auditCurrentPage = 1;
+            syncClearButton();
+            void loadAuditLogs();
+        }
         function searchLogs() {
-            const input = document.getElementById("searchInput");
-            const tbody = document.getElementById("auditLogsBody");
-            if (!input || !tbody) return;
-            const filter = input.value.toLowerCase();
-            const rows = tbody.querySelectorAll("tr[data-action]");
-            rows.forEach(function (row) {
-                const text = row.textContent || row.innerText || "";
-                if (!filter || text.toLowerCase().indexOf(filter) > -1) {
-                    row.style.display = "";
-                } else {
-                    row.style.display = "none";
-                }
+            clearTimeout(auditSearchTimer);
+            syncClearButton();
+            auditSearchTimer = setTimeout(function () {
+                auditCurrentPage = 1;
+                void loadAuditLogs();
+            }, 350);
+        }
+        function clearAuditFilters() {
+            ["searchInput", "actionFilter", "dateFrom", "dateTo"].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el) el.value = "";
+            });
+            onAuditFilterChanged();
+        }
+        // Keep the dropdown in sync with the actions that really exist in the log.
+        function syncActionOptions(actions) {
+            const sel = document.getElementById("actionFilter");
+            if (!sel || !Array.isArray(actions)) return;
+            const have = new Set(Array.from(sel.options).map(function (o) { return o.value; }));
+            actions.forEach(function (a) {
+                if (!a || have.has(a)) return;
+                const opt = document.createElement("option");
+                opt.value = a;
+                opt.textContent = a;
+                sel.appendChild(opt);
+                have.add(a);
             });
         }
-
         const AUDIT_PAGE_SIZE = 15;
         let auditCurrentPage = 1;
 
@@ -657,8 +691,9 @@
             if (!tbody) return;
             tbody.innerHTML = "";
             if (!logs.length) {
+                const msg = auditFiltersActive() ? "No audit entries match your filters." : "No audit entries yet.";
                 tbody.innerHTML =
-                    '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem;">No audit entries yet.</td></tr>';
+                    '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem;">' + msg + '</td></tr>';
                 return;
             }
             logs.forEach(function (log) {
@@ -696,12 +731,28 @@
                 metaEl.style.display = "none";
                 metaEl.textContent = "";
             }
+            const filterErr = document.getElementById("auditFilterError");
+            const f = currentAuditFilters();
+            if (f.from && f.to && f.from > f.to) {
+                if (filterErr) {
+                    filterErr.textContent = "The “From” date is after the “To” date. Please adjust the range.";
+                    filterErr.style.display = "block";
+                }
+                if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem;">Choose a valid date range.</td></tr>';
+                return;
+            }
+            if (filterErr) filterErr.style.display = "none";
+            const seq = ++auditRequestSeq;
             try {
                 const offset = (auditCurrentPage - 1) * AUDIT_PAGE_SIZE;
-                const res = await adminFetch(
-                    `/system-admin/audit-logs?limit=${encodeURIComponent(AUDIT_PAGE_SIZE)}&offset=${encodeURIComponent(offset)}`
-                );
+                const params = new URLSearchParams({ limit: String(AUDIT_PAGE_SIZE), offset: String(offset) });
+                if (f.q) params.set("q", f.q);
+                if (f.action) params.set("action", f.action);
+                if (f.from) params.set("from", f.from);
+                if (f.to) params.set("to", f.to);
+                const res = await adminFetch(`/system-admin/audit-logs?${params.toString()}`);
                 const json = await res.json().catch(() => ({}));
+                if (seq !== auditRequestSeq) return; // a newer search/filter superseded this response
                 if (!res.ok || !json?.ok) {
                     if (tbody) {
                         tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#b91c1c;padding:2rem;">${escapeHtml(
@@ -722,9 +773,7 @@
                     return loadAuditLogs();
                 }
                 renderAuditRows(Array.isArray(json.logs) ? json.logs : []);
-                const actionSel = document.getElementById("actionFilter");
-                filterByAction(actionSel ? actionSel.value : "");
-                searchLogs();
+                syncActionOptions(json.meta?.availableActions);
                 renderAuditPagination(total);
                 if (metaEl && json.meta) {
                     const parts = [];
@@ -736,7 +785,7 @@
                     }
                     if (json.meta.portalAuditLoaded === false && json.meta.portalAuditError) {
                         parts.push(
-                            "Portal activity events could not be read (apply migration 20260510_portal_audit_events.sql). " +
+                            "Portal activity events could not be read. " +
                             escapeHtml(String(json.meta.portalAuditError))
                         );
                     }

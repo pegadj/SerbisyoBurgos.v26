@@ -231,6 +231,55 @@
             cursor: pointer;
         }
         
+        .btn-export--secondary {
+            background: #ffffff;
+            color: #043d2e;
+            border: 1.5px solid #043d2e;
+        }
+        .btn-export--secondary:hover { background: #f0fdf4; }
+        .btn-export:disabled { opacity: 0.65; cursor: wait; }
+
+        /* Single download icon with a dropdown of export options */
+        .export-menu { position: relative; flex-shrink: 0; }
+        .btn-export--icon {
+            width: 48px; height: 48px; padding: 0; justify-content: center; border-radius: 12px;
+            transition: background 0.2s ease, transform 0.15s ease;
+        }
+        .btn-export--icon:hover:not(:disabled) { background: #065f46; transform: translateY(-1px); }
+        .btn-export--icon[data-tooltip]::after {
+            content: attr(data-tooltip); position: absolute; top: calc(100% + 8px); right: 0;
+            background: #0f172a; color: #fff; font-size: 0.75rem; font-weight: 600; line-height: 1;
+            padding: 6px 10px; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none;
+            transform: translateY(-3px); transition: opacity 0.15s ease, transform 0.15s ease; z-index: 70;
+        }
+        .btn-export--icon[data-tooltip]:hover::after,
+        .btn-export--icon[data-tooltip]:focus-visible::after { opacity: 1; transform: translateY(0); }
+        .btn-export--icon[aria-expanded="true"]::after { opacity: 0; }
+        .btn-export--icon { position: relative; }
+        .btn-export--icon.is-busy svg { display: none; }
+        .btn-export--icon.is-busy::before {
+            content: ""; width: 20px; height: 20px; border-radius: 50%;
+            border: 2.5px solid rgba(255,255,255,0.35); border-top-color: #fff;
+            animation: exportSpin 0.8s linear infinite;
+        }
+        @keyframes exportSpin { to { transform: rotate(360deg); } }
+
+        .export-menu-list {
+            position: absolute; top: calc(100% + 8px); right: 0; width: 290px; z-index: 80;
+            background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 6px;
+            box-shadow: 0 12px 28px -8px rgba(15, 23, 42, 0.25);
+        }
+        .export-menu-list[hidden] { display: none; }
+        .export-menu-item {
+            width: 100%; display: flex; align-items: center; gap: 12px; text-align: left;
+            background: none; border: none; border-radius: 8px; padding: 10px 12px; cursor: pointer;
+            font-family: inherit; color: #0f172a;
+        }
+        .export-menu-item:hover, .export-menu-item:focus-visible { background: #f0fdf4; outline: none; }
+        .export-menu-item svg { flex-shrink: 0; color: #166534; }
+        .export-menu-item strong { display: block; font-size: 0.9rem; }
+        .export-menu-item small { display: block; font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+
         /* Inclusion Grid Styles */
         .inclusion-grid {
             display: grid;
@@ -431,7 +480,7 @@
         <div class="top-bar">
             <div>
                 <h1 class="page-title">Data Backup and Recovery</h1>
-                <p class="page-subtitle">Implement scheduled backups and restore mechanisms.</p>
+                <p class="page-subtitle">Download a copy of the system’s data and learn how to recover it.</p>
             </div>
             <div class="user-profile">
                 <div class="user-avatar">SA</div>
@@ -469,14 +518,27 @@
                 <div class="warning-icon">📦</div>
                 <div>
                     <h3 style="margin-bottom: 4px; color: #166534;">Backup Reminder</h3>
-                    <p style="color: #166534; font-size: 0.95rem;">Exports are paused while backup systems are upgraded. Your data stays in the primary database—use “Export Backup” to read the upcoming feature notice.</p>
+                    <p style="color: #166534; font-size: 0.95rem;">Download a complete backup (.json) for recovery, or a readable Excel report (.xlsx) for reading and reporting. Back up weekly, or right after large batches of registrations or approvals. Passwords are never included.</p>
+                    <p id="lastExportLine" style="color: #166534; font-size: 0.8rem; margin-top: 6px; opacity: 0.85;">Last export: checking…</p>
                 </div>
             </div>
-            <button type="button" class="btn-export" id="exportBackupBtn" onclick="showComingSoonModal()" aria-haspopup="dialog" aria-controls="comingSoonModal">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                Export Backup
+            <div class="export-menu" id="exportMenu">
+            <button type="button" class="btn-export btn-export--icon" id="exportMenuBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="exportMenuList" aria-label="Download options" data-tooltip="Download">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             </button>
+            <div class="export-menu-list" id="exportMenuList" role="menu" aria-labelledby="exportMenuBtn" hidden>
+                <button type="button" class="export-menu-item" id="exportBackupBtn" role="menuitem" onclick="downloadBackup()">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+                    <span><strong>Backup (.json)</strong><small>Complete backup for recovery</small></span>
+                </button>
+                <button type="button" class="export-menu-item" id="exportExcelBtn" role="menuitem" onclick="downloadExcel()">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>
+                    <span><strong>Excel report (.xlsx)</strong><small>Readable workbook for reports</small></span>
+                </button>
+            </div>
         </div>
+        </div>
+        <p id="backupActionMessage" role="status" aria-live="polite" style="font-size: 0.85rem; margin: -1rem 0 1.5rem; min-height: 1.2em;"></p>
 
         <!-- What's Included Section -->
         <div class="card">
@@ -530,7 +592,18 @@
                     </div>
                     <div class="inclusion-text">
                         <h4>User Accounts</h4>
-                        <p>All staff and resident accounts (passwords encrypted for security).</p>
+                        <p>All admin, staff and resident accounts. Passwords and login sessions are never included.</p>
+                    </div>
+                </div>
+
+                <!-- Announcements, services & settings -->
+                <div class="inclusion-item">
+                    <div class="check-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                    <div class="inclusion-text">
+                        <h4>Announcements, Services &amp; Settings</h4>
+                        <p>Announcements, drafts, service types, appointment slots, FAQ entries and the portal environment.</p>
                     </div>
                 </div>
 
@@ -564,40 +637,29 @@
             
             <ol class="recovery-list">
                 <li>
-                    <strong>Supabase Integration:</strong> Our primary database is hosted on <span class="code-inline">Supabase</span>. Please note that automated backup triggers within this portal are currently <strong>under maintenance</strong>.
+                    <strong>Where your data lives:</strong> The primary database is <span class="code-inline">MongoDB Atlas</span>. Free-tier clusters generally do not include automatic backups, so do not rely on the host alone—download an export regularly.
                 </li>
                 <li>
-                    <strong>Manual Export:</strong> The downloadable export module is coming soon—the "Export Backup" button opens a portal notice until the enhanced backup workflow is enabled. Snapshot files will be saved as <span class="code-inline">.json</span> once available.
+                    <strong>Manual Export:</strong> Click <strong>Backup (.json)</strong> to download a complete snapshot for recovery, or <strong>Excel report (.xlsx)</strong> for a readable workbook (one sheet each for residents, requests, appointments and more; for reports only, not for restoring). It contains accounts, requests, appointments, announcements, settings and the audit trail. It does <strong>not</strong> contain passwords, login sessions, or uploaded files (ID photos, attachments, avatars).
                 </li>
                 <li>
-                    <strong>Secure Storage:</strong> Store the exported file in a secure location—a password-protected cloud drive or an encrypted external storage device is highly recommended.
+                    <strong>Secure Storage:</strong> The file holds residents’ personal information. Keep it in a password-protected drive or encrypted storage, share it only with authorized people, and delete old copies you no longer need (Data Privacy Act of 2012, RA 10173).
                 </li>
                 <li>
-                    <strong>Data Restoration:</strong> To restore data after a system failure or accidental deletion, contact the lead developer or system administrator and provide the latest valid <span class="code-inline">.json</span> backup file.
+                    <strong>Restoring records:</strong> The export is meant for safekeeping, review and recovering records. It uses MongoDB Extended JSON, so ids and dates are preserved. To restore from it, contact the lead developer and provide the latest file; check that it ends with <span class="code-inline">"complete": true</span>, which means the download was not cut off.
                 </li>
                 <li>
-                    <strong>Advanced Recovery:</strong> For critical technical recovery, database administrators can use the Supabase CLI or PostgreSQL <span class="code-inline">pg_restore</span> tools to re-import collections from the exported data.
+                    <strong>Full disaster recovery:</strong> Because the export leaves out passwords and uploaded files, use a database dump for a complete recovery: <span class="code-inline">mongodump --uri="&lt;MONGODB_URI&gt;" --out=backup-folder</span> to save, and <span class="code-inline">mongorestore --uri="&lt;MONGODB_URI&gt;" backup-folder</span> to restore. Treat dumps with the same care as exports, since they include password hashes.
                 </li>
             </ol>
 
             <!-- Bottom Note/Recommendation -->
             <div class="note-box">
-                <strong>Recommendation:</strong> Once export is enabled, plan manual backups weekly—or right after large batches of registrations or approvals. Until then, rely on Supabase hosting and administrator procedures.
+                <strong>Recommendation:</strong> Export weekly, or right after large batches of registrations or approvals, and keep at least the last few copies. Each download is recorded in the Audit Logs as “Data Export”.
             </div>
         </div>
 
     </main>
-
-    <div id="comingSoonModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="comingSoonTitle" aria-hidden="true">
-        <div class="confirm-modal" style="max-width: 500px; text-align: center; background: linear-gradient(135deg, #064e3b 0%, #047857 100%); border: 2px solid #065f46; color: white;">
-            <div style="font-size: 2rem; margin-bottom: 1rem;">🔧</div>
-            <h3 id="comingSoonTitle" style="font-size:1.3rem; color: #10b981; margin-bottom: 1rem;">Coming Soon: Enhanced Data Protection</h3>
-            <p style="font-size:0.95rem; color: #d1fae5; line-height:1.6; margin-bottom: 1.5rem;">
-                We are currently upgrading our backup systems. While the Export Backup feature is under construction, all data remains securely stored within our primary database. We appreciate your patience as we finalize this security module.
-            </p>
-            <button type="button" class="btn-confirm" style="background: #047857; color: white; padding: 0.75rem 1.5rem; font-weight: 600; border-radius: 8px; border: none; cursor: pointer;" onclick="closeComingSoonModal()">Got it, Thanks!</button>
-        </div>
-    </div>
 
     <div id="logoutModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle" aria-hidden="true">
         <div class="confirm-modal">
@@ -635,33 +697,9 @@
         });
         document.addEventListener("keydown", (event) => {
             if (event.key !== "Escape") return;
-            const comingSoonModal = document.getElementById("comingSoonModal");
-            if (comingSoonModal?.classList.contains("show")) {
-                closeComingSoonModal();
-                return;
-            }
             if (logoutModal?.classList.contains("show")) closeLogoutModal();
         });
 
-        function showComingSoonModal() {
-            const modal = document.getElementById("comingSoonModal");
-            if (modal) {
-                modal.classList.add("show");
-                modal.setAttribute("aria-hidden", "false");
-            }
-        }
-
-        function closeComingSoonModal() {
-            const modal = document.getElementById("comingSoonModal");
-            if (modal) {
-                modal.classList.remove("show");
-                modal.setAttribute("aria-hidden", "true");
-            }
-        }
-
-        document.getElementById("comingSoonModal")?.addEventListener("click", (event) => {
-            if (event.target.id === "comingSoonModal") closeComingSoonModal();
-        });
         logoutConfirmBtn?.addEventListener("click", () => {
             closeLogoutModal();
             if (window.APP_NAV?.logout) {
@@ -687,6 +725,467 @@
             const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
             if (token) headers.Authorization = `Bearer ${token}`;
             return fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+        }
+
+        function setBackupMessage(text, isError) {
+            const el = document.getElementById("backupActionMessage");
+            if (!el) return;
+            el.style.color = isError ? "#b91c1c" : "#15803d";
+            el.textContent = text || "";
+        }
+
+        function formatBytes(n) {
+            if (!Number.isFinite(n)) return "";
+            if (n < 1024) return n + " B";
+            if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+            return (n / (1024 * 1024)).toFixed(1) + " MB";
+        }
+
+        async function loadBackupInfo() {
+            const line = document.getElementById("lastExportLine");
+            if (!line) return;
+            try {
+                const res = await adminFetch("/system-admin/backup/info");
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok) {
+                    line.textContent = "Last export: unavailable";
+                    return;
+                }
+                if (!json.lastExport) {
+                    line.textContent = "No export has been recorded yet.";
+                    return;
+                }
+                const when = new Date(json.lastExport.at);
+                const whenText = Number.isNaN(when.getTime())
+                    ? "unknown time"
+                    : when.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+                line.textContent = `Last export: ${whenText} by ${json.lastExport.by}`;
+            } catch (_e) {
+                line.textContent = "Last export: unavailable";
+            }
+        }
+
+        // ---- Download dropdown (one icon, two export options) ----
+        function setExportBusy(isBusy) {
+            const trigger = document.getElementById("exportMenuBtn");
+            if (!trigger) return;
+            trigger.disabled = isBusy;
+            trigger.classList.toggle("is-busy", isBusy);
+            trigger.setAttribute("aria-label", isBusy ? "Preparing download…" : "Download options");
+            trigger.setAttribute("data-tooltip", isBusy ? "Preparing…" : "Download");
+        }
+
+        (function initExportMenu() {
+            const trigger = document.getElementById("exportMenuBtn");
+            const list = document.getElementById("exportMenuList");
+            if (!trigger || !list) return;
+            const items = () => Array.from(list.querySelectorAll('[role="menuitem"]'));
+            const isOpen = () => !list.hidden;
+            function openMenu(focusFirst) {
+                list.hidden = false;
+                trigger.setAttribute("aria-expanded", "true");
+                if (focusFirst) items()[0]?.focus();
+            }
+            function closeMenu(returnFocus) {
+                list.hidden = true;
+                trigger.setAttribute("aria-expanded", "false");
+                if (returnFocus) trigger.focus();
+            }
+            trigger.addEventListener("click", () => (isOpen() ? closeMenu(false) : openMenu(false)));
+            trigger.addEventListener("keydown", (e) => {
+                if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    openMenu(true);
+                }
+            });
+            list.addEventListener("click", (e) => {
+                if (e.target.closest('[role="menuitem"]')) closeMenu(false);
+            });
+            list.addEventListener("keydown", (e) => {
+                const els = items();
+                const i = els.indexOf(document.activeElement);
+                if (e.key === "ArrowDown") { e.preventDefault(); els[(i + 1) % els.length].focus(); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); els[(i - 1 + els.length) % els.length].focus(); }
+                else if (e.key === "Home") { e.preventDefault(); els[0].focus(); }
+                else if (e.key === "End") { e.preventDefault(); els[els.length - 1].focus(); }
+                else if (e.key === "Escape") { e.preventDefault(); closeMenu(true); }
+                else if (e.key === "Tab") closeMenu(false);
+            });
+            document.addEventListener("click", (e) => {
+                if (isOpen() && !e.target.closest("#exportMenu")) closeMenu(false);
+            });
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape" && isOpen()) closeMenu(true);
+            });
+        })();
+
+        async function downloadBackup() {
+            const btn = document.getElementById("exportMenuBtn");
+            if (btn?.disabled) return;
+            if (!getAdminAccessToken()) {
+                setBackupMessage("Your session expired. Please sign in again.", true);
+                return;
+            }
+            setExportBusy(true);
+            setBackupMessage("Preparing your backup. This can take a few moments…", false);
+            try {
+                const res = await adminFetch("/system-admin/backup/export");
+                if (!res.ok) {
+                    const j = await res.json().catch(() => ({}));
+                    throw new Error(j?.message || `Export failed (server replied ${res.status}).`);
+                }
+                const blob = await res.blob();
+                const cd = res.headers.get("Content-Disposition") || "";
+                const match = /filename="?([^";]+)"?/i.exec(cd);
+                const filename = match ? match[1] : `serbisyoburgos-backup-${Date.now()}.json`;
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 10000);
+                setBackupMessage(`Backup downloaded: ${filename} (${formatBytes(blob.size)}). Store it somewhere secure.`, false);
+                await loadBackupInfo();
+            } catch (err) {
+                const msg = err && err.message && !/failed to fetch|networkerror|load failed/i.test(err.message)
+                    ? err.message
+                    : "The download was interrupted or the server could not be reached. Please try again.";
+                setBackupMessage(msg, true);
+            } finally {
+                setExportBusy(false);
+            }
+        }
+
+        // BEGIN_EXCEL_BUILDER
+        const PH_TZ = "Asia/Manila";
+
+        function ejDate(v) {
+            if (!v) return null;
+            if (v instanceof Date) return v;
+            let raw = typeof v === "object" ? v.$date : v;
+            if (raw && typeof raw === "object") raw = Number(raw.$numberLong);
+            const d = new Date(raw);
+            return Number.isNaN(d.getTime()) ? null : d;
+        }
+        function ejId(v) {
+            if (!v) return "";
+            return typeof v === "object" ? String(v.$oid || "") : String(v);
+        }
+        function phParts(d) {
+            return Object.fromEntries(
+                new Intl.DateTimeFormat("en-CA", {
+                    timeZone: PH_TZ, hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"
+                }).formatToParts(d).map((x) => [x.type, x.value])
+            );
+        }
+        function fmtDateTime(v) {
+            const d = ejDate(v);
+            if (!d) return "";
+            const p = phParts(d);
+            return `${p.year}-${p.month}-${p.day} ${String(p.hour).replace("24", "00")}:${p.minute}`;
+        }
+        function fmtDateOnly(v) {
+            const d = ejDate(v);
+            if (!d) return "";
+            const p = phParts(d);
+            return `${p.year}-${p.month}-${p.day}`;
+        }
+        function sortNewestFirst(rows, field) {
+            return rows.slice().sort((a, b) => (ejDate(b[field])?.getTime() || 0) - (ejDate(a[field])?.getTime() || 0));
+        }
+        const ROLE_LABELS = {
+            resident: "Resident",
+            staff: "Barangay Staff",
+            admin: "Barangay Administrator",
+            "system-admin": "System Administrator"
+        };
+        const PERMISSION_LABELS = {
+            dashboard: "Dashboard",
+            appointmentScheduling: "Appointment Scheduling",
+            requestProcessing: "Request Processing",
+            documentGenerator: "Document Generator"
+        };
+        const titleCase = (t) => (t ? String(t).charAt(0).toUpperCase() + String(t).slice(1) : "");
+        const yesNo = (b) => (b ? "Yes" : "No");
+
+        /** Turns the JSON backup into a readable, formatted Excel workbook. */
+        function buildBackupWorkbook(ExcelJS, backup) {
+            const C = backup.collections || {};
+            const meta = backup.meta || {};
+            const users = C.users || [];
+            const userById = new Map(users.map((u) => [ejId(u._id), u]));
+            const residentName = (id) => userById.get(ejId(id))?.fullName || "(unknown)";
+            const residentEmail = (id) => userById.get(ejId(id))?.email || "";
+
+            const wb = new ExcelJS.Workbook();
+            wb.creator = "SerbisyoBurgos";
+            wb.created = new Date();
+
+            function addSheet(name, columns, rows) {
+                const ws = wb.addWorksheet(name);
+                ws.columns = columns.map((c) => ({ header: c.header, key: c.header }));
+                rows.forEach((r) => {
+                    const obj = {};
+                    columns.forEach((c) => { obj[c.header] = c.get(r); });
+                    ws.addRow(obj);
+                });
+                const head = ws.getRow(1);
+                head.height = 24;
+                head.eachCell((cell) => {
+                    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+                    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF166534" } };
+                    cell.alignment = { vertical: "middle", horizontal: "left" };
+                });
+                columns.forEach((c, i) => {
+                    const col = ws.getColumn(i + 1);
+                    let longest = String(c.header).length;
+                    for (let r = 0; r < Math.min(rows.length, 500); r += 1) {
+                        const v = String(c.get(rows[r]) ?? "");
+                        const firstLine = v.split("\n")[0];
+                        if (firstLine.length > longest) longest = firstLine.length;
+                    }
+                    col.width = Math.max(10, Math.min(c.wide ? 60 : 38, longest + 3));
+                    if (c.wrap) col.alignment = { wrapText: true, vertical: "top" };
+                });
+                // column alignment above also touched the header cells, so restore the header look
+                head.eachCell((cell) => { cell.alignment = { vertical: "middle", horizontal: "left" }; });
+                ws.views = [{ state: "frozen", ySplit: 1 }];
+                if (columns.length) {
+                    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
+                }
+                return ws;
+            }
+
+            const residents = users.filter((u) => u.role === "resident").sort((a, b) => String(a.fullName).localeCompare(String(b.fullName)));
+            const staffAdmins = users.filter((u) => u.role !== "resident").sort((a, b) => String(a.role).localeCompare(String(b.role)) || String(a.fullName).localeCompare(String(b.fullName)));
+            const requests = sortNewestFirst(C.serviceRequests || [], "createdAt");
+            const appointments = sortNewestFirst(C.appointments || [], "createdAt");
+            const services = (C.serviceCatalog || []).slice().sort((a, b) => String(a.serviceName).localeCompare(String(b.serviceName)));
+            const announcements = sortNewestFirst(C.communityAnnouncements || [], "createdAt");
+            const activity = [
+                ...(C.portalAuditEvents || []).map((e) => ({
+                    at: e.createdAt,
+                    type: "Portal activity",
+                    action: e.action || "",
+                    details: e.description || "",
+                    by: e.performedByName || e.performedByEmail || "",
+                    role: ROLE_LABELS[e.performedByRole] || e.performedByRole || ""
+                })),
+                ...(C.authAuditEvents || []).map((e) => ({
+                    at: e.createdAt,
+                    type: "Sign-in & account",
+                    action: { login: "Login", register: "Registration", password_change: "Password change" }[e.action] || e.action || "",
+                    details: e.email || "",
+                    by: e.email || "",
+                    role: ROLE_LABELS[e.role] || e.role || ""
+                }))
+            ].sort((a, b) => (ejDate(b.at)?.getTime() || 0) - (ejDate(a.at)?.getTime() || 0));
+
+            // ---- Summary sheet ----
+            const sum = wb.addWorksheet("Summary");
+            sum.columns = [{ width: 30 }, { width: 80 }];
+            sum.getCell("A1").value = "SerbisyoBurgos – Data Report";
+            sum.getCell("A1").font = { bold: true, size: 16, color: { argb: "FF166534" } };
+            sum.addRow([]);
+            const info = [
+                ["Exported on", fmtDateTime(meta.exportedAt) + " (Philippine time)"],
+                ["Exported by", meta.exportedBy || ""],
+                ["Total records in backup", meta.totalRecords ?? ""]
+            ];
+            info.forEach((r) => { const row = sum.addRow(r); row.getCell(1).font = { bold: true }; });
+            sum.addRow([]);
+            const tHead = sum.addRow(["Sheet", "Rows"]);
+            tHead.eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+                cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF166534" } };
+            });
+            [
+                ["Residents", residents.length],
+                ["Staff & Admins", staffAdmins.length],
+                ["Service Requests", requests.length],
+                ["Appointments", appointments.length],
+                ["Services", services.length],
+                ["Announcements", announcements.length],
+                ["Activity Log", activity.length]
+            ].forEach((r) => { const row = sum.addRow(r); row.getCell(2).alignment = { horizontal: "left" }; });
+            sum.addRow([]);
+            const notesHead = sum.addRow(["Please note"]);
+            notesHead.getCell(1).font = { bold: true };
+            [
+                "This workbook is for reading and reporting. It cannot restore the system; use the JSON backup for recovery.",
+                "Passwords, login sessions and uploaded files (ID photos, attachments, avatars) are not included.",
+                "It contains residents’ personal information. Store and share it only with authorized people (Data Privacy Act of 2012, RA 10173).",
+                "Dates and times are shown in Philippine time.",
+                "Appointment slots, system settings, FAQ entries and announcement drafts are only in the JSON backup."
+            ].forEach((t) => {
+                const row = sum.addRow([t]);
+                sum.mergeCells(row.number, 1, row.number, 2);
+                row.getCell(1).alignment = { wrapText: true, vertical: "top" };
+                row.height = 32;
+            });
+
+            addSheet("Residents", [
+                { header: "Full Name", get: (u) => u.fullName || "" },
+                { header: "Email", get: (u) => u.email || "" },
+                { header: "Contact Number", get: (u) => u.contactNumber || "" },
+                { header: "Account Status", get: (u) => titleCase(u.accountStatus) },
+                { header: "Sex", get: (u) => u.residentProfile?.sex || "" },
+                { header: "Birth Date", get: (u) => fmtDateOnly(u.residentProfile?.birthDate) },
+                { header: "Civil Status", get: (u) => u.residentProfile?.civilStatus || "" },
+                { header: "Purok", get: (u) => u.residentProfile?.purok || "" },
+                { header: "Address", wide: true, wrap: true, get: (u) => u.residentProfile?.address || "" },
+                { header: "Occupation", get: (u) => u.residentProfile?.occupation || "" },
+                { header: "Voter Status", get: (u) => u.residentProfile?.voterStatus || "" },
+                { header: "Self-registered", get: (u) => yesNo(u.residentSelfRegistered) },
+                { header: "Registered On", get: (u) => fmtDateTime(u.createdAt) }
+            ], residents);
+
+            addSheet("Staff & Admins", [
+                { header: "Full Name", get: (u) => u.fullName || "" },
+                { header: "Email", get: (u) => u.email || "" },
+                { header: "Role", get: (u) => ROLE_LABELS[u.role] || u.role || "" },
+                { header: "Account Status", get: (u) => titleCase(u.accountStatus) },
+                {
+                    header: "Staff Permissions",
+                    wide: true,
+                    get: (u) =>
+                        u.role === "staff" && u.staffPermissions
+                            ? Object.keys(PERMISSION_LABELS).filter((k) => u.staffPermissions[k]).map((k) => PERMISSION_LABELS[k]).join(", ")
+                            : ""
+                },
+                { header: "Contact Number", get: (u) => u.contactNumber || "" },
+                { header: "Created On", get: (u) => fmtDateTime(u.createdAt) }
+            ], staffAdmins);
+
+            const lastNote = (r) => {
+                const t = Array.isArray(r.statusTimeline) ? r.statusTimeline : [];
+                return t.length ? t[t.length - 1].note || "" : "";
+            };
+            addSheet("Service Requests", [
+                { header: "Reference No", get: (r) => r.referenceNo || "" },
+                { header: "Service Type", get: (r) => r.serviceType || "" },
+                { header: "Title", wide: true, get: (r) => r.title || "" },
+                { header: "Purpose", wide: true, get: (r) => r.purpose || "" },
+                { header: "Resident", get: (r) => residentName(r.residentUserId) },
+                { header: "Resident Email", get: (r) => residentEmail(r.residentUserId) },
+                { header: "Status", get: (r) => r.status || "" },
+                { header: "Preferred Date", get: (r) => r.preferredDate || "" },
+                { header: "Preferred Time", get: (r) => r.preferredTimeSlot || "" },
+                { header: "Submitted", get: (r) => fmtDateTime(r.createdAt) },
+                { header: "Last Updated", get: (r) => fmtDateTime(r.updatedAt) },
+                { header: "Latest Note", wide: true, wrap: true, get: lastNote }
+            ], requests);
+
+            addSheet("Appointments", [
+                { header: "Reference No", get: (r) => r.referenceNo || "" },
+                { header: "Resident", get: (r) => residentName(r.residentUserId) },
+                { header: "Resident Email", get: (r) => residentEmail(r.residentUserId) },
+                { header: "Purpose", wide: true, get: (r) => r.purpose || "" },
+                { header: "Appointment Date", get: (r) => r.appointmentDate || "" },
+                { header: "Time Slot", get: (r) => r.slotLabel || "" },
+                { header: "Status", get: (r) => r.status || "" },
+                { header: "Notes", wide: true, wrap: true, get: (r) => r.notes || "" },
+                { header: "Submitted", get: (r) => fmtDateTime(r.createdAt) }
+            ], appointments);
+
+            addSheet("Services", [
+                { header: "Service Name", get: (r) => r.serviceName || "" },
+                { header: "Required Documents", wide: true, wrap: true, get: (r) => r.requiredDocuments || "" },
+                { header: "Processing Time", get: (r) => r.processingTime || "" },
+                { header: "Status", get: (r) => (r.archivedAt ? "Archived" : r.status || "") },
+                { header: "Last Updated", get: (r) => fmtDateTime(r.updatedAt) }
+            ], services);
+
+            addSheet("Announcements", [
+                { header: "Date Posted", get: (r) => fmtDateTime(r.createdAt) },
+                { header: "Category", get: (r) => r.category || "" },
+                { header: "Title", wide: true, get: (r) => r.title || "" },
+                { header: "Details", wide: true, wrap: true, get: (r) => r.body || "" },
+                { header: "Posted By", get: (r) => ROLE_LABELS[r.postedByRole] || r.postedByRole || "" },
+                { header: "Visible to Residents", get: (r) => yesNo(r.isActive !== false) }
+            ], announcements);
+
+            addSheet("Activity Log", [
+                { header: "Date & Time", get: (r) => fmtDateTime(r.at) },
+                { header: "Type", get: (r) => r.type },
+                { header: "Action", get: (r) => r.action },
+                { header: "Details", wide: true, wrap: true, get: (r) => r.details },
+                { header: "Performed By", get: (r) => r.by },
+                { header: "Role", get: (r) => r.role }
+            ], activity);
+
+            return wb;
+        }
+        // END_EXCEL_BUILDER
+
+        async function loadExcelJs() {
+            if (window.ExcelJS) return window.ExcelJS;
+            const sources = [
+                "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js",
+                "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"
+            ];
+            for (const src of sources) {
+                try {
+                    await new Promise((resolve, reject) => {
+                        const tag = document.createElement("script");
+                        tag.src = src;
+                        tag.onload = resolve;
+                        tag.onerror = () => reject(new Error("load failed"));
+                        document.head.appendChild(tag);
+                    });
+                    if (window.ExcelJS) return window.ExcelJS;
+                } catch (_e) {
+                    /* try the next source */
+                }
+            }
+            throw new Error("Could not load the Excel tool. Please check your internet connection and try again.");
+        }
+
+        async function downloadExcel() {
+            const btn = document.getElementById("exportMenuBtn");
+            if (btn?.disabled) return;
+            if (!getAdminAccessToken()) {
+                setBackupMessage("Your session expired. Please sign in again.", true);
+                return;
+            }
+            setExportBusy(true);
+            setBackupMessage("Gathering the data and building your Excel report. This can take a few moments…", false);
+            try {
+                const res = await adminFetch("/system-admin/backup/export?purpose=excel");
+                if (!res.ok) {
+                    const j = await res.json().catch(() => ({}));
+                    throw new Error(j?.message || `Export failed (server replied ${res.status}).`);
+                }
+                const backup = JSON.parse(await res.text());
+                if (!backup || backup.complete !== true) {
+                    throw new Error("The data download was incomplete. Please try again.");
+                }
+                const ExcelJS = await loadExcelJs();
+                const wb = buildBackupWorkbook(ExcelJS, backup);
+                const buffer = await wb.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                const p = phParts(ejDate(backup.meta?.exportedAt) || new Date());
+                const filename = `serbisyoburgos-report-${p.year}${p.month}${p.day}-${String(p.hour).replace("24", "00")}${p.minute}.xlsx`;
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 10000);
+                setBackupMessage(`Excel report downloaded: ${filename} (${formatBytes(blob.size)}). It contains personal data, so store it securely.`, false);
+                await loadBackupInfo();
+            } catch (err) {
+                const msg = err && err.message && !/failed to fetch|networkerror|load failed|unexpected end|JSON/i.test(err.message)
+                    ? err.message
+                    : "The report could not be built. Please check your connection and try again.";
+                setBackupMessage(msg, true);
+            } finally {
+                setExportBusy(false);
+            }
         }
 
         async function loadBackupDatabaseStats() {
@@ -736,7 +1235,7 @@
         document.addEventListener("DOMContentLoaded", async () => {
             const auth = await window.SB_ADMIN_ACCESS?.requireRole?.("system-admin");
             if (!auth) return;
-            await loadBackupDatabaseStats();
+            await Promise.all([loadBackupDatabaseStats(), loadBackupInfo()]);
         });
     </script>
 </body>
