@@ -336,6 +336,91 @@
         }
         .btn-delete:hover { background: #fee2e2; color: #ef4444; }
 
+        /* Hover labels for table icon buttons */
+        .btn-view[data-tooltip], .btn-delete[data-tooltip] { position: relative; }
+        .btn-view[data-tooltip]::after, .btn-delete[data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 6px);
+            right: 0;
+            background: #0f172a;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
+            padding: 6px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(3px);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            z-index: 60;
+        }
+        .btn-view[data-tooltip]:hover::after, .btn-delete[data-tooltip]:hover::after,
+        .btn-view[data-tooltip]:focus-visible::after, .btn-delete[data-tooltip]:focus-visible::after {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .btn-view {
+            background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; border-radius: 50%; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center;
+        }
+        .btn-view:hover { background: #e0f2fe; color: #0284c7; }
+
+        /* Drafts button (sits beside Create Announcement) */
+        #btnOpenDrafts {
+            background: #fff;
+            color: var(--brand-green);
+            height: 42px;
+            padding: 0 1.1rem;
+            border: 1.5px solid var(--brand-green);
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: fit-content;
+            margin-bottom: 1.5rem;
+        }
+        #btnOpenDrafts:hover { background: #f0fdf4; transform: translateY(-1px); }
+        #draftsBtnCount {
+            min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+            background: var(--brand-green); color: #fff; font-size: 0.75rem; font-weight: 700;
+            display: none; align-items: center; justify-content: center;
+        }
+        .view-meta { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 0.88rem; color: #475569; margin-top: 1rem; }
+        .view-meta dt { font-weight: 700; color: var(--text-muted); }
+        .view-meta dd { margin: 0; }
+
+        /* Hover tooltips for the top action buttons */
+        #btnCreateAnnouncement, #btnOpenDrafts { position: relative; }
+        #btnCreateAnnouncement::after, #btnOpenDrafts::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: #0f172a;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 6px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-3px);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            z-index: 50;
+        }
+        #btnCreateAnnouncement:hover::after, #btnOpenDrafts:hover::after,
+        #btnCreateAnnouncement:focus-visible::after, #btnOpenDrafts:focus-visible::after {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
         /* Button to open form */
         #btnCreateAnnouncement {
             background-color: var(--brand-green);
@@ -352,7 +437,7 @@
             cursor: pointer; 
             transition: all 0.2s;
             width: fit-content;     
-            margin-left: auto;      
+            margin-left: 0;
             margin-bottom: 1.5rem;   
         }
 
@@ -459,13 +544,18 @@
             </div>
         </div>
 
-        <div style="display: flex; width: 100%;">
-            <button id="btnCreateAnnouncement" type="button">
+        <div style="display: flex; width: 100%; justify-content: flex-end; gap: 12px; flex-wrap: wrap;">
+            <button id="btnCreateAnnouncement" type="button" data-tooltip="Create Announcement" aria-label="Create Announcement">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                Create Announcement
+                Create
+            </button>
+            <button id="btnOpenDrafts" type="button" data-tooltip="View saved drafts" aria-label="View saved drafts">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="13" y2="17"></line></svg>
+                Drafts
+                <span id="draftsBtnCount"></span>
             </button>
         </div>
 
@@ -507,13 +597,13 @@
         <div id="announcementFormModal" class="modal-overlay">
             <div class="modal-window">
                 <!-- Close Button -->
-                <button type="button" class="modal-close-btn" onclick="closeFormModal()">&times;</button>
+                <button type="button" class="modal-close-btn" title="Close" aria-label="Close" onclick="requestCloseFormModal()">&times;</button>
 
                 <!-- Left Side: Form -->
                 <div style="flex: 1.2;">
                     <h3 style="margin-bottom: 1.5rem; color: var(--brand-dark); display: flex; align-items: center; gap: 10px;">
                         <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
-                        Draft New Advisory
+                        <span id="formModalHeading">Draft New Advisory</span>
                     </h3>
                     
                     <div class="form-group">
@@ -536,10 +626,18 @@
                         <textarea id="advContent" placeholder="Describe your announcement details..." style="min-height: 180px;"></textarea>
                     </div>
 
-                    <label style="display:flex;align-items:flex-start;gap:10px;margin-top:0.75rem;font-size:0.85rem;color:#475569;cursor:pointer;">
-                        <input type="checkbox" id="advSendSms" checked style="margin-top:3px;">
-                        <span>Also send as SMS to residents with a contact number<br><small id="advSmsCount" style="color:#64748b;">Checking recipients…</small></span>
-                    </label>
+                    <div id="advSmsBox" style="margin-top:0.75rem;font-size:0.85rem;color:#475569;">
+                        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+                            <input type="checkbox" id="advSendSms" checked style="margin-top:3px;">
+                            <span>Also send as SMS to residents<br><small id="advSmsCount" style="color:#64748b;">Checking recipients…</small></span>
+                        </label>
+                        <div id="advSmsAudience" style="margin:0.5rem 0 0 26px;">
+                            <label style="margin-right:16px;cursor:pointer;"><input type="radio" name="advAudience" value="all" checked> All residents</label>
+                            <label id="advAudiencePurokOpt" style="cursor:pointer;"><input type="radio" name="advAudience" value="puroks"> Specific puroks</label>
+                            <div id="advPurokList" style="display:none;flex-wrap:wrap;gap:6px 16px;margin-top:8px;"></div>
+                            <small id="advSmsHint" style="display:block;color:#94a3b8;margin-top:6px;"></small>
+                        </div>
+                    </div>
 
                     <div style="display: flex; gap: 12px; margin-top: 1rem;">
                         <button class="btn-post" style="flex: 2;" type="button" id="btnPublish">Publish to Residents Bulletin Board</button>
@@ -563,6 +661,44 @@
                 </div>
             </div>
         </div>
+
+    <div id="draftsModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="draftsModalTitle">
+        <div class="confirm-modal" style="max-width: 760px; max-height: 85vh; overflow-y: auto;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+                <h3 id="draftsModalTitle" style="font-size:1.1rem;color:var(--brand-dark);margin:0;">Saved Drafts</h3>
+                <button type="button" id="draftsModalCloseBtn" class="btn-cancel">Close</button>
+            </div>
+            <table class="announcements-table" id="draftsTable">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Title</th>
+                        <th>Last Saved</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="draftsTableBody">
+                    <tr><td colspan="4" style="color: var(--text-muted); font-size: 0.9rem;">Loading drafts…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div id="viewAnnouncementModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="viewAnnTitle">
+        <div class="confirm-modal" style="max-width: 620px; max-height: 85vh; overflow-y: auto;">
+            <span id="viewAnnTag" class="tag-badge">Category</span>
+            <h2 id="viewAnnTitle" style="margin-top:12px;font-size:1.35rem;color:var(--brand-dark);line-height:1.25;"></h2>
+            <p id="viewAnnBody" style="margin-top:12px;font-size:0.95rem;color:#475569;line-height:1.6;white-space:pre-wrap;word-break:break-word;"></p>
+            <hr style="margin:1.25rem 0 0;border:0;border-top:1px solid #f1f5f9;">
+            <dl class="view-meta">
+                <dt>Posted by</dt><dd id="viewAnnPostedBy">—</dd>
+                <dt>Date posted</dt><dd id="viewAnnDate">—</dd>
+                <dt>Status</dt><dd id="viewAnnStatus">—</dd>
+            </dl>
+            <div class="confirm-actions">
+                <button type="button" class="btn-cancel" id="viewAnnCloseBtn">Close</button>
+            </div>
+        </div>
+    </div>
 
     <div id="publishConfirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="publishConfirmTitle">
         <div class="confirm-modal">
@@ -626,7 +762,7 @@
     <script>
         (async function() { const auth = await window.SB_ADMIN_ACCESS?.requireRole("admin"); if (!auth) return; })();
 
-        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
 
         function getAdminAccessToken() {
@@ -668,15 +804,61 @@
         const categoryFilter = document.getElementById("categoryFilter");
         const announcementsTableBody = document.getElementById("announcementsTableBody");
 
+        let currentDraftId = null;
+        let pendingDraftPuroks = null;
+        const draftsById = new Map();
+
+        function setFormHeading() {
+            const h = document.getElementById("formModalHeading");
+            if (h) h.textContent = currentDraftId ? "Edit Saved Draft" : "Draft New Advisory";
+        }
+
+        let savedSnapshot = "";
+        function formSnapshot() {
+            return JSON.stringify([categoryInput.value, titleInput.value.trim(), contentInput.value.trim()]);
+        }
+        function markFormClean() {
+            savedSnapshot = formSnapshot();
+        }
+        function formHasUnsavedText() {
+            const hasText = Boolean(titleInput.value.trim() || contentInput.value.trim());
+            return hasText && formSnapshot() !== savedSnapshot;
+        }
+
         function openFormModal() {
+            currentDraftId = null;
+            setFormHeading();
+            markFormClean();
             annFormModal?.classList.add("show");
+        }
+
+        async function requestCloseFormModal() {
+            if (!formHasUnsavedText()) {
+                closeFormModal();
+                return;
+            }
+            const choice = await showDialog({
+                title: "Save as draft?",
+                message: "You have unsaved changes. Save them as a draft before closing?",
+                confirmLabel: "Save draft",
+                cancelLabel: "Discard",
+                dismissValue: null
+            });
+            if (choice === null) return; // clicked outside the dialog: stay in the form
+            if (choice) {
+                await saveDraft(); // closes the form itself on success
+            } else {
+                closeFormModal();
+            }
         }
 
         function closeFormModal() {
             annFormModal?.classList.remove("show");
-            // Optional: Clear inputs when closing
+            // Clear inputs when closing (unsaved text is discarded; use Save Draft to keep it)
             titleInput.value = "";
             contentInput.value = "";
+            currentDraftId = null;
+            setFormHeading();
             updatePreview();
         }
 
@@ -728,9 +910,9 @@
         let pendingDeleteAnnouncementId = null;
 
         function openDeleteAnnouncementModal(id, title) {
-            const numId = Number(id);
-            if (!Number.isInteger(numId) || numId <= 0) return;
-            pendingDeleteAnnouncementId = numId;
+            const safeId = String(id || "").trim();
+            if (!safeId) return;
+            pendingDeleteAnnouncementId = safeId;
             const safeTitle = String(title || "this announcement").trim() || "this announcement";
             if (deleteConfirmMessage) {
                 deleteConfirmMessage.textContent =
@@ -774,6 +956,8 @@
                     throw new Error(json?.message || "Unable to load announcements.");
                 }
                 const list = json.announcements;
+                announcementsById.clear();
+                list.forEach((a) => announcementsById.set(String(a.id), a));
                 if (!list.length) {
                     tbody.innerHTML =
                         '<tr><td colspan="5" style="color: var(--text-muted); font-size: 0.9rem;">No announcements posted yet.</td></tr>';
@@ -783,7 +967,7 @@
 
                 const rows = list
                     .map((a) => {
-                        const id = Number(a.id);
+                        const id = String(a.id || "").trim();
                         const title = String(a.title || "").trim();
                         const category = String(a.category || "Community News");
                         const tag = getCategoryTagStyle(category);
@@ -796,8 +980,11 @@
                             <td>${escapeHtml(title)}</td>
                             <td>${escapeHtml(when)}</td>
                             <td>${escapeHtml(posted)}</td>
-                            <td style="text-align: right;">
-                                <button type="button" class="btn-delete" title="Delete announcement" data-announcement-delete data-announcement-id="${id}" data-announcement-title="${escapeAttr(
+                            <td style="text-align: right; white-space: nowrap;">
+                                <button type="button" class="btn-view" data-tooltip="View announcement" aria-label="View announcement" data-announcement-view data-announcement-id="${escapeAttr(id)}">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                </button>
+                                <button type="button" class="btn-delete" data-tooltip="Delete announcement" aria-label="Delete announcement" data-announcement-delete data-announcement-id="${id}" data-announcement-title="${escapeAttr(
                                     title
                                 )}">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
@@ -816,6 +1003,11 @@
         }
 
         announcementsTableBody?.addEventListener("click", (event) => {
+            const viewBtn = event.target.closest("button[data-announcement-view]");
+            if (viewBtn) {
+                openViewAnnouncement(viewBtn.getAttribute("data-announcement-id"));
+                return;
+            }
             const btn = event.target.closest("button[data-announcement-delete]");
             if (!btn) return;
             const id = btn.getAttribute("data-announcement-id");
@@ -846,14 +1038,15 @@
                 if (!res.ok || !json?.ok) {
                     await showDialog({
                         title: "Delete failed",
-                        message: json?.message || "Could not delete this announcement.",
+                        message: json?.message || `Could not delete this announcement (server replied ${res.status}).`,
                         confirmLabel: "OK"
                     });
                     return;
                 }
                 closeDeleteConfirmModal();
                 await loadAnnouncementsTable();
-            } catch (_err) {
+            } catch (err) {
+                console.error("Delete announcement failed:", err);
                 await showDialog({
                     title: "Delete failed",
                     message: "Could not reach the server. Check that the API is running.",
@@ -900,7 +1093,8 @@ const tag = document.getElementById("previewTag");
                     message = "",
                     confirmLabel = "OK",
                     cancelLabel = null,
-                    danger = false
+                    danger = false,
+                    dismissValue = false
                 } = options || {};
                 appDialogTitle.textContent = title;
                 appDialogMessage.textContent = message;
@@ -929,18 +1123,200 @@ const tag = document.getElementById("previewTag");
                 appDialogModal.onclick = (event) => {
                     if (event.target === appDialogModal) {
                         cleanup();
-                        resolve(false);
+                        resolve(dismissValue);
                     }
                 };
                 appDialogModal.classList.add("show");
             });
         }
 
-        btnSaveDraft?.addEventListener("click", async () => {
-            await showDialog({ title: "Save Draft", message: "Draft saving is not available yet.", confirmLabel: "OK" });
+        function formatDraftWhen(iso) {
+            if (!iso) return "—";
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return "—";
+            return d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+        }
+
+        async function loadDraftsTable() {
+            const tbody = document.getElementById("draftsTableBody");
+            const countEl = document.getElementById("draftsBtnCount");
+            if (!tbody) return;
+            if (!getAdminAccessToken()) {
+                tbody.innerHTML = '<tr><td colspan="4" style="color:#b91c1c;font-size:0.9rem;">Sign in again to load drafts.</td></tr>';
+                return;
+            }
+            try {
+                const res = await adminFetch("/admin/announcement-drafts");
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok || !Array.isArray(json.drafts)) {
+                    throw new Error(json?.message || "Unable to load drafts.");
+                }
+                draftsById.clear();
+                json.drafts.forEach((d) => draftsById.set(d.id, d));
+                if (countEl) {
+                    countEl.textContent = String(json.drafts.length);
+                    countEl.style.display = json.drafts.length ? "inline-flex" : "none";
+                }
+                if (!json.drafts.length) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="color: var(--text-muted); font-size: 0.9rem;">No saved drafts yet. Use "Save Draft" in the announcement form to keep one here.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = json.drafts.map((d) => {
+                    const tag = getCategoryTagStyle(d.category);
+                    const title = String(d.title || "").trim() || "(Untitled draft)";
+                    return `<tr>
+                        <td><span class="tag-badge" style="background:${tag.background};color:${tag.color};">${escapeHtml(d.category)}</span></td>
+                        <td>${escapeHtml(title)}</td>
+                        <td>${escapeHtml(formatDraftWhen(d.updatedAt || d.createdAt))}</td>
+                        <td style="text-align: right; white-space: nowrap;">
+                            <button type="button" data-draft-open data-draft-id="${escapeAttr(d.id)}" style="background:#e0f2fe;color:#0369a1;border:none;border-radius:8px;padding:6px 12px;font-weight:600;cursor:pointer;margin-right:6px;">Open</button>
+                            <button type="button" class="btn-delete" data-tooltip="Delete draft" aria-label="Delete draft" data-draft-delete data-draft-id="${escapeAttr(d.id)}" data-draft-title="${escapeAttr(title)}">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join("");
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="4" style="color:#b91c1c;font-size:0.9rem;">${escapeHtml(err?.message || "Unable to load drafts.")}</td></tr>`;
+            }
+        }
+
+        function applyDraftPurokSelection(list) {
+            const wanted = new Set(Array.isArray(list) ? list : []);
+            smsPurokList?.querySelectorAll("input[type=checkbox]").forEach((el) => { el.checked = wanted.has(el.value); });
+        }
+
+        function openDraftInForm(draft) {
+            closeDraftsModal();
+            currentDraftId = draft.id;
+            setFormHeading();
+            categoryInput.value = draft.category || "Community News";
+            titleInput.value = draft.title || "";
+            contentInput.value = draft.body || "";
+            if (smsBox && !smsBox.disabled) smsBox.checked = draft.sendSms !== false;
+            const radio = document.querySelector(`input[name="advAudience"][value="${draft.smsAudience === "puroks" ? "puroks" : "all"}"]`);
+            if (radio) radio.checked = true;
+            if (smsPurokListBuilt) {
+                applyDraftPurokSelection(draft.smsPuroks);
+            } else {
+                pendingDraftPuroks = draft.smsPuroks || [];
+            }
+            updatePreview();
+            refreshSmsCount();
+            markFormClean();
+            annFormModal?.classList.add("show");
+        }
+
+        const draftsModal = document.getElementById("draftsModal");
+        async function openDraftsModal() {
+            draftsModal?.classList.add("show");
+            await loadDraftsTable();
+        }
+        function closeDraftsModal() {
+            draftsModal?.classList.remove("show");
+        }
+        document.getElementById("btnOpenDrafts")?.addEventListener("click", openDraftsModal);
+        document.getElementById("draftsModalCloseBtn")?.addEventListener("click", closeDraftsModal);
+        draftsModal?.addEventListener("click", (event) => {
+            if (event.target === draftsModal) closeDraftsModal();
+        });
+
+        // ---- View a posted announcement ----
+        const announcementsById = new Map();
+        const viewAnnModal = document.getElementById("viewAnnouncementModal");
+        function openViewAnnouncement(id) {
+            const a = announcementsById.get(String(id));
+            if (!a) return;
+            const tag = getCategoryTagStyle(a.category);
+            const tagEl = document.getElementById("viewAnnTag");
+            tagEl.textContent = a.category || "Community News";
+            tagEl.style.background = tag.background;
+            tagEl.style.color = tag.color;
+            document.getElementById("viewAnnTitle").textContent = a.title || "";
+            document.getElementById("viewAnnBody").textContent = a.body || "";
+            document.getElementById("viewAnnPostedBy").textContent = formatPostedByRole(a.postedByRole);
+            document.getElementById("viewAnnDate").textContent = a.createdAt ? formatDraftWhen(a.createdAt) : "—";
+            document.getElementById("viewAnnStatus").textContent = a.isActive === false ? "Inactive (hidden from residents)" : "Active on resident bulletin board";
+            viewAnnModal?.classList.add("show");
+        }
+        function closeViewAnnouncement() {
+            viewAnnModal?.classList.remove("show");
+        }
+        document.getElementById("viewAnnCloseBtn")?.addEventListener("click", closeViewAnnouncement);
+        viewAnnModal?.addEventListener("click", (event) => {
+            if (event.target === viewAnnModal) closeViewAnnouncement();
+        });
+
+        async function saveDraft() {
+            if (!titleInput.value.trim() && !contentInput.value.trim()) {
+                await showDialog({ title: "Nothing to save", message: "Enter a title or details first, then save the draft.", confirmLabel: "OK" });
+                return;
+            }
+            if (!getAdminAccessToken()) {
+                await showDialog({ title: "Session Expired", message: "Your session expired. Please sign in again.", confirmLabel: "OK" });
+                return;
+            }
+            btnSaveDraft.disabled = true;
+            try {
+                const res = await adminFetch("/admin/announcement-drafts", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        id: currentDraftId || undefined,
+                        category: categoryInput.value,
+                        title: titleInput.value.trim(),
+                        body: contentInput.value.trim(),
+                        sendSms: Boolean(smsBox?.checked),
+                        smsAudience: smsAudienceIsPuroks() ? "puroks" : "all",
+                        smsPuroks: Array.from(smsPurokList.querySelectorAll("input:checked")).map((el) => el.value)
+                    })
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok) throw new Error(json?.message || "Could not save the draft.");
+                await loadDraftsTable();
+                closeFormModal();
+                await showDialog({ title: "Draft saved", message: "Find it under Saved Drafts on this page to keep editing or publish it.", confirmLabel: "OK" });
+            } catch (err) {
+                await showDialog({ title: "Save failed", message: err?.message || "Could not reach the server.", confirmLabel: "OK" });
+            } finally {
+                btnSaveDraft.disabled = false;
+            }
+        }
+        btnSaveDraft?.addEventListener("click", saveDraft);
+
+        document.getElementById("draftsTableBody")?.addEventListener("click", async (event) => {
+            const openBtn = event.target.closest("button[data-draft-open]");
+            if (openBtn) {
+                const d = draftsById.get(openBtn.getAttribute("data-draft-id"));
+                if (d) openDraftInForm(d);
+                return;
+            }
+            const delBtn = event.target.closest("button[data-draft-delete]");
+            if (!delBtn) return;
+            const id = delBtn.getAttribute("data-draft-id");
+            const title = delBtn.getAttribute("data-draft-title") || "this draft";
+            const ok = await showDialog({
+                title: "Delete draft?",
+                message: `Delete "${title}"? This cannot be undone.`,
+                confirmLabel: "Delete",
+                cancelLabel: "Cancel",
+                danger: true
+            });
+            if (!ok) return;
+            try {
+                const res = await adminFetch(`/admin/announcement-drafts/${encodeURIComponent(id)}`, { method: "DELETE" });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok) throw new Error(json?.message || "Could not delete the draft.");
+                await loadDraftsTable();
+            } catch (err) {
+                await showDialog({ title: "Delete failed", message: err?.message || "Could not reach the server.", confirmLabel: "OK" });
+            }
         });
 
         function openPublishConfirmModal() {
+            if (document.getElementById("advSendSms")?.checked && smsAudienceIsPuroks() && !selectedSmsPuroks().length) {
+                showDialog({ title: "Choose puroks", message: "Select at least one purok to text, or switch to All residents.", confirmLabel: "OK" });
+                return;
+            }
             publishConfirmModal?.classList.add("show");
         }
 
@@ -980,7 +1356,8 @@ const tag = document.getElementById("previewTag");
                         category: categoryInput.value,
                         title: titleInput.value.trim(),
                         body: contentInput.value.trim(),
-                        sendSms: Boolean(document.getElementById("advSendSms")?.checked)
+                        sendSms: Boolean(document.getElementById("advSendSms")?.checked),
+                        smsPuroks: selectedSmsPuroks()
                     })
                 });
                 const result = await response.json();
@@ -990,6 +1367,12 @@ const tag = document.getElementById("previewTag");
                 titleInput.value = "";
                 contentInput.value = "";
                 updatePreview();
+                if (currentDraftId) {
+                    try { await adminFetch(`/admin/announcement-drafts/${encodeURIComponent(currentDraftId)}`, { method: "DELETE" }); } catch (_e) { /* draft cleanup is best-effort */ }
+                    currentDraftId = null;
+                    setFormHeading();
+                    await loadDraftsTable();
+                }
                 await loadAnnouncementsTable();
                 const okText = document.getElementById("publishSuccessText");
                 if (okText) {
@@ -1010,18 +1393,66 @@ const tag = document.getElementById("previewTag");
             }
         }
 
-        (async function loadSmsRecipientCount() {
-            const label = document.getElementById("advSmsCount");
-            const box = document.getElementById("advSendSms");
+        // ---- SMS audience (all residents or selected puroks) ----
+        const smsBox = document.getElementById("advSendSms");
+        const smsLabel = document.getElementById("advSmsCount");
+        const smsAudienceBox = document.getElementById("advSmsAudience");
+        const smsPurokList = document.getElementById("advPurokList");
+        const smsHint = document.getElementById("advSmsHint");
+        let smsPurokListBuilt = false;
+
+        function smsAudienceIsPuroks() {
+            return document.querySelector('input[name="advAudience"]:checked')?.value === "puroks";
+        }
+        function selectedSmsPuroks() {
+            if (!smsBox?.checked || !smsAudienceIsPuroks()) return [];
+            return Array.from(smsPurokList.querySelectorAll("input:checked")).map((el) => el.value);
+        }
+        function syncSmsAudienceUi() {
+            const on = Boolean(smsBox?.checked);
+            smsAudienceBox.style.opacity = on ? "1" : "0.5";
+            smsAudienceBox.querySelectorAll("input").forEach((el) => { el.disabled = !on; });
+            smsPurokList.style.display = on && smsAudienceIsPuroks() ? "flex" : "none";
+        }
+        function escapeSmsHtml(v) {
+            return String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        }
+
+        async function refreshSmsCount() {
+            syncSmsAudienceUi();
+            if (!smsBox.checked) { smsLabel.textContent = "No SMS will be sent."; return; }
             try {
-                const token = getAdminAccessToken();
-                const r = await fetch(`${API_BASE_URL}/admin/sms/recipient-count`, { headers: { Authorization: `Bearer ${token}` } });
+                const chosen = selectedSmsPuroks();
+                if (smsAudienceIsPuroks() && !chosen.length) { smsLabel.textContent = "Select one or more puroks below."; return; }
+                const url = `${API_BASE_URL}/admin/sms/recipient-count?puroks=${encodeURIComponent(chosen.join("|"))}`;
+                const r = await fetch(url, { headers: { Authorization: `Bearer ${getAdminAccessToken()}` } });
                 const d = await r.json();
                 if (!r.ok || !d.ok) throw new Error();
-                if (!d.configured) { label.textContent = "SMS is not set up on the server yet."; box.checked = false; box.disabled = true; return; }
-                label.textContent = `Will text ${d.recipients} resident(s).`;
-            } catch (_e) { label.textContent = "Could not check recipients."; }
-        })();
+                if (!d.configured) {
+                    smsLabel.textContent = "SMS is not set up on the server yet.";
+                    smsBox.checked = false; smsBox.disabled = true; syncSmsAudienceUi();
+                    return;
+                }
+                if (!smsPurokListBuilt) {
+                    smsPurokListBuilt = true;
+                    smsPurokList.innerHTML = d.puroks.map((g) =>
+                        `<label style="cursor:pointer;"><input type="checkbox" value="${escapeSmsHtml(g.name)}"> ${escapeSmsHtml(g.name)} (${g.count})</label>`).join("");
+                    if (pendingDraftPuroks) { applyDraftPurokSelection(pendingDraftPuroks); pendingDraftPuroks = null; }
+                    if (!d.puroks.length) {
+                        document.getElementById("advAudiencePurokOpt").style.display = "none";
+                        smsHint.textContent = "To text by purok, fill in residents' puroks in Resident Profiling first.";
+                    }
+                }
+                const extra = [];
+                if (d.optedOut) extra.push(`${d.optedOut} opted out`);
+                if (smsAudienceIsPuroks() && d.noPurok) extra.push(`${d.noPurok} with no purok are only reached by "All residents"`);
+                smsLabel.textContent = `Will text ${d.recipients} resident(s)` + (extra.length ? ` (${extra.join("; ")})` : "") + ".";
+            } catch (_e) { smsLabel.textContent = "Could not check recipients."; }
+        }
+        smsBox?.addEventListener("change", refreshSmsCount);
+        document.querySelectorAll('input[name="advAudience"]').forEach((el) => el.addEventListener("change", refreshSmsCount));
+        smsPurokList?.addEventListener("change", refreshSmsCount);
+        refreshSmsCount();
 
         btnPublish?.addEventListener("click", openPublishConfirmModal);
         publishConfirmCancelBtn?.addEventListener("click", closePublishConfirmModal);
@@ -1062,7 +1493,15 @@ const tag = document.getElementById("previewTag");
                 return;
             }
             if (appDialogModal?.classList.contains("show")) {
-                appDialogModal.classList.remove("show");
+                appDialogModal.click();
+                return;
+            }
+            if (viewAnnModal?.classList.contains("show")) {
+                closeViewAnnouncement();
+                return;
+            }
+            if (draftsModal?.classList.contains("show")) {
+                closeDraftsModal();
                 return;
             }
             closeLogoutModal();
@@ -1104,6 +1543,7 @@ logoutConfirmBtn?.addEventListener("click", () => {
         categoryFilter?.addEventListener("change", filterByCategory);
 
         loadAnnouncementsTable();
+        loadDraftsTable();
     </script>
 </body>
 </html>

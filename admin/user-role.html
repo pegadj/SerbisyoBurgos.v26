@@ -211,6 +211,55 @@
             text-align: left;
         }
 
+        /* Icon-only action buttons with hover labels */
+        .icon-btn {
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            position: relative;
+            vertical-align: middle;
+            transition: transform 0.15s ease, filter 0.15s ease;
+        }
+        .icon-btn + .icon-btn { margin-left: 6px; }
+        .icon-btn:hover { filter: brightness(0.92); transform: translateY(-1px); }
+        .icon-btn--manage { background: var(--brand-green); }
+        .icon-btn--view { background: #ea580c; }
+        .icon-btn--delete { background: #dc2626; }
+
+        /* Hover label: .icon-btn anchors to the right edge (last table column); .tip centres above */
+        .icon-btn[data-tooltip]::after,
+        .tip[data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            background: #0f172a;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
+            padding: 6px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(3px);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            z-index: 60;
+        }
+        .icon-btn[data-tooltip]::after { right: 0; }
+        .tip[data-tooltip] { position: relative; }
+        .tip[data-tooltip]::after { left: 50%; margin-left: 0; transform: translate(-50%, 3px); }
+        .icon-btn[data-tooltip]:hover::after,
+        .icon-btn[data-tooltip]:focus-visible::after { opacity: 1; transform: translateY(0); }
+        .tip[data-tooltip]:hover::after,
+        .tip[data-tooltip]:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
+
         th {
             padding: 12px;
             border-bottom: 2px solid #f1f5f9;
@@ -405,7 +454,7 @@
                     </svg>
                     <input type="text" id="searchStaff" class="search-bar" placeholder="Search by name or email..." style="max-width: 300px; padding-left: 36px;" onkeyup="searchStaff()">
                 </div>
-                <button onclick="openCreateStaffModal()" style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--brand-green); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem;">
+                <button class="tip" data-tooltip="Create a new staff account" aria-label="Create a new staff account" onclick="openCreateStaffModal()" style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--brand-green); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <!-- Person icon -->
                         <circle cx="12" cy="8" r="4"></circle>
@@ -443,7 +492,7 @@
             <div class="user-modal">
                 <div class="modal-header">
                     <h2 id="manageUserTitle" style="color: var(--brand-dark);">Manage User</h2>
-                    <button onclick="closeUserModal()" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">&times;</button>
+                    <button onclick="closeUserModal()" title="Close" aria-label="Close" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">&times;</button>
                 </div>
 
 <div class="form-group">
@@ -462,6 +511,7 @@
                         <div class="permission-item"><input type="checkbox" id="managePermAppt"> Appointment Scheduling</div>
                         <div class="permission-item"><input type="checkbox" id="managePermRequest"> Request Processing</div>
                         <div class="permission-item"><input type="checkbox" id="managePermDoc"> Document Generator</div>
+                        <div class="permission-item"><input type="checkbox" id="managePermResident"> Resident Profiling</div>
                     </div>
                 </div>
 
@@ -499,7 +549,7 @@
             <div class="user-modal" style="max-width: 480px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <h2 style="color: var(--brand-dark);">View Profile</h2>
-                    <button onclick="closeViewProfileModal()" style="background:none; border:none; font-size: 1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+                    <button onclick="closeViewProfileModal()" title="Close" aria-label="Close" style="background:none; border:none; font-size: 1.5rem; cursor:pointer; color:#64748b;">&times;</button>
                 </div>
 
                 <!-- Avatar -->
@@ -588,7 +638,7 @@
             <div class="user-modal">
                 <div class="modal-header">
                     <h2 style="color: var(--brand-dark);">Create New Staff</h2>
-                    <button onclick="closeCreateStaffModal()" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">&times;</button>
+                    <button onclick="closeCreateStaffModal()" title="Close" aria-label="Close" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">&times;</button>
                 </div>
                 <div class="form-group">
                     <label>Full Name</label>
@@ -610,6 +660,7 @@
                         <div class="permission-item"><input type="checkbox" id="permAppt"> Appointment Scheduling</div>
                         <div class="permission-item"><input type="checkbox" id="permRequest"> Request Processing</div>
                         <div class="permission-item"><input type="checkbox" id="permDoc"> Document Generator</div>
+                        <div class="permission-item"><input type="checkbox" id="permResident"> Resident Profiling</div>
                     </div>
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 2rem;">
@@ -625,7 +676,7 @@
     <script>
         (async function() { const auth = await window.SB_ADMIN_ACCESS?.requireRole("admin"); if (!auth) return; })();
 
-        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
         /** Same key as resident-login.html — emails registered through the resident portal. */
         const RESIDENT_PORTAL_SELF_REG_EMAILS_KEY = "SB_RESIDENT_PORTAL_SELF_REG_EMAILS";
@@ -666,7 +717,9 @@
         }
 
         function staffPermissionsCellHtml(p) {
-            const sp = p.staffPermissions;
+            const sp = p.staffPermissions && typeof p.staffPermissions === "object"
+                ? { residentProfiling: true, ...p.staffPermissions }
+                : p.staffPermissions;
             if (!sp || typeof sp !== "object") {
                 return "<small>Staff portal (default access)</small>";
             }
@@ -674,7 +727,8 @@
                 ["dashboard", "Dashboard"],
                 ["appointmentScheduling", "Scheduling"],
                 ["requestProcessing", "Requests"],
-                ["documentGenerator", "Documents"]
+                ["documentGenerator", "Documents"],
+                ["residentProfiling", "Residents"]
             ];
             const allowed = pairs.filter(([key]) => sp[key]).map(([, label]) => label);
             if (!allowed.length) {
@@ -735,12 +789,12 @@
             if (r !== "staff") return "";
             const sp =
                 p.staffPermissions && typeof p.staffPermissions === "object"
-                    ? p.staffPermissions
-                    : { dashboard: true, appointmentScheduling: true, requestProcessing: true, documentGenerator: true };
+                    ? { residentProfiling: true, ...p.staffPermissions }
+                    : { dashboard: true, appointmentScheduling: true, requestProcessing: true, documentGenerator: true, residentProfiling: true };
             const b = (k) => (sp[k] ? "1" : "0");
             return ` data-sp-dashboard="${b("dashboard")}" data-sp-appt="${b(
                 "appointmentScheduling"
-            )}" data-sp-request="${b("requestProcessing")}" data-sp-doc="${b("documentGenerator")}"`;
+            )}" data-sp-request="${b("requestProcessing")}" data-sp-doc="${b("documentGenerator")}" data-sp-resident="${b("residentProfiling")}"`;
         }
 
         function isStaffTableRow(row) {
@@ -753,7 +807,8 @@
                     dashboard: false,
                     appointmentScheduling: false,
                     requestProcessing: false,
-                    documentGenerator: false
+                    documentGenerator: false,
+                    residentProfiling: false
                 };
             }
             if (row.dataset.spDashboard === undefined) {
@@ -761,14 +816,16 @@
                     dashboard: true,
                     appointmentScheduling: true,
                     requestProcessing: true,
-                    documentGenerator: true
+                    documentGenerator: true,
+                    residentProfiling: true
                 };
             }
             return {
                 dashboard: row.dataset.spDashboard === "1",
                 appointmentScheduling: row.dataset.spAppt === "1",
                 requestProcessing: row.dataset.spRequest === "1",
-                documentGenerator: row.dataset.spDoc === "1"
+                documentGenerator: row.dataset.spDoc === "1",
+                residentProfiling: row.dataset.spResident !== "0"
             };
         }
 
@@ -778,6 +835,7 @@
             row.dataset.spAppt = perms.appointmentScheduling ? "1" : "0";
             row.dataset.spRequest = perms.requestProcessing ? "1" : "0";
             row.dataset.spDoc = perms.documentGenerator ? "1" : "0";
+            row.dataset.spResident = perms.residentProfiling === false ? "0" : "1";
         }
 
         function readStaffPermissionsFromManageModal() {
@@ -785,12 +843,13 @@
                 dashboard: Boolean(document.getElementById("managePermDashboard")?.checked),
                 appointmentScheduling: Boolean(document.getElementById("managePermAppt")?.checked),
                 requestProcessing: Boolean(document.getElementById("managePermRequest")?.checked),
-                documentGenerator: Boolean(document.getElementById("managePermDoc")?.checked)
+                documentGenerator: Boolean(document.getElementById("managePermDoc")?.checked),
+                residentProfiling: Boolean(document.getElementById("managePermResident")?.checked)
             };
         }
 
         function syncManageModalStaffPermissionsFromRow(row) {
-            const ids = ["managePermDashboard", "managePermAppt", "managePermRequest", "managePermDoc"];
+            const ids = ["managePermDashboard", "managePermAppt", "managePermRequest", "managePermDoc", "managePermResident"];
             const perms = readStaffPermissionsFromRowDataset(row);
             if (!isStaffTableRow(row)) {
                 ids.forEach((id) => {
@@ -799,7 +858,7 @@
                 });
                 return;
             }
-            const keys = ["dashboard", "appointmentScheduling", "requestProcessing", "documentGenerator"];
+            const keys = ["dashboard", "appointmentScheduling", "requestProcessing", "documentGenerator", "residentProfiling"];
             keys.forEach((k, i) => {
                 const el = document.getElementById(ids[i]);
                 if (el) el.checked = Boolean(perms[k]);
@@ -846,8 +905,7 @@
                             <td>${perms}</td>
                             <td data-cell="account-status">${accountStatusBadgeHtml(accLabel)}</td>
                             <td>
-                                <button type="button" class="btn-config" onclick="openUserManageFromRow('${rowId}')" style="background-color: var(--brand-green); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-right: 5px;">Manage</button>
-                                <button type="button" class="btn-view-user" onclick="openViewProfileModal('${rowId}')" style="background-color: #ea580c; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer;">View</button>
+                                ${actionIconBtn("manage", `openUserManageFromRow('${rowId}')`)}${actionIconBtn("view", `openViewProfileModal('${rowId}')`)}
                             </td>
                         </tr>`;
                     })
@@ -992,16 +1050,34 @@
             return badge ? badge.textContent.trim() : "Active";
         }
 
+        /** Icon-only action button; the label shows on hover (and is the accessible name). */
+        function actionIconBtn(kind, onclickJs) {
+            const defs = {
+                manage: {
+                    label: "Manage account",
+                    svg: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>'
+                },
+                view: {
+                    label: "View profile",
+                    svg: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>'
+                },
+                delete: {
+                    label: "Delete account",
+                    svg: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>'
+                }
+            };
+            const d = defs[kind];
+            return `<button type="button" class="icon-btn icon-btn--${kind}" onclick="${onclickJs}" data-tooltip="${d.label}" aria-label="${d.label}">${d.svg}</button>`;
+        }
+
         function setRowActionsCell(rowId) {
             const row = document.getElementById(rowId);
             if (!row) return;
             const td = row.querySelector("td:last-child");
             if (!td) return;
-            const manageStyle =
-                "background-color: var(--brand-green); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer;";
-            td.innerHTML = `
-                    <button type="button" class="btn-config" onclick="openUserManageFromRow('${rowId}')" style="${manageStyle} margin-right: 5px;">Manage</button>
-                    <button type="button" class="btn-delete-user" onclick="deleteUserAccount('${rowId}')" style="background-color: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer;">Delete</button>`;
+            td.innerHTML =
+                actionIconBtn("manage", `openUserManageFromRow('${rowId}')`) +
+                actionIconBtn("delete", `deleteUserAccount('${rowId}')`);
         }
 
         function openUserManageFromRow(rowId) {
@@ -1083,7 +1159,8 @@ async function saveUserChanges() {
                 ["dashboard", "Dashboard"],
                 ["appointmentScheduling", "Appointment Scheduling"],
                 ["requestProcessing", "Request Processing"],
-                ["documentGenerator", "Document Generator"]
+                ["documentGenerator", "Document Generator"],
+                ["residentProfiling", "Resident Profiling"]
             ];
             let selectedPermissions = [];
             if (isStaffTableRow(row)) {
@@ -1300,6 +1377,7 @@ logoutConfirmBtn?.addEventListener("click", () => {
             document.getElementById('permAppt').checked = false;
             document.getElementById('permRequest').checked = false;
             document.getElementById('permDoc').checked = false;
+            document.getElementById('permResident').checked = false;
         }
 
         function closeCreateStaffModal() {
@@ -1332,7 +1410,8 @@ logoutConfirmBtn?.addEventListener("click", () => {
                 dashboard: Boolean(document.getElementById('permDashboard')?.checked),
                 appointmentScheduling: Boolean(document.getElementById('permAppt')?.checked),
                 requestProcessing: Boolean(document.getElementById('permRequest')?.checked),
-                documentGenerator: Boolean(document.getElementById('permDoc')?.checked)
+                documentGenerator: Boolean(document.getElementById('permDoc')?.checked),
+                residentProfiling: Boolean(document.getElementById('permResident')?.checked)
             };
 
             try {
