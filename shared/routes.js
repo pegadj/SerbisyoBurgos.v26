@@ -27,23 +27,23 @@
       maintenance: `${rootPrefix}maintenance.html`
     },
     entry: {
-      residentLogin: `${rootPrefix}resident-login.html`,
-      staffLogin: `${rootPrefix}admin-login.html`
+      residentLogin: `${rootPrefix}login.html`,
+      staffLogin: `${rootPrefix}login.html`
     },
     staff: {
-      login: `${rootPrefix}admin-login.html`,
+      login: `${rootPrefix}login.html`,
       dashboard: `${rootPrefix}staff/staff-dashboard.html`
     },
 admin: {
-      login: `${rootPrefix}admin-login.html`,
+      login: `${rootPrefix}login.html`,
       dashboard: `${rootPrefix}admin/service-mngmt.html`
     },
     systemAdmin: {
-      login: `${rootPrefix}admin-login.html`,
+      login: `${rootPrefix}login.html`,
       dashboard: `${rootPrefix}system-admin/sysad-dashboard.html`
     },
     resident: {
-      login: `${rootPrefix}resident-login.html`,
+      login: `${rootPrefix}login.html`,
       dashboard: `${residentFolderPrefix}dashboard.html`,
       serviceRequests: `${residentFolderPrefix}service-requests.html`,
       appointments: `${residentFolderPrefix}appointments.html`,

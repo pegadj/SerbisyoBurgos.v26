@@ -3,7 +3,7 @@
   const BLOCKED_LOGIN_MESSAGE_KEY = "residentPortalBlockedReason";
 
   function loginHref() {
-    return globalScope.APP_ROUTES?.resident?.login || "../resident-login.html";
+    return globalScope.APP_ROUTES?.resident?.login || "../login.html";
   }
 
   function maintenanceHref() {

@@ -12,7 +12,8 @@
       dashboard: true,
       appointmentScheduling: true,
       requestProcessing: true,
-      documentGenerator: true
+      documentGenerator: true,
+      residentProfiling: true
     };
   }
 

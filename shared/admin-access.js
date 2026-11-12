@@ -8,7 +8,7 @@
   }
 
   var routes = globalScope.APP_ROUTES || {};
-  var fallbackLogin = "../admin-login.html";
+  var fallbackLogin = "../login.html";
   var loginRoute =
     (routes.staff && routes.staff.login) ||
     (routes.admin && routes.admin.login) ||
