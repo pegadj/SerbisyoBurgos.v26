@@ -22,6 +22,7 @@ const { isSmsConfigured, normalizePhNumber, sendSmsBatch } = require("./config/s
 const { CATEGORY, storeFile, deleteFile, streamFile } = require("./config/upload");
 const { ServiceCatalog } = require("./models/ServiceCatalog");
 const CommunityAnnouncement = require("./models/CommunityAnnouncement");
+const AnnouncementDraft = require("./models/AnnouncementDraft");
 const { FaqEntry } = require("./models/FaqEntry");
 const AppointmentPurposeCatalog = require("./models/AppointmentPurposeCatalog");
 const PortalAuditEvent = require("./models/PortalAuditEvent");
@@ -73,6 +74,61 @@ app.use(
 );
 app.use(express.json({ limit: "48kb" }));
 
+// ---------------------------------------------------------------------------
+// Maintenance mode enforcement.
+// While the portal environment is "maintenance", only system administrators may
+// use the API. Everyone else gets 503 { maintenance: true }. A few routes stay
+// open so system admins can still sign in and so pages can ask "is it down?":
+// health, /public/*, admin login/refresh, and the session-authorize checks.
+// Fails OPEN: if the setting can't be read, the portal stays available.
+// ---------------------------------------------------------------------------
+const MAINTENANCE_MESSAGE =
+  "The portal is under maintenance. Please try again later.";
+const MAINTENANCE_CACHE_MS = 5000;
+let maintenanceEnvCache = { value: "production", at: 0 };
+
+async function getPortalEnvironmentCached() {
+  if (Date.now() - maintenanceEnvCache.at < MAINTENANCE_CACHE_MS) return maintenanceEnvCache.value;
+  const value = await getPortalEnvironmentFromDb();
+  maintenanceEnvCache = { value, at: Date.now() };
+  return value;
+}
+
+function isMaintenanceExemptPath(path) {
+  return (
+    path === "/health" ||
+    path.startsWith("/public/") ||
+    path === "/auth/login" ||
+    path === "/auth/admin/login" ||
+    path === "/auth/admin/refresh" ||
+    path.startsWith("/auth/admin/authorize/") ||
+    path === "/auth/resident/authorize"
+  );
+}
+
+async function enforceMaintenanceMode(req, res, next) {
+  try {
+    if (req.method === "OPTIONS") return next();
+    const env = await getPortalEnvironmentCached();
+    if (env !== "maintenance" || isMaintenanceExemptPath(req.path)) return next();
+
+    const token = getBearerToken(req) || String(req.query?.access_token || "").trim();
+    if (token) {
+      try {
+        const payload = verifyAccessToken(token);
+        if (payload?.role === "system-admin") return next();
+      } catch (_err) {
+        // invalid/expired token: treat like any other non-system-admin caller
+      }
+    }
+    return res.status(503).json({ ok: false, maintenance: true, message: MAINTENANCE_MESSAGE });
+  } catch (error) {
+    console.error("[maintenance] check failed, allowing request:", error.message);
+    return next();
+  }
+}
+app.use(enforceMaintenanceMode);
+
 const authResidentRegisterLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
@@ -123,6 +179,14 @@ const residentRegisterUpload = multer({
 const residentAvatarRawBodyParser = express.raw({
   limit: "5mb",
   type: ["image/jpeg", "image/png", "image/webp", "image/gif", "application/octet-stream"]
+});
+
+const residentImportLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, message: "Too many import requests. Please wait a few minutes and try again." }
 });
 
 const adminStaffCreateLimiter = rateLimit({
@@ -256,14 +320,15 @@ function residentPortalAccountBlockMessage(accountStatusRaw) {
   return null;
 }
 
-const STAFF_PERMISSION_KEYS = ["dashboard", "appointmentScheduling", "requestProcessing", "documentGenerator"];
+const STAFF_PERMISSION_KEYS = ["dashboard", "appointmentScheduling", "requestProcessing", "documentGenerator", "residentProfiling"];
 
 function defaultStaffPermissionsAllTrue() {
   return {
     dashboard: true,
     appointmentScheduling: true,
     requestProcessing: true,
-    documentGenerator: true
+    documentGenerator: true,
+    residentProfiling: true
   };
 }
 
@@ -284,7 +349,8 @@ function normalizeStaffPermissionsFromBody(body) {
     dashboard: false,
     appointmentScheduling: false,
     requestProcessing: false,
-    documentGenerator: false
+    documentGenerator: false,
+    residentProfiling: false
   };
   for (const k of STAFF_PERMISSION_KEYS) {
     if (Object.prototype.hasOwnProperty.call(src, k)) {
@@ -323,7 +389,7 @@ async function resolveProfileFromToken(req) {
     return { error: { status: 403, message: "Profile record not found." } };
   }
 
-  if (userDoc.role === "resident") {
+  if (userDoc.role === "resident" || userDoc.role === "staff") {
     const blockMsg = residentPortalAccountBlockMessage(userDoc.accountStatus);
     if (blockMsg) {
       return { error: { status: 403, message: blockMsg } };
@@ -342,9 +408,41 @@ async function resolveProfileFromToken(req) {
     contact_number: userDoc.contactNumber,
     avatar_url: userDoc.avatarFileId ? `/files/${userDoc.avatarFileId}` : null,
     account_status: userDoc.accountStatus,
+    sms_opt_out: Boolean(userDoc.smsOptOut),
+    resident_id: userDoc.residentId || null,
   };
 
   return { profile, authUserId: String(userDoc._id) };
+}
+
+// ---- Barangay-issued resident accounts (Resident ID + password) ----
+const PLACEHOLDER_EMAIL_DOMAIN = "@residents.serbisyoburgos.local";
+
+function normalizeResidentId(raw) {
+  const v = String(raw || "").trim().toUpperCase();
+  return /^[A-Z0-9][A-Z0-9-]{3,19}$/.test(v) ? v : "";
+}
+
+function placeholderResidentEmail(residentId) {
+  return `${String(residentId).toLowerCase()}${PLACEHOLDER_EMAIL_DOMAIN}`;
+}
+
+function isPlaceholderResidentEmail(email) {
+  return String(email || "").toLowerCase().endsWith(PLACEHOLDER_EMAIL_DOMAIN);
+}
+
+async function generateResidentId() {
+  const last = await User.findOne({ residentId: /^SB-\d{5}$/ })
+    .sort({ residentId: -1 })
+    .select("residentId")
+    .lean();
+  const next = last ? Number.parseInt(last.residentId.slice(3), 10) + 1 : 1;
+  return "SB-" + String(next).padStart(5, "0");
+}
+
+function generateTemporaryPassword() {
+  // 12 URL-safe characters, e.g. "q3Zx9_kLm2Vb"
+  return crypto.randomBytes(9).toString("base64url");
 }
 
 const STAFF_PORTAL_ROLES = new Set(["admin", "staff", "system-admin"]);
@@ -406,7 +504,7 @@ async function validateSseAccess(req) {
   if (userDoc.role !== "resident" && !STAFF_PORTAL_ROLES.has(userDoc.role)) {
     return { ok: false, status: 403, message: "Access denied." };
   }
-  if (userDoc.role === "resident") {
+  if (userDoc.role === "resident" || userDoc.role === "staff") {
     const blockMsg = residentPortalAccountBlockMessage(userDoc.accountStatus);
     if (blockMsg) {
       return { ok: false, status: 403, message: blockMsg };
@@ -423,6 +521,7 @@ async function validateSseAccess(req) {
 
 const MAX_REQUEST_TITLE_LEN = 200;
 const MAX_SERVICE_TYPE_LEN = 120;
+const MAX_REQUEST_PURPOSE_LEN = 160;
 const MAX_TIME_SLOT_LEN = 80;
 const MAX_APPOINTMENT_PURPOSE_LEN = 200;
 const MAX_STATUS_NOTE_LEN = 2000;
@@ -669,6 +768,7 @@ async function savePortalEnvironmentToDb(environment) {
       { $set: { environment: env } },
       { upsert: true, setDefaultsOnInsert: true }
     );
+    maintenanceEnvCache = { value: env, at: Date.now() }; // take effect immediately
     return { ok: true, environment: env };
   } catch (error) {
     return { ok: false, detail: error.message };
@@ -1105,6 +1205,14 @@ app.post("/auth/admin/login", async (req, res) => {
     return res.status(403).json({ ok: false, message: "This account has been deactivated." });
   }
 
+  if (userDoc.role !== "system-admin" && (await getPortalEnvironmentCached()) === "maintenance") {
+    return res.status(503).json({
+      ok: false,
+      maintenance: true,
+      message: "The portal is under maintenance. Only system administrators can sign in right now."
+    });
+  }
+
   const userPayload = {
     email: userDoc.email,
     fullName: userDoc.fullName,
@@ -1157,6 +1265,10 @@ app.post("/auth/admin/refresh", async (req, res) => {
   // replacement for Supabase's server-side refresh-token revocation.
   if ((payload.tokenVersion || 0) !== (userDoc.tokenVersion || 0)) {
     return res.status(401).json({ ok: false, message: "Session refresh failed. Please log in again." });
+  }
+
+  if (userDoc.role !== "system-admin" && (await getPortalEnvironmentCached()) === "maintenance") {
+    return res.status(503).json({ ok: false, maintenance: true, message: MAINTENANCE_MESSAGE });
   }
 
   const newAccessToken = signAccessToken(userDoc);
@@ -1359,8 +1471,18 @@ function validateStaffAppointmentTransition(currentStatus, incomingStatus) {
   return { ok: false, message: "Invalid status transition." };
 }
 
+/** Which printable document (if any) the staff Document Generator can produce for a service. */
+function documentTemplateForServiceType(serviceType) {
+  const t = String(serviceType || "").toLowerCase();
+  if (/business/.test(t)) return null;
+  if (/clearance/.test(t)) return "Barangay Clearance";
+  if (/indigen/.test(t)) return "Certificate of Indigency";
+  return null;
+}
+
 function normalizeRequestRow(row) {
   return {
+    documentTemplate: documentTemplateForServiceType(row.serviceType),
     id: String(row._id),
     referenceNo: row.referenceNo,
     residentUserId: row.residentUserId ? String(row.residentUserId) : null,
@@ -1561,11 +1683,21 @@ async function uploadResidentIdentityDocToStorage(userId, buf, mime) {
   }
 }
 
+app.get("/public/auth-options", (_req, res) => {
+  res.json({ ok: true, selfRegistration: process.env.ALLOW_RESIDENT_SELF_REGISTRATION !== "false" });
+});
+
 app.post(
   "/auth/resident/register",
   authResidentRegisterLimiter,
   residentRegisterUploadMiddleware,
   async (req, res) => {
+    if (process.env.ALLOW_RESIDENT_SELF_REGISTRATION === "false") {
+      return res.status(403).json({
+        ok: false,
+        message: "Accounts are issued by the barangay office. Please visit the office to get your Resident ID and password."
+      });
+    }
     const body = req.body && typeof req.body === "object" ? req.body : {};
     const { fullName, email, password } = body;
     const normalizedEmail = normalizeEmail(email);
@@ -1683,32 +1815,41 @@ app.post(
 );
 
 app.post("/auth/resident/login", authResidentLoginLimiter, async (req, res) => {
-  const { email, password } = req.body || {};
-  const normalizedEmail = normalizeEmail(email);
-  const safePassword = String(password || "");
+  const body = req.body || {};
+  const loginId = String(body.identifier ?? body.residentId ?? body.email ?? "").trim();
+  const safePassword = String(body.password || "");
 
-  if (!normalizedEmail || !safePassword) {
+  if (!loginId || !safePassword) {
     return res.status(400).json({
       ok: false,
-      message: "Email and password are required."
+      message: "Resident ID (or email) and password are required."
     });
   }
 
-  if (!isValidEmailFormat(normalizedEmail) || safePassword.length > MAX_PASSWORD_LEN) {
-    return res.status(400).json({
-      ok: false,
-      message: "Invalid email or password."
-    });
+  const badCreds = { ok: false, message: "Invalid Resident ID/email or password." };
+  if (safePassword.length > MAX_PASSWORD_LEN || loginId.length > 254) {
+    return res.status(400).json(badCreds);
   }
 
-  const userDoc = await User.findOne({ email: normalizedEmail }).select("+passwordHash");
+  let lookup;
+  if (loginId.includes("@")) {
+    const normalizedEmail = normalizeEmail(loginId);
+    if (!isValidEmailFormat(normalizedEmail)) return res.status(400).json(badCreds);
+    lookup = { email: normalizedEmail };
+  } else {
+    const rid = normalizeResidentId(loginId);
+    if (!rid) return res.status(400).json(badCreds);
+    lookup = { residentId: rid };
+  }
+
+  const userDoc = await User.findOne(lookup).select("+passwordHash");
   if (!userDoc) {
-    return res.status(401).json({ ok: false, message: "Invalid email or password." });
+    return res.status(401).json(badCreds);
   }
 
   const passwordOk = await verifyPassword(safePassword, userDoc.passwordHash);
   if (!passwordOk) {
-    return res.status(401).json({ ok: false, message: "Invalid email or password." });
+    return res.status(401).json(badCreds);
   }
 
   if (userDoc.role !== "resident") {
@@ -1737,6 +1878,7 @@ app.post("/auth/resident/login", authResidentLoginLimiter, async (req, res) => {
       fullName: userDoc.fullName,
       role: userDoc.role,
       residentUserId: String(userDoc._id),
+      residentId: userDoc.residentId || null,
       avatarUrl: userDoc.avatarFileId ? `/files/${userDoc.avatarFileId}` : null
     },
     session: {
@@ -1744,6 +1886,93 @@ app.post("/auth/resident/login", authResidentLoginLimiter, async (req, res) => {
       refreshToken,
       expiresAt
     }
+  });
+});
+
+// Unified login: one endpoint for residents, staff, admins and system admins.
+// The account's role decides which portal the client should send the user to.
+app.post("/auth/login", authResidentLoginLimiter, async (req, res) => {
+  const body = req.body || {};
+  const loginId = String(body.identifier ?? body.residentId ?? body.email ?? "").trim();
+  const safePassword = String(body.password || "");
+
+  if (!loginId || !safePassword) {
+    return res.status(400).json({ ok: false, message: "Email (or Resident ID) and password are required." });
+  }
+
+  const badCreds = { ok: false, message: "Invalid email/Resident ID or password." };
+  if (safePassword.length > MAX_PASSWORD_LEN || loginId.length > 254) {
+    return res.status(400).json(badCreds);
+  }
+
+  let lookup;
+  if (loginId.includes("@")) {
+    const normalizedEmail = normalizeEmail(loginId);
+    if (!isValidEmailFormat(normalizedEmail)) return res.status(400).json(badCreds);
+    lookup = { email: normalizedEmail };
+  } else {
+    const rid = normalizeResidentId(loginId);
+    if (!rid) return res.status(400).json(badCreds);
+    lookup = { residentId: rid };
+  }
+
+  const userDoc = await User.findOne(lookup).select("+passwordHash");
+  if (!userDoc) return res.status(401).json(badCreds);
+
+  const passwordOk = await verifyPassword(safePassword, userDoc.passwordHash);
+  if (!passwordOk) return res.status(401).json(badCreds);
+
+  const role = userDoc.role;
+  const isResident = role === "resident";
+  const isAdminPortalRole = role === "admin" || role === "staff" || role === "system-admin";
+
+  if (!isResident && !isAdminPortalRole) {
+    return res.status(403).json({ ok: false, message: "This account is not allowed to sign in." });
+  }
+
+  if (isResident) {
+    const blockMsg = residentPortalAccountBlockMessage(userDoc.accountStatus);
+    if (blockMsg) return res.status(403).json({ ok: false, message: blockMsg });
+  } else if (!userDoc.isActive) {
+    return res.status(403).json({ ok: false, message: "This account has been deactivated." });
+  }
+
+  if (role !== "system-admin" && (await getPortalEnvironmentCached()) === "maintenance") {
+    return res.status(503).json({
+      ok: false,
+      maintenance: true,
+      message: "The portal is under maintenance. Please try again later."
+    });
+  }
+
+  let userPayload;
+  if (isResident) {
+    userPayload = {
+      email: userDoc.email,
+      fullName: userDoc.fullName,
+      role,
+      residentUserId: String(userDoc._id),
+      residentId: userDoc.residentId || null,
+      avatarUrl: userDoc.avatarFileId ? `/files/${userDoc.avatarFileId}` : null
+    };
+  } else {
+    userPayload = { email: userDoc.email, fullName: userDoc.fullName, role };
+    if (role === "staff") {
+      userPayload.staffPermissions = normalizeStaffPermissionsFromDb(userDoc.staffPermissions);
+    }
+  }
+
+  const accessToken = signAccessToken(userDoc);
+  const refreshToken = signRefreshToken(userDoc);
+  const { exp: expiresAt } = verifyAccessToken(accessToken);
+
+  void insertAuthAuditEvent({ action: "login", email: userDoc.email, role, req });
+
+  return res.json({
+    ok: true,
+    message: "Login successful.",
+    user: userPayload,
+    session: { accessToken, refreshToken, expiresAt }
   });
 });
 
@@ -1808,6 +2037,8 @@ app.get("/resident/profile", async (req, res) => {
     email: p.email,
     fullName: p.full_name || "",
     contactNumber: p.contact_number ?? null,
+    smsOptOut: Boolean(p.sms_opt_out),
+    residentId: p.resident_id || null,
     avatarUrl: p.avatar_url ?? null
   });
 });
@@ -1819,10 +2050,11 @@ app.patch("/resident/profile", async (req, res) => {
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const hasContact = Object.prototype.hasOwnProperty.call(body, "contactNumber");
   const hasEmail = Object.prototype.hasOwnProperty.call(body, "email");
-  if (!hasContact && !hasEmail) {
+  const hasSmsOptOut = typeof body.smsOptOut === "boolean";
+  if (!hasContact && !hasEmail && !hasSmsOptOut) {
     return res.status(400).json({
       ok: false,
-      message: "Provide contactNumber and/or email to update."
+      message: "Provide contactNumber, email and/or smsOptOut to update."
     });
   }
 
@@ -1852,6 +2084,7 @@ app.patch("/resident/profile", async (req, res) => {
   const profilePatch = {};
   if (hasContact) profilePatch.contactNumber = contact_number;
   if (emailChanging) profilePatch.email = nextEmailNorm;
+  if (hasSmsOptOut) profilePatch.smsOptOut = body.smsOptOut;
 
   if (Object.keys(profilePatch).length === 0) {
     const p = auth.profile;
@@ -1860,6 +2093,7 @@ app.patch("/resident/profile", async (req, res) => {
       email: p.email,
       fullName: p.full_name || "",
       contactNumber: p.contact_number ?? null,
+      smsOptOut: Boolean(p.sms_opt_out),
       avatarUrl: p.avatar_url ?? null,
       message: "No changes to save."
     });
@@ -1895,6 +2129,7 @@ app.patch("/resident/profile", async (req, res) => {
     email: updated.email,
     fullName: updated.fullName || "",
     contactNumber: updated.contactNumber ?? null,
+    smsOptOut: Boolean(updated.smsOptOut),
     avatarUrl: updated.avatarFileId ? `/files/${updated.avatarFileId}` : null
   });
 });
@@ -2550,9 +2785,10 @@ app.post("/requests", async (req, res) => {
   const auth = await requireResidentPortalUser(req, res);
   if (!auth) return;
 
-  const { title, serviceType, preferredDate, preferredTimeSlot } = req.body || {};
+  const { title, serviceType, preferredDate, preferredTimeSlot, purpose } = req.body || {};
 
   const safeTitle = sanitizePlainTextField(title, MAX_REQUEST_TITLE_LEN);
+  const safePurpose = sanitizePlainTextField(purpose, MAX_REQUEST_PURPOSE_LEN);
   const safeServiceType = sanitizePlainTextField(serviceType, MAX_SERVICE_TYPE_LEN);
   const safePreferredDate = parseLocalDateString(preferredDate);
   const safeTimeSlot = sanitizePlainTextField(preferredTimeSlot, MAX_TIME_SLOT_LEN);
@@ -2600,6 +2836,9 @@ app.post("/requests", async (req, res) => {
   if (resolvedResidentUserId) {
     insertPayload.residentUserId = resolvedResidentUserId;
   }
+  if (safePurpose) {
+    insertPayload.purpose = safePurpose;
+  }
 
   let data;
   try {
@@ -2620,6 +2859,91 @@ app.post("/requests", async (req, res) => {
     message: "Request submitted successfully.",
     request: requestRow
   });
+});
+
+/** Staff may open the Document Generator unless their account has that permission switched off. */
+async function requireDocumentGeneratorAccess(req, res) {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return null;
+  if (auth.profile.role === "staff") {
+    let row = null;
+    try {
+      row = await User.findOne({ email: auth.profile.email, role: "staff" }).select("staffPermissions").lean();
+    } catch (_e) {
+      row = null;
+    }
+    if (!normalizeStaffPermissionsFromDb(row?.staffPermissions).documentGenerator) {
+      res.status(403).json({ ok: false, message: "You do not have permission to use the Document Generator." });
+      return null;
+    }
+  }
+  return auth;
+}
+
+/**
+ * Everything the Document Generator needs to pre-fill a certificate for one service request:
+ * the request itself plus the resident's profile on file. Staff only; kept off the list
+ * endpoints so personal details are only sent when a document is actually being prepared.
+ */
+app.get("/requests/:id/document-data", async (req, res) => {
+  const auth = await requireDocumentGeneratorAccess(req, res);
+  if (!auth) return;
+
+  const id = String(req.params.id || "");
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ ok: false, message: "Invalid request id." });
+  }
+
+  try {
+    const row = await ServiceRequest.findById(id).lean();
+    if (!row) return res.status(404).json({ ok: false, message: "Request not found." });
+
+    const template = documentTemplateForServiceType(row.serviceType);
+    if (!template) {
+      return res.status(422).json({
+        ok: false,
+        message: `There is no document template for "${row.serviceType}" yet.`
+      });
+    }
+
+    let resident = null;
+    const residentId = parseResidentUserId(row.residentUserId);
+    if (residentId) {
+      const u = await User.findById(residentId).select("fullName email contactNumber residentProfile").lean();
+      if (u) {
+        const rp = u.residentProfile || {};
+        const birth = rp.birthDate ? new Date(rp.birthDate) : null;
+        resident = {
+          fullName: String(u.fullName || "").trim(),
+          email: u.email || "",
+          contactNumber: u.contactNumber || "",
+          sex: rp.sex || "",
+          birthDate: birth && !Number.isNaN(birth.getTime()) ? birth.toISOString().slice(0, 10) : "",
+          civilStatus: rp.civilStatus || "",
+          purok: rp.purok || "",
+          address: rp.address || "",
+          occupation: rp.occupation || ""
+        };
+      }
+    }
+
+    return res.json({
+      ok: true,
+      template,
+      request: {
+        id: String(row._id),
+        referenceNo: row.referenceNo,
+        serviceType: row.serviceType,
+        purpose: row.purpose || "",
+        status: row.status,
+        preferredDate: row.preferredDate,
+        createdAt: row.createdAt || null
+      },
+      resident
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to load document data.", detail: error.message });
+  }
 });
 
 app.delete("/requests/:id", async (req, res) => {
@@ -3294,18 +3618,35 @@ app.get("/resident/announcements", async (req, res) => {
 });
 
 // ---- SMS (TextBee) for announcements ----
-async function collectResidentSmsNumbers() {
-  const rows = await User.find({
+async function loadSmsEligibleRows() {
+  return User.find({
     role: "resident",
     isActive: true,
     accountStatus: "active",
+    smsOptOut: { $ne: true },
     contactNumber: { $nin: [null, ""] }
   })
-    .select("contactNumber")
+    .select("contactNumber residentProfile.purok")
     .lean();
+}
+
+function parseSmsPuroks(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((v) => String(v || "").trim().slice(0, 80))
+    .filter(Boolean)
+    .slice(0, 50);
+}
+
+/** Valid +639… numbers of opted-in residents, optionally limited to the given puroks. */
+async function collectResidentSmsNumbers(puroks) {
+  const rows = await loadSmsEligibleRows();
+  const want = Array.isArray(puroks) && puroks.length ? new Set(puroks.map((p) => p.toLowerCase())) : null;
   const valid = new Set();
   let invalid = 0;
   for (const row of rows) {
+    const purok = String(row.residentProfile?.purok || "").trim().toLowerCase();
+    if (want && !want.has(purok)) continue;
     const n = normalizePhNumber(row.contactNumber);
     if (n) valid.add(n);
     else invalid += 1;
@@ -3325,8 +3666,34 @@ app.get("/admin/sms/recipient-count", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
   try {
-    const { numbers, invalid } = await collectResidentSmsNumbers();
-    return res.json({ ok: true, configured: isSmsConfigured(), recipients: numbers.length, skippedInvalid: invalid });
+    const selected = parseSmsPuroks(String(req.query?.puroks || "").split("|"));
+    const rows = await loadSmsEligibleRows();
+    const groups = new Map();
+    let noPurok = 0;
+    for (const row of rows) {
+      if (!normalizePhNumber(row.contactNumber)) continue;
+      const name = String(row.residentProfile?.purok || "").trim();
+      if (!name) { noPurok += 1; continue; }
+      const key = name.toLowerCase();
+      const g = groups.get(key) || { name, count: 0 };
+      g.count += 1;
+      groups.set(key, g);
+    }
+    const puroks = [...groups.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    const total = puroks.reduce((n, g) => n + g.count, 0) + noPurok;
+    const { numbers } = await collectResidentSmsNumbers(selected);
+    const optedOut = await User.countDocuments({
+      role: "resident", isActive: true, accountStatus: "active", smsOptOut: true, contactNumber: { $nin: [null, ""] }
+    });
+    return res.json({
+      ok: true,
+      configured: isSmsConfigured(),
+      recipients: numbers.length,
+      totalEligible: total,
+      puroks,
+      noPurok,
+      optedOut
+    });
   } catch (error) {
     return res.status(500).json({ ok: false, message: "Unable to count SMS recipients.", detail: error.message });
   }
@@ -3375,9 +3742,10 @@ app.post("/admin/announcements", async (req, res) => {
       smsInfo = { requested: true, queued: 0, message: "SMS is not configured on the server." };
     } else {
       try {
-        const { numbers, invalid } = await collectResidentSmsNumbers();
+        const smsPuroks = parseSmsPuroks(req.body?.smsPuroks);
+        const { numbers, invalid } = await collectResidentSmsNumbers(smsPuroks);
         const smsText = buildAnnouncementSms({ category: safeCategory || "Community News", title: safeTitle, body: safeBody });
-        smsInfo = { requested: true, queued: numbers.length, skippedInvalid: invalid };
+        smsInfo = { requested: true, queued: numbers.length, skippedInvalid: invalid, puroks: smsPuroks };
         if (numbers.length) {
           void sendSmsBatch(numbers, smsText).then((r) => {
             console.log(`[sms] announcement ${createdRow.id}: sent ${r.sent}, failed ${r.failed}`, r.errors);
@@ -3385,7 +3753,7 @@ app.post("/admin/announcements", async (req, res) => {
               action: "Updated Record",
               description: `SMS for announcement ID ${createdRow.id}: ${r.sent} sent, ${r.failed} failed.`,
               profile: auth.profile,
-              metadata: { entity: "announcement_sms", announcementId: createdRow.id, sent: r.sent, failed: r.failed }
+              metadata: { entity: "announcement_sms", announcementId: createdRow.id, sent: r.sent, failed: r.failed, puroks: smsPuroks }
             });
           });
         }
@@ -3500,6 +3868,109 @@ app.delete("/admin/announcements/:id", async (req, res) => {
   });
 
   return res.json({ ok: true, message: "Announcement deleted." });
+});
+
+// ---- Announcement drafts (admin only) ----
+
+function normalizeAnnouncementDraftRow(row) {
+  return {
+    id: String(row._id),
+    category: row.category || "Community News",
+    title: row.title || "",
+    body: row.body || "",
+    sendSms: row.sendSms !== false,
+    smsAudience: row.smsAudience === "puroks" ? "puroks" : "all",
+    smsPuroks: Array.isArray(row.smsPuroks) ? row.smsPuroks : [],
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+  };
+}
+
+function buildAnnouncementDraftFields(reqBody) {
+  const { category, title, body, sendSms, smsAudience, smsPuroks } = reqBody || {};
+  return {
+    category: sanitizePlainTextField(category || "Community News", MAX_ANNOUNCEMENT_CATEGORY_LEN) || "Community News",
+    title: sanitizePlainTextField(title, MAX_ANNOUNCEMENT_TITLE_LEN),
+    body: sanitizePlainTextField(body, MAX_ANNOUNCEMENT_BODY_LEN),
+    sendSms: sendSms !== false,
+    smsAudience: smsAudience === "puroks" ? "puroks" : "all",
+    smsPuroks: (Array.isArray(smsPuroks) ? smsPuroks : [])
+      .map((p) => sanitizePlainTextField(p, 80))
+      .filter(Boolean)
+      .slice(0, 100)
+  };
+}
+
+async function requireAdminForDrafts(req, res) {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return null;
+  if (auth.profile.role !== "admin") {
+    res.status(403).json({ ok: false, message: "Admin role required to manage announcement drafts." });
+    return null;
+  }
+  return auth;
+}
+
+app.get("/admin/announcement-drafts", async (req, res) => {
+  const auth = await requireAdminForDrafts(req, res);
+  if (!auth) return;
+  try {
+    const drafts = await AnnouncementDraft.find({}).sort({ updatedAt: -1 }).lean();
+    return res.json({ ok: true, drafts: drafts.map(normalizeAnnouncementDraftRow) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to load drafts.", detail: error.message });
+  }
+});
+
+/** Create a draft, or update an existing one when body.id is provided. */
+app.post("/admin/announcement-drafts", async (req, res) => {
+  const auth = await requireAdminForDrafts(req, res);
+  if (!auth) return;
+
+  const fields = buildAnnouncementDraftFields(req.body);
+  if (!fields.title && !fields.body) {
+    return res.status(400).json({ ok: false, message: "Enter a title or details before saving a draft." });
+  }
+
+  const id = String(req.body?.id || "").trim();
+  try {
+    let saved;
+    if (id) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ ok: false, message: "Invalid draft id." });
+      }
+      saved = await AnnouncementDraft.findByIdAndUpdate(id, { $set: fields }, { new: true }).lean();
+      if (!saved) {
+        return res.status(404).json({ ok: false, message: "Draft not found. It may have been deleted." });
+      }
+    } else {
+      const created = await AnnouncementDraft.create({
+        ...fields,
+        createdByRole: auth.profile?.role ?? "admin",
+        createdById: String(auth.profile?.id ?? auth.profile?._id ?? "") || null
+      });
+      saved = created.toObject();
+    }
+    return res.json({ ok: true, message: "Draft saved.", draft: normalizeAnnouncementDraftRow(saved) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to save draft.", detail: error.message });
+  }
+});
+
+app.delete("/admin/announcement-drafts/:id", async (req, res) => {
+  const auth = await requireAdminForDrafts(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ ok: false, message: "Invalid draft id." });
+  }
+  try {
+    const removed = await AnnouncementDraft.findByIdAndDelete(id).lean();
+    if (!removed) return res.status(404).json({ ok: false, message: "Draft not found." });
+    return res.json({ ok: true, message: "Draft deleted." });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to delete draft.", detail: error.message });
+  }
 });
 
 // --- Admin reports & analytics ---
@@ -4066,12 +4537,38 @@ function mapDirectoryProfileRow(row) {
 }
 
 // ---------------------------------------------------------------------------
-// Resident Profiling (staff portal): list / view / update resident records.
-// Open to staff, admin and system-admin portal roles.
+// Resident Profiling (staff portal): list / view / add / update / export resident records.
+// Open to admin and system-admin; staff need the "residentProfiling" permission.
 // ---------------------------------------------------------------------------
 const RESIDENT_SEX = ["Male", "Female"];
 const RESIDENT_CIVIL = ["Single", "Married", "Widowed", "Separated"];
 const RESIDENT_VOTER = ["Registered", "Not Registered"];
+const RESIDENT_SELECT =
+  "residentId email fullName contactNumber accountStatus residentSelfRegistered createdAt smsOptOut loginIssued residentProfile";
+const RESIDENT_SORTS = {
+  name: { fullName: 1, _id: 1 },
+  name_desc: { fullName: -1, _id: -1 },
+  newest: { createdAt: -1, _id: -1 },
+  updated: { "residentProfile.updatedAt": -1, _id: -1 }
+};
+
+async function requireResidentProfilingAccess(req, res) {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return null;
+  if (auth.profile.role === "staff") {
+    let row = null;
+    try {
+      row = await User.findOne({ email: auth.profile.email, role: "staff" }).select("staffPermissions").lean();
+    } catch (_e) {
+      row = null;
+    }
+    if (!normalizeStaffPermissionsFromDb(row?.staffPermissions).residentProfiling) {
+      res.status(403).json({ ok: false, message: "You do not have permission to use Resident Profiling." });
+      return null;
+    }
+  }
+  return auth;
+}
 
 function escapeRegexLiteral(value) {
   return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -4081,12 +4578,15 @@ function mapResidentProfilingRow(row) {
   const rp = row.residentProfile || {};
   return {
     id: String(row._id),
+    residentId: row.residentId || "",
     fullName: row.fullName || "",
-    email: row.email || "",
+    email: isPlaceholderResidentEmail(row.email) ? "" : row.email || "",
     contactNumber: row.contactNumber || "",
     accountStatus: mapAccountStatusToUiLabel(row.accountStatus),
     selfRegistered: Boolean(row.residentSelfRegistered),
     registeredAt: row.createdAt || null,
+    smsOptOut: Boolean(row.smsOptOut),
+    loginIssued: row.loginIssued !== false,
     sex: rp.sex || "",
     birthDate: rp.birthDate || null,
     civilStatus: rp.civilStatus || "",
@@ -4100,37 +4600,86 @@ function mapResidentProfilingRow(row) {
   };
 }
 
-app.get("/staff/residents", async (req, res) => {
-  const auth = await requireStaffPortalUser(req, res);
-  if (!auth) return;
-
-  const limit = Math.min(100, Math.max(1, Number.parseInt(req.query?.limit, 10) || 25));
-  const offset = Math.max(0, Number.parseInt(req.query?.offset, 10) || 0);
+function buildResidentFilter(query) {
   const filter = { role: "resident" };
-
-  const q = String(req.query?.q || "").trim().slice(0, 80);
+  const q = String(query?.q || "").trim().slice(0, 80);
   if (q) {
     const rx = new RegExp(escapeRegexLiteral(q), "i");
     filter.$or = [
       { fullName: rx },
+      { residentId: rx },
       { email: rx },
       { contactNumber: rx },
       { "residentProfile.purok": rx },
       { "residentProfile.address": rx }
     ];
   }
-  const purok = String(req.query?.purok || "").trim().slice(0, 80);
+  const purok = String(query?.purok || "").trim().slice(0, 80);
   if (purok) filter["residentProfile.purok"] = purok;
+  const profiled = String(query?.profiled || "");
+  if (profiled === "no") filter["residentProfile.updatedAt"] = null;
+  else if (profiled === "yes") filter["residentProfile.updatedAt"] = { $ne: null };
+  return filter;
+}
+
+/** Validates the profiling fields of a request body. Returns { error } or { value }. */
+function parseResidentProfileInput(body, actorEmail) {
+  const clean = (v, max) => String(v ?? "").trim().slice(0, max);
+  const pickEnum = (v, list) => (list.includes(v) ? v : "");
+  let birthDate = null;
+  if (body.birthDate) {
+    const d = new Date(body.birthDate);
+    if (Number.isNaN(d.getTime()) || d > new Date() || d.getFullYear() < 1900) {
+      return { error: "Birth date is not valid." };
+    }
+    birthDate = d;
+  }
+  return {
+    value: {
+      sex: pickEnum(body.sex, RESIDENT_SEX),
+      birthDate,
+      civilStatus: pickEnum(body.civilStatus, RESIDENT_CIVIL),
+      purok: clean(body.purok, 80),
+      address: clean(body.address, 250),
+      occupation: clean(body.occupation, 120),
+      voterStatus: pickEnum(body.voterStatus, RESIDENT_VOTER),
+      remarks: clean(body.remarks, 500),
+      updatedByEmail: actorEmail || "",
+      updatedAt: new Date()
+    }
+  };
+}
+
+function csvCell(value) {
+  let text = value == null ? "" : String(value);
+  // Neutralise spreadsheet formulas (CSV injection) but keep normal phone numbers intact.
+  if (/^[=+\-@\t\r]/.test(text) && !/^\+?[\d\s\-()]+$/.test(text)) text = "'" + text;
+  return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+}
+
+function ageFromDate(d) {
+  if (!d) return "";
+  const b = new Date(d);
+  if (Number.isNaN(b.getTime())) return "";
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  if (now < new Date(now.getFullYear(), b.getMonth(), b.getDate())) age -= 1;
+  return age >= 0 ? age : "";
+}
+
+app.get("/staff/residents", async (req, res) => {
+  const auth = await requireResidentProfilingAccess(req, res);
+  if (!auth) return;
+
+  const limit = Math.min(100, Math.max(1, Number.parseInt(req.query?.limit, 10) || 25));
+  const offset = Math.max(0, Number.parseInt(req.query?.offset, 10) || 0);
+  const filter = buildResidentFilter(req.query);
+  const sort = RESIDENT_SORTS[String(req.query?.sort || "")] || RESIDENT_SORTS.name;
 
   try {
     const [total, rows] = await Promise.all([
       User.countDocuments(filter),
-      User.find(filter)
-        .select("email fullName contactNumber accountStatus residentSelfRegistered createdAt residentProfile")
-        .sort({ fullName: 1 })
-        .skip(offset)
-        .limit(limit)
-        .lean()
+      User.find(filter).select(RESIDENT_SELECT).sort(sort).skip(offset).limit(limit).lean()
     ]);
     return res.json({ ok: true, residents: rows.map(mapResidentProfilingRow), total, limit, offset });
   } catch (error) {
@@ -4138,17 +4687,300 @@ app.get("/staff/residents", async (req, res) => {
   }
 });
 
+// NOTE: must be declared before "/staff/residents/:id".
+app.get("/staff/residents/export", async (req, res) => {
+  const auth = await requireResidentProfilingAccess(req, res);
+  if (!auth) return;
+  const sort = RESIDENT_SORTS[String(req.query?.sort || "")] || RESIDENT_SORTS.name;
+  try {
+    const rows = await User.find(buildResidentFilter(req.query)).select(RESIDENT_SELECT).sort(sort).limit(5000).lean();
+    const header = [
+      "Resident ID", "Full Name", "Email", "Contact Number", "Sex", "Birth Date", "Age", "Civil Status", "Purok",
+      "Address", "Occupation", "Voter Status", "Account Status", "SMS Opt-out", "Registered", "Remarks"
+    ];
+    const lines = [header.map(csvCell).join(",")];
+    for (const row of rows) {
+      const r = mapResidentProfilingRow(row);
+      lines.push([
+        r.residentId, r.fullName, r.email, r.contactNumber, r.sex,
+        r.birthDate ? new Date(r.birthDate).toISOString().slice(0, 10) : "",
+        ageFromDate(r.birthDate), r.civilStatus, r.purok, r.address, r.occupation, r.voterStatus,
+        r.accountStatus, r.smsOptOut ? "Yes" : "No",
+        r.registeredAt ? new Date(r.registeredAt).toISOString().slice(0, 10) : "", r.remarks
+      ].map(csvCell).join(","));
+    }
+    void insertPortalAuditEvent({
+      action: "Updated Record",
+      description: `Exported ${rows.length} resident record(s) to CSV.`,
+      profile: auth.profile,
+      metadata: { entity: "resident_export", count: rows.length }
+    });
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="residents-${new Date().toISOString().slice(0, 10)}.csv"`);
+    return res.send("\uFEFF" + lines.join("\r\n"));
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to export residents.", detail: error.message });
+  }
+});
+
+/**
+ * Staff issues a resident account: a unique Resident ID + password the resident uses to log in.
+ * Resident ID and password are auto-generated unless staff provides them. The password is only
+ * ever returned in this response — it is stored hashed.
+ */
+app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
+  const auth = await requireResidentProfilingAccess(req, res);
+  if (!auth) return;
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+
+  const fullName = sanitizeFullNameForStorage(body.fullName);
+  if (!fullName) return res.status(400).json({ ok: false, message: "Full name is required." });
+
+  const parsed = parseResidentProfileInput(body, auth.profile.email);
+  if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
+  const contactNumber = sanitizeResidentContactNumber(body.contactNumber);
+
+  const rawEmail = String(body.email || "").trim();
+  let email = "";
+  if (rawEmail) {
+    email = normalizeEmail(rawEmail);
+    if (!isValidEmailFormat(email)) {
+      return res.status(400).json({ ok: false, message: "That email address is not valid (or leave it blank)." });
+    }
+  }
+
+  let customId = "";
+  if (String(body.residentId || "").trim()) {
+    customId = normalizeResidentId(body.residentId);
+    if (!customId) {
+      return res.status(400).json({
+        ok: false,
+        message: "Resident ID must be 4–20 characters: letters, numbers and dashes only."
+      });
+    }
+  }
+
+  const customPassword = String(body.password || "");
+  if (customPassword) {
+    if (customPassword.length < 8) {
+      return res.status(400).json({ ok: false, message: "Password must be at least 8 characters long." });
+    }
+    if (customPassword.length > MAX_PASSWORD_LEN) {
+      return res.status(400).json({ ok: false, message: `Password must be at most ${MAX_PASSWORD_LEN} characters.` });
+    }
+  }
+  const password = customPassword || generateTemporaryPassword();
+
+  try {
+    if (email && (await User.findOne({ email }).select("_id").lean())) {
+      return res.status(409).json({ ok: false, message: "An account with this email already exists." });
+    }
+    if (customId && (await User.findOne({ residentId: customId }).select("_id").lean())) {
+      return res.status(409).json({ ok: false, message: `Resident ID ${customId} is already assigned to someone else.` });
+    }
+
+    const passwordHash = await hashPassword(password);
+    let created = null;
+    let residentId = customId;
+    for (let attempt = 0; attempt < 5 && !created; attempt += 1) {
+      if (!customId) residentId = await generateResidentId();
+      try {
+        created = await User.create({
+          residentId,
+          email: email || placeholderResidentEmail(residentId),
+          passwordHash,
+          fullName,
+          role: "resident",
+          authProvider: "local",
+          isActive: true,
+          accountStatus: "active",
+          residentSelfRegistered: false,
+          ...(contactNumber ? { contactNumber } : {}),
+          residentProfile: parsed.value
+        });
+      } catch (error) {
+        if (error?.code === 11000 && !customId) continue; // ID collision: try the next number
+        throw error;
+      }
+    }
+    if (!created) {
+      return res.status(500).json({ ok: false, message: "Could not assign a Resident ID. Please try again." });
+    }
+
+    void insertPortalAuditEvent({
+      action: "Updated Record",
+      description: `Staff issued resident account ${residentId} for "${fullName}".`,
+      profile: auth.profile,
+      metadata: { entity: "resident_account", residentId }
+    });
+
+    const row = await User.findById(created._id).select(RESIDENT_SELECT).lean();
+    return res.status(201).json({
+      ok: true,
+      resident: mapResidentProfilingRow(row),
+      credentials: { residentId, password }
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ ok: false, message: "That email or Resident ID is already in use." });
+    }
+    return res.status(500).json({ ok: false, message: "Unable to add resident.", detail: error.message });
+  }
+});
+
+/** Staff issues a new password for a resident (forgotten password / lost slip). Signs them out everywhere. */
+app.post("/staff/residents/:id/reset-password", adminStaffCreateLimiter, async (req, res) => {
+  const auth = await requireResidentProfilingAccess(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ ok: false, message: "Invalid resident id." });
+  }
+  const custom = String(req.body?.password || "");
+  if (custom && (custom.length < 8 || custom.length > MAX_PASSWORD_LEN)) {
+    return res.status(400).json({ ok: false, message: "Password must be 8–128 characters long." });
+  }
+  const password = custom || generateTemporaryPassword();
+  try {
+    const updated = await User.findOneAndUpdate(
+      { _id: id, role: "resident" },
+      { $set: { passwordHash: await hashPassword(password), loginIssued: true }, $inc: { tokenVersion: 1 } },
+      { new: true }
+    ).select("residentId email fullName").lean();
+    if (!updated) return res.status(404).json({ ok: false, message: "Resident not found." });
+    void insertPortalAuditEvent({
+      action: "Updated Record",
+      description: `Staff reset the password of resident ${updated.residentId || updated.email}.`,
+      profile: auth.profile,
+      metadata: { entity: "resident_password_reset", residentId: updated.residentId || null }
+    });
+    return res.json({
+      ok: true,
+      credentials: {
+        residentId: updated.residentId || "",
+        email: isPlaceholderResidentEmail(updated.email) ? "" : updated.email,
+        fullName: updated.fullName,
+        password
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to reset password.", detail: error.message });
+  }
+});
+
+/**
+ * Bulk import of RBI (Record of Barangay Inhabitants) rows, sent in small batches by the page.
+ * Each row becomes a resident record with an auto-assigned Resident ID but NO usable password
+ * (loginIssued=false). Staff issue a login later from the resident drawer.
+ */
+async function findImportDuplicate({ fullName, email, birthDate, purok }) {
+  if (email && (await User.exists({ email }))) return "Email already registered";
+  const nameRx = new RegExp("^" + escapeRegexLiteral(fullName) + "$", "i");
+  if (birthDate) {
+    if (await User.exists({ role: "resident", fullName: nameRx, "residentProfile.birthDate": birthDate })) {
+      return "Same name and birth date already exists";
+    }
+  } else if (purok) {
+    if (await User.exists({ role: "resident", fullName: nameRx, "residentProfile.purok": purok })) {
+      return "Same name and purok already exists";
+    }
+  }
+  return "";
+}
+
+app.post("/staff/residents/import", residentImportLimiter, async (req, res) => {
+  const auth = await requireResidentProfilingAccess(req, res);
+  if (!auth) return;
+  const rows = req.body?.rows;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return res.status(400).json({ ok: false, message: "No rows to import." });
+  }
+  if (rows.length > 50) {
+    return res.status(400).json({ ok: false, message: "Send at most 50 rows per request." });
+  }
+
+  const result = { created: [], skipped: [], failed: [] };
+  try {
+    // One random, unknown password hash for the whole batch: these records cannot log in yet.
+    const lockedHash = await hashPassword(crypto.randomBytes(24).toString("hex"));
+
+    for (let i = 0; i < rows.length; i += 1) {
+      const raw = rows[i] && typeof rows[i] === "object" ? rows[i] : {};
+      const rowNumber = Number.isInteger(raw.rowNumber) ? raw.rowNumber : i + 1;
+      const fail = (reason) => result.failed.push({ rowNumber, fullName: String(raw.fullName || "").slice(0, 120), reason });
+
+      const fullName = sanitizeFullNameForStorage(raw.fullName);
+      if (!fullName) { fail("Full name is missing"); continue; }
+
+      const parsed = parseResidentProfileInput(raw, auth.profile.email);
+      if (parsed.error) { fail(parsed.error); continue; }
+
+      let email = "";
+      if (String(raw.email || "").trim()) {
+        email = normalizeEmail(raw.email);
+        if (!isValidEmailFormat(email)) { fail("Email is not valid"); continue; }
+      }
+      const contactNumber = sanitizeResidentContactNumber(raw.contactNumber);
+
+      const dup = await findImportDuplicate({
+        fullName, email, birthDate: parsed.value.birthDate, purok: parsed.value.purok
+      });
+      if (dup) { result.skipped.push({ rowNumber, fullName, reason: dup }); continue; }
+
+      let created = null;
+      for (let attempt = 0; attempt < 4 && !created; attempt += 1) {
+        const residentId = await generateResidentId();
+        try {
+          created = await User.create({
+            residentId,
+            email: email || placeholderResidentEmail(residentId),
+            passwordHash: lockedHash,
+            fullName,
+            role: "resident",
+            authProvider: "local",
+            isActive: true,
+            accountStatus: "active",
+            residentSelfRegistered: false,
+            loginIssued: false,
+            ...(contactNumber ? { contactNumber } : {}),
+            residentProfile: parsed.value
+          });
+          result.created.push({ rowNumber, fullName, residentId });
+        } catch (error) {
+          if (error?.code === 11000 && error?.keyPattern?.email && email) {
+            result.skipped.push({ rowNumber, fullName, reason: "Email already registered" });
+            created = true; // stop retrying this row
+          } else if (error?.code !== 11000) {
+            fail("Could not be saved");
+            created = true;
+          }
+          // ID collision: loop again and take the next number
+        }
+      }
+      if (!created) fail("Could not assign a Resident ID");
+    }
+
+    void insertPortalAuditEvent({
+      action: "Updated Record",
+      description: `RBI import batch: ${result.created.length} added, ${result.skipped.length} skipped, ${result.failed.length} failed.`,
+      profile: auth.profile,
+      metadata: { entity: "resident_import", created: result.created.length, skipped: result.skipped.length, failed: result.failed.length }
+    });
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Import failed.", detail: error.message, ...result });
+  }
+});
+
 app.get("/staff/residents/:id", async (req, res) => {
-  const auth = await requireStaffPortalUser(req, res);
+  const auth = await requireResidentProfilingAccess(req, res);
   if (!auth) return;
   const id = String(req.params.id || "");
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ ok: false, message: "Invalid resident id." });
   }
   try {
-    const row = await User.findOne({ _id: id, role: "resident" })
-      .select("email fullName contactNumber accountStatus residentSelfRegistered createdAt residentProfile")
-      .lean();
+    const row = await User.findOne({ _id: id, role: "resident" }).select(RESIDENT_SELECT).lean();
     if (!row) return res.status(404).json({ ok: false, message: "Resident not found." });
     const [requestCount, appointmentCount] = await Promise.all([
       ServiceRequest.countDocuments({ residentUserId: id }),
@@ -4164,45 +4996,22 @@ app.get("/staff/residents/:id", async (req, res) => {
 });
 
 app.patch("/staff/residents/:id", async (req, res) => {
-  const auth = await requireStaffPortalUser(req, res);
+  const auth = await requireResidentProfilingAccess(req, res);
   if (!auth) return;
   const id = String(req.params.id || "");
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ ok: false, message: "Invalid resident id." });
   }
   const body = req.body && typeof req.body === "object" ? req.body : {};
-  const clean = (v, max) => String(v ?? "").trim().slice(0, max);
-  const pickEnum = (v, list) => (list.includes(v) ? v : "");
+  const parsed = parseResidentProfileInput(body, auth.profile.email);
+  if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
 
-  let birthDate = null;
-  if (body.birthDate) {
-    const d = new Date(body.birthDate);
-    if (Number.isNaN(d.getTime()) || d > new Date() || d.getFullYear() < 1900) {
-      return res.status(400).json({ ok: false, message: "Birth date is not valid." });
-    }
-    birthDate = d;
-  }
-
-  const next = {
-    sex: pickEnum(body.sex, RESIDENT_SEX),
-    birthDate,
-    civilStatus: pickEnum(body.civilStatus, RESIDENT_CIVIL),
-    purok: clean(body.purok, 80),
-    address: clean(body.address, 250),
-    occupation: clean(body.occupation, 120),
-    voterStatus: pickEnum(body.voterStatus, RESIDENT_VOTER),
-    remarks: clean(body.remarks, 500),
-    updatedByEmail: auth.profile.email || "",
-    updatedAt: new Date()
-  };
+  const set = { residentProfile: parsed.value };
+  if (typeof body.smsOptOut === "boolean") set.smsOptOut = body.smsOptOut;
 
   try {
-    const updated = await User.findOneAndUpdate(
-      { _id: id, role: "resident" },
-      { $set: { residentProfile: next } },
-      { new: true }
-    )
-      .select("email fullName contactNumber accountStatus residentSelfRegistered createdAt residentProfile")
+    const updated = await User.findOneAndUpdate({ _id: id, role: "resident" }, { $set: set }, { new: true })
+      .select(RESIDENT_SELECT)
       .lean();
     if (!updated) return res.status(404).json({ ok: false, message: "Resident not found." });
     return res.json({ ok: true, resident: mapResidentProfilingRow(updated) });
@@ -5668,14 +6477,67 @@ async function insertAuthAuditEvent({ action, email, role, req }) {
 }
 
 /** Load auth audit rows from our own AuthAuditEvent collection — replaces the old Supabase RPC/legacy-schema lookup, since Supabase Auth's internal log no longer exists. Only has data from the point this migration went live onward. */
-async function fetchAuthAuditRowsForSystemAdmin(limit) {
+async function fetchAuthAuditRowsForSystemAdmin(limit, query = {}) {
   const lim = Math.min(500, Math.max(1, limit));
   try {
-    const rows = await AuthAuditEvent.find({}).sort({ createdAt: -1 }).limit(lim).lean();
+    const rows = await AuthAuditEvent.find(query).sort({ createdAt: -1 }).limit(lim).lean();
     return { rows, error: null, via: "mongodb" };
   } catch (error) {
     return { rows: [], error: error.message || "Could not load auth audit log.", via: null };
   }
+}
+
+/** UTC instant for 00:00 of a YYYY-MM-DD calendar day in an IANA time zone (so date filters match what the page displays). */
+function auditDayStartUtc(ymd, timeZone) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
+  if (!m) return null;
+  const target = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0);
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+  let guess = target;
+  for (let i = 0; i < 2; i += 1) {
+    const g = Object.fromEntries(fmt.formatToParts(new Date(guess)).map((x) => [x.type, x.value]));
+    const localAsUtc = Date.UTC(Number(g.year), Number(g.month) - 1, Number(g.day), Number(g.hour) % 24, Number(g.minute), Number(g.second));
+    guess -= localAsUtc - target;
+  }
+  return new Date(guess);
+}
+
+/** Reads ?action=&q=&from=&to= for the audit-log list. Dates are inclusive calendar days in the display time zone. */
+function parseAuditLogFilters(query) {
+  const tzRaw = process.env.AUDIT_LOG_DISPLAY_TIMEZONE;
+  const tz = typeof tzRaw === "string" && tzRaw.trim().length ? tzRaw.trim() : "Asia/Manila";
+  const action = String(query?.action || "").trim().slice(0, 80);
+  const q = String(query?.q || "").trim().toLowerCase().slice(0, 120);
+  let fromDate = null;
+  let toDateExclusive = null;
+  try {
+    const from = String(query?.from || "").trim();
+    const to = String(query?.to || "").trim();
+    if (from) fromDate = auditDayStartUtc(from, tz);
+    if (to) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(to);
+      if (m) {
+        const next = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + 1));
+        toDateExclusive = auditDayStartUtc(next.toISOString().slice(0, 10), tz);
+      }
+    }
+  } catch (_e) {
+    fromDate = null;
+    toDateExclusive = null;
+  }
+  const createdAt = {};
+  if (fromDate) createdAt.$gte = fromDate;
+  if (toDateExclusive) createdAt.$lt = toDateExclusive;
+  return { action, q, createdAtRange: Object.keys(createdAt).length ? createdAt : null };
 }
 
 /** Merges our own auth audit events (logins/registrations/password changes) with portal audit events for the system-admin audit UI. */
@@ -5710,6 +6572,9 @@ app.get("/system-admin/audit-logs", async (req, res) => {
     mergeFetchLimit = legacyLimit;
   }
 
+  const filters = parseAuditLogFilters(req.query);
+  const dbDateQuery = filters.createdAtRange ? { createdAt: filters.createdAtRange } : {};
+
   const rows = [];
   let authError = null;
   let authAuditVia = null;
@@ -5717,7 +6582,12 @@ app.get("/system-admin/audit-logs", async (req, res) => {
   let portalAuditError = null;
 
   try {
-    const portalRows = await PortalAuditEvent.find({}).sort({ createdAt: -1 }).limit(mergeFetchLimit).lean();
+    const portalQuery = { ...dbDateQuery };
+    if (filters.action && filters.action !== "Authentication") portalQuery.action = filters.action;
+    const portalRows =
+      filters.action === "Authentication"
+        ? []
+        : await PortalAuditEvent.find(portalQuery).sort({ createdAt: -1 }).limit(mergeFetchLimit).lean();
     for (const row of portalRows) {
       const action = String(row.action || "Updated Record").trim();
       if (action === "New Service Request") continue;
@@ -5740,7 +6610,10 @@ app.get("/system-admin/audit-logs", async (req, res) => {
   }
 
   try {
-    const { rows: authRows, error: fetchErr, via } = await fetchAuthAuditRowsForSystemAdmin(mergeFetchLimit);
+    const skipAuth = Boolean(filters.action) && filters.action !== "Authentication";
+    const { rows: authRows, error: fetchErr, via } = skipAuth
+      ? { rows: [], error: null, via: "skipped" }
+      : await fetchAuthAuditRowsForSystemAdmin(mergeFetchLimit, dbDateQuery);
     authAuditVia = via;
     if (fetchErr) {
       authError = fetchErr;
@@ -5789,10 +6662,17 @@ app.get("/system-admin/audit-logs", async (req, res) => {
     return tb - ta;
   });
 
-  const totalMerged = rows.length;
+  // Search runs over the whole (date/action-scoped) log, not just the visible page.
+  const searched = filters.q
+    ? rows.filter((r) =>
+        `${r.displayAction} ${r.description} ${r.performedBy}`.toLowerCase().includes(filters.q)
+      )
+    : rows;
+
+  const totalMerged = searched.length;
   const trimmed = paginate
-    ? rows.slice(responseOffset, responseOffset + pageLimit)
-    : rows.slice(0, pageLimit);
+    ? searched.slice(responseOffset, responseOffset + pageLimit)
+    : searched.slice(0, pageLimit);
 
   if (rows.length === 0 && authError && !databaseAuditAvailable) {
     return res.status(503).json({
@@ -5817,7 +6697,22 @@ app.get("/system-admin/audit-logs", async (req, res) => {
     console.warn("[audit groq] summarize failed:", e?.message || e);
   }
 
+  let availableActions = [];
+  try {
+    const distinctPortal = await PortalAuditEvent.distinct("action");
+    availableActions = Array.from(
+      new Set(
+        [...distinctPortal.map((a) => String(a || "").trim()), "Authentication"].filter(
+          (a) => a && a !== "New Service Request"
+        )
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  } catch (_e) {
+    availableActions = [];
+  }
+
   const meta = {
+    availableActions,
     limit: pageLimit,
     authAuditLoaded: !authError,
     authAuditError: authError || null,
@@ -5844,6 +6739,146 @@ app.get("/system-admin/audit-logs", async (req, res) => {
   }
 
   return res.json(body);
+});
+
+// ---------------------------------------------------------------------------
+// System admin: data backup (JSON export).
+// Streams every business collection as one MongoDB Extended JSON file so ids and
+// dates survive a round trip. Password hashes and session counters are NEVER
+// included. Uploaded files (ID photos, attachments, avatars) live in GridFS and
+// are not part of this export; only their file ids are kept.
+// ---------------------------------------------------------------------------
+const BACKUP_SCHEMA_VERSION = 1;
+const BACKUP_COLLECTIONS = [
+  { key: "users", model: User, select: "-passwordHash -tokenVersion" },
+  { key: "serviceRequests", model: ServiceRequest },
+  { key: "appointments", model: Appointment },
+  { key: "appointmentSlots", model: AppointmentSlot },
+  { key: "appointmentSlotOverrides", model: AppointmentSlotOverride },
+  { key: "serviceCatalog", model: ServiceCatalog },
+  { key: "appointmentPurposeCatalog", model: AppointmentPurposeCatalog },
+  { key: "communityAnnouncements", model: CommunityAnnouncement },
+  { key: "announcementDrafts", model: AnnouncementDraft },
+  { key: "faqEntries", model: FaqEntry },
+  { key: "systemSettings", model: SystemSettings },
+  { key: "portalAuditEvents", model: PortalAuditEvent },
+  { key: "authAuditEvents", model: AuthAuditEvent }
+];
+
+function backupFileStamp(date) {
+  const tzRaw = process.env.AUDIT_LOG_DISPLAY_TIMEZONE;
+  const tz = typeof tzRaw === "string" && tzRaw.trim().length ? tzRaw.trim() : "Asia/Manila";
+  try {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        hour12: false,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      })
+        .formatToParts(date)
+        .map((x) => [x.type, x.value])
+    );
+    return `${parts.year}${parts.month}${parts.day}-${String(parts.hour).replace("24", "00")}${parts.minute}`;
+  } catch (_e) {
+    return date.toISOString().slice(0, 16).replace(/[-:T]/g, "").replace(/^(\d{8})(\d{4})$/, "$1-$2");
+  }
+}
+
+app.get("/system-admin/backup/info", async (req, res) => {
+  const auth = await requireSystemAdminUser(req, res);
+  if (!auth) return;
+  try {
+    const last = await PortalAuditEvent.findOne({ action: "Data Export" }).sort({ createdAt: -1 }).lean();
+    return res.json({
+      ok: true,
+      lastExport: last
+        ? {
+            at: last.createdAt,
+            by: last.performedByName || last.performedByEmail || "System administrator",
+            records: Number(last.metadata?.totalRecords) || null
+          }
+        : null
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to read backup history.", detail: error.message });
+  }
+});
+
+app.get("/system-admin/backup/export", async (req, res) => {
+  const auth = await requireSystemAdminUser(req, res);
+  if (!auth) return;
+
+  const { EJSON } = mongoose.mongo.BSON;
+  const { once } = require("events");
+  // The Backup page also reads this export to build its Excel report (?purpose=excel).
+  const forExcel = String(req.query?.purpose || "") === "excel";
+
+  let counts;
+  try {
+    counts = {};
+    for (const c of BACKUP_COLLECTIONS) counts[c.key] = await c.model.countDocuments({});
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to prepare the backup.", detail: error.message });
+  }
+  const totalRecords = Object.values(counts).reduce((a, b) => a + b, 0);
+  const exportedAt = new Date();
+  const filename = `serbisyoburgos-backup-${backupFileStamp(exportedAt)}.json`;
+
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+
+  const write = async (chunk) => {
+    if (!res.write(chunk)) await once(res, "drain");
+  };
+
+  try {
+    const meta = {
+      app: "SerbisyoBurgos",
+      schemaVersion: BACKUP_SCHEMA_VERSION,
+      format: "MongoDB Extended JSON (relaxed)",
+      exportedAt: exportedAt.toISOString(),
+      exportedBy: auth.profile?.email || null,
+      counts,
+      totalRecords,
+      notIncluded: ["passwordHash", "tokenVersion", "uploaded files (GridFS)"]
+    };
+    await write(`{"meta":${JSON.stringify(meta)},"collections":{`);
+    let firstCollection = true;
+    for (const c of BACKUP_COLLECTIONS) {
+      await write(`${firstCollection ? "" : ","}${JSON.stringify(c.key)}:[`);
+      firstCollection = false;
+      let query = c.model.find({});
+      if (c.select) query = query.select(c.select);
+      let firstDoc = true;
+      for await (const doc of query.lean().cursor()) {
+        await write(`${firstDoc ? "" : ","}${EJSON.stringify(doc, { relaxed: true })}`);
+        firstDoc = false;
+      }
+      await write("]");
+    }
+    // The trailing flag lets a restore tool tell a complete file from a cut-off download.
+    await write('},"complete":true}');
+    res.end();
+  } catch (error) {
+    console.error("[backup] export failed mid-stream:", error?.message || error);
+    res.destroy(error);
+    return;
+  }
+
+  void insertPortalAuditEvent({
+    action: "Data Export",
+    description: forExcel
+      ? `System data exported for an Excel report (${totalRecords} records across ${BACKUP_COLLECTIONS.length} collections).`
+      : `System data export downloaded (${totalRecords} records across ${BACKUP_COLLECTIONS.length} collections).`,
+    profile: auth.profile,
+    metadata: { entity: "backup", totalRecords, counts, filename, purpose: forExcel ? "excel" : "json" }
+  });
 });
 
 // Start the API server on the configured port (explicit http.Server for error + diagnostics).
