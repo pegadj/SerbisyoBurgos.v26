@@ -9,6 +9,8 @@ const communityAnnouncementSchema = new Schema({
   title: { type: String, required: true },
   body: { type: String, required: true },
   isActive: { type: Boolean, required: true, default: true },
+  // Set when an admin archives the post (replaces hard delete). null = not archived.
+  archivedAt: { type: Date, default: null },
   // Added 20260505 — which portal role posted this (admin vs staff),
   // so residents can filter admin bulletins separately.
   postedByRole: { type: String, default: 'admin' },

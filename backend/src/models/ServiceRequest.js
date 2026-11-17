@@ -14,6 +14,7 @@ const SERVICE_REQUEST_STATUSES = [
   'Completed',
   'Revision Requested',
   'Rejected',
+  'Cancelled',
 ];
 
 const serviceRequestSchema = new Schema({

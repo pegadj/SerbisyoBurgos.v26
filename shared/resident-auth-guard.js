@@ -14,6 +14,36 @@
     );
   }
 
+  function changePasswordHref() {
+    return globalScope.APP_ROUTES?.resident?.changePassword || "change-password.html";
+  }
+
+  function onChangePasswordPage() {
+    return /change-password\.html$/i.test(String(globalScope.location?.pathname || ""));
+  }
+
+  /** Read the stored resident session ({ user, session }) or null. */
+  function readSession() {
+    try {
+      const raw = globalScope.sessionStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  /** Remember (in this browser tab) whether the resident still has to choose their own password. */
+  function setPasswordChangeRequired(required) {
+    try {
+      const saved = readSession();
+      if (!saved) return;
+      saved.user = { ...(saved.user || {}), mustChangePassword: Boolean(required) };
+      globalScope.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    } catch (_err) {
+      /* ignore */
+    }
+  }
+
   function readAccessToken() {
     try {
       const raw = globalScope.sessionStorage.getItem(STORAGE_KEY);
@@ -29,6 +59,11 @@
   async function guard() {
     if (!readAccessToken()) {
       globalScope.location.href = loginHref();
+      return;
+    }
+    // A password issued or reset by barangay staff must be replaced before anything else in the portal is used.
+    if (readSession()?.user?.mustChangePassword === true && !onChangePasswordPage()) {
+      globalScope.location.href = changePasswordHref();
       return;
     }
     try {
@@ -49,6 +84,9 @@
   }
 
   globalScope.getResidentAccessToken = readAccessToken;
+  globalScope.residentClearPasswordChangeRequired = function residentClearPasswordChangeRequired() {
+    setPasswordChangeRequired(false);
+  };
   globalScope.residentApiHeaders = function residentApiHeaders() {
     const token = readAccessToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -61,6 +99,12 @@
     if (response.status === 403) {
       try {
         const payload = await response.clone().json();
+        if (payload?.code === "PASSWORD_CHANGE_REQUIRED") {
+          // The server refuses everything until the resident has replaced the password staff gave them.
+          setPasswordChangeRequired(true);
+          if (!onChangePasswordPage()) globalScope.location.href = changePasswordHref();
+          return response;
+        }
         const msg = String(payload?.message || "");
         if (msg.includes("Your account is suspended") || msg.includes("Your account is deactivated")) {
           globalScope.sessionStorage.removeItem(STORAGE_KEY);

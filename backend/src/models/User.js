@@ -13,7 +13,10 @@ const { Schema } = mongoose;
 // out of sync) for data that's always read/written together. One
 // collection, one lookup, one source of truth.
 const USER_ROLES = ['resident', 'admin', 'staff', 'system-admin'];
-const ACCOUNT_STATUSES = ['active', 'suspended', 'deactivated'];
+// 'pending'  = self-registered resident awaiting barangay approval (cannot log in yet)
+// 'rejected' = registration was reviewed and declined (cannot log in)
+// Accounts created before this change keep their stored value ('active', etc.).
+const ACCOUNT_STATUSES = ['pending', 'active', 'suspended', 'deactivated', 'rejected'];
 
 // 20260506_staff_permissions — jsonb shape, documented in the migration
 // comment as: { dashboard, appointmentScheduling, requestProcessing, documentGenerator }
@@ -22,16 +25,40 @@ const staffPermissionsSchema = new Schema({
   appointmentScheduling: { type: Boolean, default: false },
   requestProcessing: { type: Boolean, default: false },
   documentGenerator: { type: Boolean, default: false },
+  // Resident Profiling tab. server.js reads and writes this permission, so it has to be declared or it is
+  // dropped on save. Defaults to true so staff saved before it existed keep the access they already had.
+  residentProfiling: { type: Boolean, default: true },
 }, { _id: false });
 
 // Resident profiling record — filled in by barangay staff (Resident Profiling tab).
 const residentProfileSchema = new Schema({
-  sex: { type: String, enum: ['', 'Male', 'Female'], default: '' },
+  // --- RBI (Record of Barangay Inhabitants) template fields ---
+  philsysId: { type: String, trim: true, maxlength: 30, default: '' },
+  inhabitantType: { type: String, enum: ['', 'Non-Migrant', 'Migrant', 'Transient'], default: '' },
+  lastName: { type: String, trim: true, maxlength: 60, default: '' },
+  firstName: { type: String, trim: true, maxlength: 60, default: '' },
+  middleName: { type: String, trim: true, maxlength: 60, default: '' },
+  suffix: { type: String, trim: true, maxlength: 20, default: '' },
+  birthPlace: { type: String, trim: true, maxlength: 120, default: '' },
   birthDate: { type: Date, default: null },
-  civilStatus: { type: String, enum: ['', 'Single', 'Married', 'Widowed', 'Separated'], default: '' },
+  sex: { type: String, enum: ['', 'Male', 'Female'], default: '' },
+  civilStatus: {
+    type: String,
+    enum: ['', 'Single', 'Married', 'Widowed', 'Divorced', 'Separated', 'Common Law/ Live-in', 'Unknown', 'Annulled'],
+    default: ''
+  },
+  citizenship: { type: String, enum: ['', 'Filipino', 'Dual Citizenship', 'Foreigner'], default: '' },
+  occupation: { type: String, trim: true, maxlength: 120, default: '' }, // PROFESSION/ OCCUPATION
+  highestEducation: { type: String, trim: true, maxlength: 80, default: '' },
+  motherFirstName: { type: String, trim: true, maxlength: 60, default: '' },
+  motherMiddleName: { type: String, trim: true, maxlength: 60, default: '' },
+  motherLastName: { type: String, trim: true, maxlength: 60, default: '' },
+  // (Contact number and email address live on the user document itself.)
+
+  // --- Extra barangay fields (not part of the RBI template; used by SMS targeting / documents) ---
   purok: { type: String, trim: true, maxlength: 80, default: '' },
   address: { type: String, trim: true, maxlength: 250, default: '' },
-  occupation: { type: String, trim: true, maxlength: 120, default: '' },
+  // Legacy fields: no longer shown in the profiling form, kept so existing data is not lost.
   voterStatus: { type: String, enum: ['', 'Registered', 'Not Registered'], default: '' },
   remarks: { type: String, trim: true, maxlength: 500, default: '' },
   updatedByEmail: { type: String, default: '' },
@@ -83,6 +110,19 @@ const userSchema = new Schema({
   // Was identity_verification_url (Supabase Storage public URL) — same
   // GridFS-file-id treatment as avatarFileId above.
   identityVerificationFileId: { type: Schema.Types.ObjectId, default: null },
+
+  // --- Barangay-issued resident accounts (staff-created / RBI import) ---
+  // server.js reads and writes these three, so they have to be in the schema (Mongoose silently drops
+  // fields that are not declared).
+  // Unique Resident ID (e.g. "SB-00001"); residents can sign in with it instead of an e-mail.
+  residentId: { type: String, trim: true, unique: true, sparse: true },
+  // false for RBI-imported records that staff have not issued a login for yet.
+  loginIssued: { type: Boolean, default: true },
+  // Resident opted out of SMS announcements.
+  smsOptOut: { type: Boolean, default: false },
+  // true while the password was chosen by someone else (staff-issued, reset by staff, set by an admin):
+  // the resident must set their own before they can use the portal. Cleared when they change it.
+  mustChangePassword: { type: Boolean, default: false },
 
   // --- Resident Profiling tab (staff-maintained) ---
   residentProfile: { type: residentProfileSchema, default: undefined },
