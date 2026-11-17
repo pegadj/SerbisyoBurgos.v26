@@ -242,6 +242,7 @@
         .status-ready { background: #f0fdf4; color: #16a34a; }
         .status-completed { background: #f1f5f9; color: #475569; }
         .status-rejected { background: #fee2e2; color: #991b1b; }
+        .status-cancelled { background: #f1f5f9; color: #64748b; }
 
         /* ACTION BUTTONS */
         .btn-delete {
@@ -333,51 +334,7 @@
 </head>
 <body>
 
-    <aside>
-        <div class="sidebar-header">
-            <img src="../asset/SB.png" alt="Logo" style="width: 32px;">
-            <span>SerbisyoBurgos</span>
-        </div>
-        <nav>
-            <a href="dashboard.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                Dashboard
-            </a>
-            <a href="service-requests.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                Service Requests
-            </a>
-            <a href="appointments.html" class="nav-link active">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                Appointments
-            </a>
-            <a href="notifications.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                Bulletin Board
-            </a>
-            <a href="request-history.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                Request History
-            </a>
-        </nav>
-        <div class="sidebar-footer">
-            <div class="user-profile" id="residentProfileBtn" style="cursor: pointer;">
-                <div class="user-avatar" id="residentSidebarAvatar" aria-hidden="true">?</div>
-                <div class="user-info">
-                    <span class="user-name" id="residentSidebarName">Resident</span>
-                    <span class="user-role">View Profile</span>
-                </div>
-            </div>
-            <a href="landing.html" class="logout-btn" onclick="handleLogout(event)">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                <span>Logout</span>
-            </a>
-        </div>
-    </aside>
+    <script src="../shared/sidebar.js" data-portal="resident"></script>
 
 <main>
         <section class="welcome-section">
@@ -500,11 +457,11 @@
             <div style="width: 64px; height: 64px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </div>
-            <h2 id="deleteModalTitle" style="text-align:center; margin-bottom:0.75rem; font-size:1.1rem;">Confirm Deletion</h2>
-            <p style="color: var(--text-muted); text-align:center; margin-bottom: 1.5rem;">Are you sure you want to delete this appointment? This action cannot be undone.</p>
+            <h2 id="deleteModalTitle" style="text-align:center; margin-bottom:0.75rem; font-size:1.1rem;">Cancel this appointment?</h2>
+            <p style="color: var(--text-muted); text-align:center; margin-bottom: 1.5rem;">Are you sure you want to cancel this appointment? Your time slot will be released for other residents.</p>
             <div style="display: flex; gap: 12px; justify-content: center;">
-                <button id="cancelDeleteBtn" type="button" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; cursor: pointer;">Cancel</button>
-                <button id="confirmDeleteBtn" type="button" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: none; background: #ef4444; color: white; font-weight: 600; cursor: pointer;">Delete</button>
+                <button id="cancelDeleteBtn" type="button" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; cursor: pointer;">Keep Appointment</button>
+                <button id="confirmDeleteBtn" type="button" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: none; background: #ef4444; color: white; font-weight: 600; cursor: pointer;">Cancel Appointment</button>
             </div>
         </div>
     </div>
@@ -658,6 +615,7 @@
 function statusBadgeClass(status) {
             const normalized = String(status || "").toLowerCase();
             if (normalized === "processing" || normalized === "in progress") return "status-approved";
+            if (normalized === "cancelled") return "status-cancelled";
             if (normalized === "confirmed") return "status-confirmed";
             if (normalized === "approved") return "status-approved";
             if (normalized === "revisions" || normalized === "revision requested") return "status-revisions";
@@ -730,6 +688,10 @@ function statusBadgeClass(status) {
         }
 let appointmentIdToDelete = null;
 
+        function isCancellableAppointment(status) {
+            return ["pending review", "processing", "confirmed"].includes(String(status || "").trim().toLowerCase());
+        }
+
 function renderAppointments(appointments) {
             const tableBody = document.getElementById("appointmentsTableBody");
             if (!tableBody) return;
@@ -744,7 +706,7 @@ function renderAppointments(appointments) {
                     <td>${formatAppointmentDate(appointment.appointmentDate)}</td>
                     <td><span class="status-badge ${statusBadgeClass(appointment.status)}">${appointment.status || "Pending"}</span></td>
                     <td style="text-align: right;">
-                        <button class="btn-delete" onclick="openDeleteModal('${appointment.id}')" title="Delete appointment">
+                        <button class="btn-delete" ${isCancellableAppointment(appointment.status) ? '' : 'disabled style="opacity:0.35;cursor:not-allowed;"'} onclick="openDeleteModal('${appointment.id}')" title="${isCancellableAppointment(appointment.status) ? 'Cancel appointment' : 'This appointment can no longer be cancelled'}">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                         </button>
                     </td>
@@ -841,6 +803,8 @@ function renderAppointments(appointments) {
                 await loadAppointments();
             } catch (error) {
                 openFeedbackModal("Booking Failed", error?.message || "Unable to submit booking right now. Please try again.");
+                // The slot may have just closed or filled up: show the latest availability.
+                void refreshAppointmentSlotsForDate(appointmentDate);
             }
         }
 
@@ -862,8 +826,10 @@ function renderAppointments(appointments) {
                 const afternoonCodes = new Set(["0100", "0300", "0400"]);
                 const afternoon = result.slots.filter((s) => afternoonCodes.has(String(s?.code || "")));
                 const options = afternoon.map((slot) => {
-                    const disabled = slot.isFull ? "disabled" : "";
-                    const suffix = slot.isFull ? " (Full)" : "";
+                    // Closed = staff closed it, or its time has already passed. Full = no places left.
+                    const unavailable = Boolean(slot.isClosed || slot.isFull);
+                    const disabled = unavailable ? "disabled" : "";
+                    const suffix = slot.isClosed ? " (Closed)" : slot.isFull ? " (Full)" : "";
                     return `<option value="${String(slot.id)}" ${disabled}>${escapeHtmlText(slot.label || "Time")}${suffix}</option>`;
                 });
 
@@ -911,17 +877,17 @@ function closeFeedbackModal() {
                 });
                 const result = await response.json();
                 if (!response.ok || !result?.ok) {
-                    throw new Error(result?.message || "Unable to delete appointment.");
+                    throw new Error(result?.message || "Unable to cancel appointment.");
                 }
 
                 openFeedbackModal(
-                    "Appointment Deleted",
-                    "The appointment has been successfully deleted."
+                    "Appointment Cancelled",
+                    "The appointment has been cancelled."
                 );
                 closeDeleteModal();
                 await loadAppointments();
             } catch (_error) {
-                openFeedbackModal("Delete Failed", "Unable to delete appointment right now. Please try again.");
+                openFeedbackModal("Cancel Failed", (_error && _error.message) || "Unable to cancel appointment right now. Please try again.");
             }
         }
 

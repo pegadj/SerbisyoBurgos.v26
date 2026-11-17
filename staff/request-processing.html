@@ -347,70 +347,43 @@
             cursor: not-allowed;
             pointer-events: none;
         }
+
+        /* ===== Requests list ===== */
+        [hidden] { display: none !important; }
+        .rp-toolbar { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.25rem; display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 1rem; margin-bottom: 1.25rem; align-items: center; }
+        .rp-toolbar input, .rp-toolbar select { width: 100%; padding: 0.7rem; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; font-family: inherit; background: white; }
+        .rp-toolbar input:focus, .rp-toolbar select:focus { outline: none; border-color: var(--brand-green); box-shadow: 0 0 0 3px rgba(22,163,74,0.12); }
+        .rp-btn { border: 1px solid #e2e8f0; background: white; color: #334155; border-radius: 10px; padding: 0.6rem 1.1rem; font-size: 0.88rem; font-weight: 600; cursor: pointer; font-family: inherit; text-decoration: none; display: inline-block; }
+        .rp-btn:hover { background: #f8fafc; }
+        .rp-btn.primary { background: var(--brand-green); border-color: var(--brand-green); color: #fff; }
+        .rp-btn.primary:hover { background: #15803d; }
+        .rp-btn.small { padding: 0.35rem 0.9rem; font-size: 0.8rem; border-radius: 8px; }
+        .rp-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .rp-table-wrap { background: white; border: 1px solid #e2e8f0; border-radius: 16px; overflow-x: auto; }
+        table.rp-table { width: 100%; border-collapse: collapse; min-width: 860px; }
+        .rp-table th { text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); padding: 0.85rem 1rem; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+        .rp-table td { padding: 0.85rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; vertical-align: middle; }
+        .rp-table tbody tr { cursor: pointer; }
+        .rp-table tbody tr:hover { background: #f0fdf4; }
+        .rp-sub { display: block; font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+        .rp-empty { text-align: center; color: var(--text-muted); padding: 2.5rem 1rem; cursor: default; }
+        .rp-badge { display: inline-block; padding: 4px 12px; border-radius: 30px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+        .rp-pager { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1rem; font-size: 0.85rem; color: var(--text-muted); border-top: 1px solid #f1f5f9; }
+        .rp-pager .btns { display: flex; gap: 0.5rem; }
+        @media (max-width: 900px) { .rp-toolbar { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
-    <aside>
-        <div class="sidebar-header"><img src="../asset/SB.png" width="32"> SerbisyoBurgos</div>
-        <nav>
-            <a href="staff-dashboard.html" class="nav-link" id="dashboardHomeLink">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                Dashboard
-            </a>
-            
-             <a href="appointment-scheduling.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                </svg>
-                Appointment Scheduling
-            </a>
-
-            <a href="request-processing.html" class="nav-link active">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-                    <path d="M9 14l2 2 4-4"></path>
-                </svg>
-                Request Processing
-            </a>
-
-            <a href="document-generator.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="12" y1="18" x2="12" y2="12"></line>
-                    <line x1="9" y1="15" x2="15" y2="15"></line>
-                </svg>
-                Document Generator
-            </a>
-            <a href="resident-profiling.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                Resident Profiling
-            </a>
-        </nav>
-        <div class="sidebar-footer">
-            <a href="index.html" class="logout-btn" id="adminLogoutBtn">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                <span>Logout</span>
-            </a>
-        </div>
-    </aside>
+    <script src="../shared/sidebar.js" data-portal="staff"></script>
 
     <main>
         <div class="top-bar">
             <div class="header-section">
-                <a href="staff-dashboard.html" class="back-link" id="requestBackLink">←</a>
+                <a href="request-processing.html" class="back-link" id="requestBackLink" title="Back" hidden>←</a>
                 <div>
-                    <h1 style="font-size: 1.75rem; color: var(--brand-dark);">Request Details</h1>
-                    <p id="requestMetaLine" style="color: var(--text-muted); font-size: 0.9rem;">Open a request from the dashboard when records are connected.</p>
+                    <h1 style="font-size: 1.75rem; color: var(--brand-dark);" id="pageTitle">Request Processing</h1>
+                    <p id="requestMetaLine" style="color: var(--text-muted); font-size: 0.9rem;">Select a request to review and update its status.</p>
                 </div>
             </div>
 
@@ -423,6 +396,52 @@
             </div>
         </div>
 
+        <div id="requestsListView">
+            <div class="rp-toolbar">
+                <input type="text" id="rpSearch" placeholder="Search reference no., resident or request…" autocomplete="off">
+                <select id="rpStatus">
+                    <option value="all">All status</option>
+                    <option value="pending">Pending</option>
+                    <option value="processing">Processing</option>
+                    <option value="in progress">In Progress</option>
+                    <option value="approved">Approved</option>
+                    <option value="ready for pickup">Ready for Pickup</option>
+                    <option value="completed">Completed</option>
+                    <option value="revision requested">Revision Requested</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+                <input type="date" id="rpDate" title="Filter by preferred date">
+                <button type="button" class="rp-btn" id="rpClearBtn">Clear</button>
+            </div>
+            <div class="rp-table-wrap">
+                <table class="rp-table">
+                    <thead>
+                        <tr>
+                            <th>Reference</th>
+                            <th>Resident</th>
+                            <th>Request</th>
+                            <th>Date filed</th>
+                            <th>Preferred slot</th>
+                            <th>Status</th>
+                            <th style="text-align:right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rpBody">
+                        <tr><td colspan="7" class="rp-empty">Loading requests…</td></tr>
+                    </tbody>
+                </table>
+                <div class="rp-pager">
+                    <span id="rpPagerInfo"></span>
+                    <div class="btns">
+                        <button type="button" class="rp-btn small" id="rpPrevBtn">Previous</button>
+                        <button type="button" class="rp-btn small" id="rpNextBtn">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="requestDetailView" hidden>
         <div class="content-grid">
             <div class="card">
                 <div class="card-title">Request Information</div>
@@ -487,6 +506,7 @@
                 <p id="actionFeedback" class="action-note">No review action selected yet.</p>
             </div>
             </div>
+        </div>
         </div>
     </main>
 
@@ -578,7 +598,6 @@
                 if (avatarEl) avatarEl.textContent = initialsFromName(display);
                 if (roleEl) roleEl.textContent = "Personnel";
                 if (homeLink) homeLink.href = STAFF_ROUTES.dashboard;
-                if (backLink) backLink.href = STAFF_ROUTES.dashboard;
             } catch (_e) { window.location.href = STAFF_ROUTES.login; }
         }
 
@@ -944,6 +963,14 @@
             let targetReferenceNo = referenceNo ? String(referenceNo) : "";
 
             const metaLine = document.getElementById("requestMetaLine");
+
+            // No record chosen: show the list of requests. The processing view opens when one is clicked.
+            if (!targetRequestId && !targetReferenceNo) {
+                showListView();
+                loadRequestList();
+                return;
+            }
+            showDetailView();
             if (metaLine) metaLine.textContent = `Loading request details...`;
 
             try {
@@ -1120,6 +1147,140 @@
                 handleAction(btn);
             });
         }
+
+
+        // ===================== Requests list =====================
+        const RP_PAGE_SIZE = 10;
+        let allRequests = [];
+        let rpPage = 1;
+        let rpRequestStream = null;
+
+        function showListView() {
+            document.getElementById("requestsListView").hidden = false;
+            document.getElementById("requestDetailView").hidden = true;
+            document.getElementById("requestBackLink").hidden = true;
+            document.getElementById("pageTitle").textContent = "Request Processing";
+            const meta = document.getElementById("requestMetaLine");
+            if (meta) meta.textContent = "Select a request to review and update its status.";
+            connectRequestListStream();
+        }
+
+        function showDetailView() {
+            document.getElementById("requestsListView").hidden = true;
+            document.getElementById("requestDetailView").hidden = false;
+            document.getElementById("pageTitle").textContent = "Request Details";
+            const back = document.getElementById("requestBackLink");
+            back.hidden = false;
+            back.href = activeItemType === "appointment" ? "appointment-scheduling.html" : "request-processing.html";
+        }
+
+        function connectRequestListStream() {
+            if (rpRequestStream || typeof EventSource === "undefined") return;
+            try {
+                const raw = sessionStorage.getItem("adminAuth");
+                const tok = raw ? JSON.parse(raw).session?.accessToken : null;
+                const url = `${API_BASE_URL}/requests/events${tok ? `?access_token=${encodeURIComponent(tok)}` : ""}`;
+                rpRequestStream = new EventSource(url);
+                rpRequestStream.addEventListener("request-updated", () => loadRequestList());
+            } catch (_e) { /* live updates are optional */ }
+        }
+
+        function rpFormatDate(value) {
+            if (!value) return "—";
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return String(value);
+            return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        }
+
+        function rpDateKey(value) {
+            if (!value) return "";
+            const s = String(value);
+            if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+            const d = new Date(s);
+            if (Number.isNaN(d.getTime())) return "";
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        }
+
+        function rpDetailHref(r) {
+            return `request-processing.html?type=request&requestId=${encodeURIComponent(String(r.id ?? ""))}&referenceNo=${encodeURIComponent(r.referenceNo || "")}`;
+        }
+
+        async function loadRequestList() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/requests`, { headers: staffApiHeaders() });
+                const json = await res.json();
+                if (!res.ok || !json?.ok || !Array.isArray(json.requests)) throw new Error(json?.message || "Unable to load requests.");
+                allRequests = json.requests;
+                renderRequestList();
+            } catch (err) {
+                document.getElementById("rpBody").innerHTML = `<tr><td colspan="7" class="rp-empty" style="color:#b91c1c;">${escapeHtml(err.message || "Unable to load requests.")}</td></tr>`;
+            }
+        }
+
+        // Requests that still need work first (newest first), finished ones last.
+        function sortedRequests(list) {
+            const finished = (r) => isTerminalReviewStatus(r.status);
+            const byNewest = (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+            return [...list.filter((r) => !finished(r)).sort(byNewest), ...list.filter(finished).sort(byNewest)];
+        }
+
+        function filteredRequests() {
+            const q = document.getElementById("rpSearch").value.trim().toLowerCase();
+            const status = document.getElementById("rpStatus").value;
+            const date = document.getElementById("rpDate").value;
+            return sortedRequests(allRequests.filter((r) => {
+                if (status !== "all" && String(r.status || "").trim().toLowerCase() !== status) return false;
+                if (date && rpDateKey(r.preferredDate) !== date) return false;
+                if (!q) return true;
+                return [r.referenceNo, r.residentName, composeServiceRequestSubject(r), r.serviceType, r.title]
+                    .some((v) => String(v || "").toLowerCase().includes(q));
+            }));
+        }
+
+        function renderRequestList() {
+            const list = filteredRequests();
+            const pages = Math.max(1, Math.ceil(list.length / RP_PAGE_SIZE));
+            if (rpPage > pages) rpPage = pages;
+            const slice = list.slice((rpPage - 1) * RP_PAGE_SIZE, rpPage * RP_PAGE_SIZE);
+            document.getElementById("rpBody").innerHTML = slice.length
+                ? slice.map((r) => {
+                    const c = statusColorByValue(r.status);
+                    return `
+                    <tr data-href="${escapeHtml(rpDetailHref(r))}">
+                        <td><b>${escapeHtml(r.referenceNo || "—")}</b></td>
+                        <td>${escapeHtml(r.residentName || "—")}</td>
+                        <td>${escapeHtml(composeServiceRequestSubject(r))}</td>
+                        <td>${escapeHtml(rpFormatDate(r.createdAt))}</td>
+                        <td>${escapeHtml(r.preferredTimeSlot || "—")}${r.preferredDate ? `<span class="rp-sub">${escapeHtml(rpFormatDate(r.preferredDate))}</span>` : ""}</td>
+                        <td><span class="rp-badge" style="background:${c.bg};color:${c.fg};">${escapeHtml(r.status || "—")}</span></td>
+                        <td style="text-align:right;"><a class="rp-btn small primary" href="${escapeHtml(rpDetailHref(r))}">Review</a></td>
+                    </tr>`;
+                }).join("")
+                : `<tr><td colspan="7" class="rp-empty">${allRequests.length ? "No requests match your filters." : "No service requests yet."}</td></tr>`;
+            document.getElementById("rpPagerInfo").textContent = list.length
+                ? `Showing ${(rpPage - 1) * RP_PAGE_SIZE + 1}–${Math.min(rpPage * RP_PAGE_SIZE, list.length)} of ${list.length}`
+                : "";
+            document.getElementById("rpPrevBtn").disabled = rpPage <= 1;
+            document.getElementById("rpNextBtn").disabled = rpPage >= pages;
+        }
+
+        document.getElementById("rpBody").addEventListener("click", (e) => {
+            if (e.target.closest("a")) return;
+            const row = e.target.closest("tr[data-href]");
+            if (row) window.location.href = row.dataset.href;
+        });
+        document.getElementById("rpSearch").addEventListener("input", () => { rpPage = 1; renderRequestList(); });
+        document.getElementById("rpStatus").addEventListener("change", () => { rpPage = 1; renderRequestList(); });
+        document.getElementById("rpDate").addEventListener("change", () => { rpPage = 1; renderRequestList(); });
+        document.getElementById("rpClearBtn").addEventListener("click", () => {
+            document.getElementById("rpSearch").value = "";
+            document.getElementById("rpStatus").value = "all";
+            document.getElementById("rpDate").value = "";
+            rpPage = 1;
+            renderRequestList();
+        });
+        document.getElementById("rpPrevBtn").addEventListener("click", () => { rpPage = Math.max(1, rpPage - 1); renderRequestList(); });
+        document.getElementById("rpNextBtn").addEventListener("click", () => { rpPage += 1; renderRequestList(); });
 
         window.onload = function () {
             bindReviewActions();

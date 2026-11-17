@@ -301,7 +301,7 @@
             max-width: 1100px;
             max-height: 90vh;
             border-radius: 16px;
-            padding: 2rem;
+            padding: 2rem 2rem 2.75rem;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
             display: flex;
             gap: 2rem;
@@ -492,41 +492,7 @@
 </head>
 <body>
 
-    <aside>
-        <div class="sidebar-header">
-            <img src="../asset/SB.png" alt="Logo">
-            <span>SerbisyoBurgos</span>
-        </div>
-        <nav>
-            <a href="service-mngmt.html" class="nav-item">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                Dashboard
-            </a>
-            <a href="user-role.html" class="nav-item">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                User & Roles
-            </a>
-            <a href="reports-analytics.html" class="nav-item">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                Analytics
-            </a>
-            <a href="announcements.html" class="nav-item active">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-                Announcements
-            </a>
-        </nav>
-
-        <div class="sidebar-footer">
-            <a href="../index.html" class="logout-btn" onclick="handleLogout(event)">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                <span>Logout</span>
-            </a>
-        </div>
-    </aside>
+    <script src="../shared/sidebar.js" data-portal="admin"></script>
 
 <main>
         <div class="top-bar">
@@ -561,7 +527,8 @@
 
 <div class="content-card" id="postedAnnouncementsTableCard" style="display: block;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-                <h3 style="color: var(--brand-dark); margin: 0;">Recently Posted Advisories</h3>
+                <h3 style="color: var(--brand-dark); margin: 0;" id="announcementsListHeading">Recently Posted Advisories</h3>
+                <button type="button" id="toggleArchivedBtn" class="btn-cancel" style="margin-left:auto; margin-right:0.75rem; padding:0.45rem 0.9rem; font-size:0.85rem;">View archived</button>
                 
                 <!-- Search/Filter Bar - Left Aligned -->
                 <div class="search-filter-bar" style="margin-bottom: 0; background: transparent; border: none; padding: 0;">
@@ -639,7 +606,7 @@
                         </div>
                     </div>
 
-                    <div style="display: flex; gap: 12px; margin-top: 1rem;">
+                    <div style="display: flex; gap: 12px; margin-top: 1rem; padding-bottom: 1rem;">
                         <button class="btn-post" style="flex: 2;" type="button" id="btnPublish">Publish to Residents Bulletin Board</button>
                         <button type="button" style="flex: 1; background: #f1f5f9; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; color: #475569;" id="btnSaveDraft">Save Draft</button>
                     </div>
@@ -714,13 +681,13 @@
     </div>
     <div id="deleteConfirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle">
         <div class="confirm-modal">
-            <h3 id="deleteConfirmTitle" style="font-size:1.05rem; color:var(--brand-dark); margin-bottom:0.55rem;">Delete this announcement?</h3>
+            <h3 id="deleteConfirmTitle" style="font-size:1.05rem; color:var(--brand-dark); margin-bottom:0.55rem;">Archive this announcement?</h3>
             <p id="deleteConfirmMessage" style="font-size:0.9rem; color:var(--text-muted); line-height:1.5;">
-                This cannot be undone. The post will be removed from the admin list and the resident bulletin board.
+                The post will be hidden from the resident bulletin board and moved to the archive. You can restore it later.
             </p>
             <div class="confirm-actions">
                 <button type="button" class="btn-cancel" id="deleteConfirmCancelBtn">Cancel</button>
-                <button type="button" class="btn-confirm danger" id="deleteConfirmSubmitBtn">Delete</button>
+                <button type="button" class="btn-confirm danger" id="deleteConfirmSubmitBtn">Archive</button>
             </div>
         </div>
     </div>
@@ -908,6 +875,7 @@
         }
 
         let pendingDeleteAnnouncementId = null;
+        let showArchivedAnnouncements = false;
 
         function openDeleteAnnouncementModal(id, title) {
             const safeId = String(id || "").trim();
@@ -916,9 +884,9 @@
             const safeTitle = String(title || "this announcement").trim() || "this announcement";
             if (deleteConfirmMessage) {
                 deleteConfirmMessage.textContent =
-                    'Permanently delete "' +
+                    'Archive "' +
                     safeTitle +
-                    '"? This cannot be undone. The post will be removed from the resident bulletin board.';
+                    '"? It will be hidden from the resident bulletin board, and you can restore it later.';
             }
             deleteConfirmModal?.classList.add("show");
         }
@@ -955,12 +923,12 @@
                 if (!res.ok || !json?.ok || !Array.isArray(json.announcements)) {
                     throw new Error(json?.message || "Unable to load announcements.");
                 }
-                const list = json.announcements;
+                const list = json.announcements.filter((a) => (showArchivedAnnouncements ? Boolean(a.archivedAt) : !a.archivedAt));
                 announcementsById.clear();
                 list.forEach((a) => announcementsById.set(String(a.id), a));
                 if (!list.length) {
                     tbody.innerHTML =
-                        '<tr><td colspan="5" style="color: var(--text-muted); font-size: 0.9rem;">No announcements posted yet.</td></tr>';
+                        '<tr><td colspan="5" style="color: var(--text-muted); font-size: 0.9rem;">' + (showArchivedAnnouncements ? 'No archived announcements.' : 'No announcements posted yet.') + '</td></tr>';
                     filterByCategory();
                     return;
                 }
@@ -984,11 +952,11 @@
                                 <button type="button" class="btn-view" data-tooltip="View announcement" aria-label="View announcement" data-announcement-view data-announcement-id="${escapeAttr(id)}">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                 </button>
-                                <button type="button" class="btn-delete" data-tooltip="Delete announcement" aria-label="Delete announcement" data-announcement-delete data-announcement-id="${id}" data-announcement-title="${escapeAttr(
-                                    title
-                                )}">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                </button>
+                                ${a.archivedAt
+                                    ? `<button type="button" class="btn-view" data-tooltip="Restore announcement" aria-label="Restore announcement" data-announcement-restore data-announcement-id="${escapeAttr(id)}">Restore</button>`
+                                    : `<button type="button" class="btn-delete" data-tooltip="Archive announcement" aria-label="Archive announcement" data-announcement-delete data-announcement-id="${id}" data-announcement-title="${escapeAttr(title)}">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+                                </button>`}
                             </td>
                         </tr>`;
                     })
@@ -1008,11 +976,42 @@
                 openViewAnnouncement(viewBtn.getAttribute("data-announcement-id"));
                 return;
             }
+            const restoreBtn = event.target.closest("button[data-announcement-restore]");
+            if (restoreBtn) {
+                restoreAnnouncement(restoreBtn.getAttribute("data-announcement-id"));
+                return;
+            }
             const btn = event.target.closest("button[data-announcement-delete]");
             if (!btn) return;
             const id = btn.getAttribute("data-announcement-id");
             const title = btn.getAttribute("data-announcement-title") || "";
             openDeleteAnnouncementModal(id, title);
+        });
+
+        async function restoreAnnouncement(id) {
+            const safeId = String(id || "").trim();
+            if (!safeId) return;
+            try {
+                const res = await adminFetch(`/admin/announcements/${safeId}/restore`, { method: "POST" });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok) {
+                    await showDialog({ title: "Restore failed", message: json?.message || `Could not restore this announcement (server replied ${res.status}).`, confirmLabel: "OK" });
+                    return;
+                }
+                await loadAnnouncementsTable();
+            } catch (err) {
+                console.error("Restore announcement failed:", err);
+                await showDialog({ title: "Restore failed", message: "Could not reach the server. Check that the API is running.", confirmLabel: "OK" });
+            }
+        }
+
+        document.getElementById("toggleArchivedBtn")?.addEventListener("click", async () => {
+            showArchivedAnnouncements = !showArchivedAnnouncements;
+            const btn = document.getElementById("toggleArchivedBtn");
+            if (btn) btn.textContent = showArchivedAnnouncements ? "View active" : "View archived";
+            const heading = document.getElementById("announcementsListHeading");
+            if (heading) heading.textContent = showArchivedAnnouncements ? "Archived Advisories" : "Recently Posted Advisories";
+            await loadAnnouncementsTable();
         });
 
         deleteConfirmCancelBtn?.addEventListener("click", closeDeleteConfirmModal);
@@ -1033,12 +1032,12 @@
             }
             deleteConfirmSubmitBtn.disabled = true;
             try {
-                const res = await adminFetch(`/admin/announcements/${id}`, { method: "DELETE" });
+                const res = await adminFetch(`/admin/announcements/${id}/archive`, { method: "POST" });
                 const json = await res.json().catch(() => ({}));
                 if (!res.ok || !json?.ok) {
                     await showDialog({
-                        title: "Delete failed",
-                        message: json?.message || `Could not delete this announcement (server replied ${res.status}).`,
+                        title: "Archive failed",
+                        message: json?.message || `Could not archive this announcement (server replied ${res.status}).`,
                         confirmLabel: "OK"
                     });
                     return;
@@ -1046,9 +1045,9 @@
                 closeDeleteConfirmModal();
                 await loadAnnouncementsTable();
             } catch (err) {
-                console.error("Delete announcement failed:", err);
+                console.error("Archive announcement failed:", err);
                 await showDialog({
-                    title: "Delete failed",
+                    title: "Archive failed",
                     message: "Could not reach the server. Check that the API is running.",
                     confirmLabel: "OK"
                 });
@@ -1236,7 +1235,7 @@ const tag = document.getElementById("previewTag");
             document.getElementById("viewAnnBody").textContent = a.body || "";
             document.getElementById("viewAnnPostedBy").textContent = formatPostedByRole(a.postedByRole);
             document.getElementById("viewAnnDate").textContent = a.createdAt ? formatDraftWhen(a.createdAt) : "—";
-            document.getElementById("viewAnnStatus").textContent = a.isActive === false ? "Inactive (hidden from residents)" : "Active on resident bulletin board";
+            document.getElementById("viewAnnStatus").textContent = a.archivedAt ? "Archived (hidden from residents)" : a.isActive === false ? "Inactive (hidden from residents)" : "Active on resident bulletin board";
             viewAnnModal?.classList.add("show");
         }
         function closeViewAnnouncement() {

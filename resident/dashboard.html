@@ -6,7 +6,7 @@
     <title>Dashboard | SerbisyoBurgos</title>
     <link rel="icon" type="image/png" href="../asset/SB.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <style>
         :root {
             --brand-green: #16a34a;
@@ -236,66 +236,44 @@
             margin-top: 0;
         }
 
-        /* CLICKABLE OVERVIEW CARDS */
+        /* OVERVIEW CARDS (same style as the System Admin dashboard) */
         .overview-sections {
-            display: table;
-            border-collapse: separate;
-            border-spacing: 0;
-            width: 100%;
-            margin-bottom: 1.5rem;
-            border-radius: 20px;
-            overflow: hidden;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
         }
-
-        .overview-row {
-            display: table-row;
-        }
-
-        .overview-row:nth-child(1) { display: table; table-layout: fixed; width: 100%; }
-        .overview-row:nth-child(2) { display: table; table-layout: fixed; width: 100%; }
-        .overview-row:nth-child(3) { display: table; table-layout: fixed; width: 100%; }
 
         .overview-card {
-            display: table-cell;
             background: var(--white);
-            padding: 1.25rem 1.5rem;
-            border: 1px solid #94a3b8;
-            border-radius: 20px;
+            padding: 1.25rem;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            border-left: 5px solid;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
             cursor: pointer;
-            transition: all 0.2s ease;
-            vertical-align: middle;
-            text-align: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-
-        .overview-row-1 .overview-card { width: 33.333%; }
-        .overview-row-2 .overview-card { width: 33.333%; }
-        .overview-row-3 .overview-card { width: 33.333%; }
-
-        .overview-card:first-child { border-left: none; border-top-left-radius: 18px; border-bottom-left-radius: 18px; }
-        .overview-card:last-child { border-right: none; border-top-right-radius: 18px; border-bottom-right-radius: 18px; }
-        .overview-row:first-child .overview-card { border-top: none; border-top-left-radius: 18px; border-top-right-radius: 18px; }
-        .overview-row:last-child .overview-card { border-bottom: none; border-bottom-left-radius: 18px; border-bottom-right-radius: 18px; }
 
         .overview-card:hover {
-            background: #f8fafc;
-            border-color: var(--brand-green);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
         }
 
-        .overview-card h3 { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-bottom: 0.25rem; }
-        .overview-card .value { font-size: 1.5rem; font-weight: 700; margin: 0.15rem 0; }
-        .overview-card .trend { font-size: 0.7rem; font-weight: 600; display: block; }
+        .overview-card.amber { border-left-color: #f59e0b; }
+        .overview-card.blue  { border-left-color: #3b82f6; }
+        .overview-card.teal  { border-left-color: #0891b2; }
+        .overview-card.green { border-left-color: #16a34a; }
+
+        .overview-card h3 { color: var(--text-muted); font-size: 0.85rem; font-weight: 600; }
+        .overview-card .value { color: var(--brand-dark); font-size: 1.5rem; font-weight: 700; margin: 0.75rem 0; }
+        .overview-card .trend { font-size: 0.75rem; font-weight: 500; display: block; }
 
         @media (max-width: 900px) {
-            .overview-sections { display: flex; flex-wrap: wrap; }
-            .overview-row { display: flex; flex-wrap: wrap; width: 100%; }
-            .overview-card { flex: 1 1 calc(50% - 1px); min-width: calc(50% - 1px); border-radius: 10px !important; }
-            .overview-card:first-child { border-left: 1px solid #e2e8f0; }
-            .overview-card:last-child { border-right: 1px solid #e2e8f0; }
-            .overview-row:first-child .overview-card { border-top: 1px solid #e2e8f0; }
-            .overview-row:last-child .overview-card { border-bottom: 1px solid #e2e8f0; }
+            .overview-sections { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
         }
         @media (max-width: 500px) {
-            .overview-card { flex: 1 1 100%; min-width: 100%; }
+            .overview-sections { grid-template-columns: 1fr; }
         }
 
         /* Navigation Option Modal */
@@ -456,7 +434,7 @@
         .chat-footer { padding: 1rem; display: flex; gap: 8px; border-top: 1px solid #e2e8f0; background: white; }
         .chat-footer input { flex-grow: 1; padding: 0.7rem; border: 1.5px solid #e2e8f0; border-radius: 10px; outline: none; }
         .chat-footer button { background: var(--brand-green); color: white; border: none; padding: 0 15px; border-radius: 10px; cursor: pointer; font-weight: 600; }
-        
+
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -485,52 +463,7 @@
 </head>
 <body>
 
-    <aside>
-        <div class="sidebar-header">
-            <img src="../asset/SB.png" alt="Logo">
-            <span>SerbisyoBurgos</span>
-        </div>
-        <nav>
-            <a href="dashboard.html" class="nav-link active">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                Dashboard
-            </a>
-            <a href="service-requests.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                Service Requests
-            </a>
-            <a href="appointments.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                Appointments
-            </a>
-            <a href="notifications.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                Bulletin Board
-            </a>
-            <a href="request-history.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                Request History
-            </a>
-        </nav>
-        
-        <div class="sidebar-footer">
-            <div class="user-profile" id="residentProfileBtn" style="cursor: pointer;">
-                <div class="user-avatar" id="residentSidebarAvatar" aria-hidden="true">?</div>
-                <div class="user-info">
-                    <span class="user-name" id="residentSidebarName">Resident</span>
-                    <span class="user-role">View Profile</span>
-                </div>
-            </div>
-            <a href="landing.html" class="logout-btn" onclick="handleLogout(event)">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                <span>Logout</span>
-            </a>
-        </div>
-    </aside>
+    <script src="../shared/sidebar.js" data-portal="resident"></script>
 
     <main>
         <section class="welcome-section">
@@ -547,58 +480,25 @@
         </section>
 
         <div class="overview-sections">
-            <div class="overview-row overview-row-1">
-                <div class="overview-card" onclick="goToResidentPage('serviceRequests')">
-                    <h3>Total Request</h3>
-                    <p class="value" id="countTotalRequest" style="color: #2563eb;">0</p>
-                    <span class="trend" style="color: #2563eb;">View all</span>
-                </div>
-                <div class="overview-card" onclick="goToResidentPage('appointments')">
-                    <h3>Total Appointments</h3>
-                    <p class="value" id="countTotalAppointments" style="color: #9333ea;">0</p>
-                    <span class="trend" style="color: #9333ea;">View all</span>
-                </div>
-                <div class="overview-card" onclick="showNavOptionModal('completed')">
-                    <h3>Completed</h3>
-                    <p class="value" id="countCompleted" style="color: #047857;">0</p>
-                    <span class="trend" style="color: #047857;">View</span>
-                </div>
+            <div class="overview-card amber" onclick="goToResidentPage('serviceRequests')">
+                <h3>Pending</h3>
+                <p class="value" id="countPending">0</p>
+                <span class="trend" style="color: #f59e0b;">Awaiting review</span>
             </div>
-
-            <div class="overview-row overview-row-2">
-                <div class="overview-card" onclick="goToResidentPage('serviceRequests')">
-                    <h3>Pending</h3>
-                    <p class="value" id="countPending" style="color: #ea580c;">0</p>
-                    <span class="trend" style="color: #ea580c;">Awaiting review</span>
-                </div>
-                <div class="overview-card" onclick="goToResidentPage('serviceRequests')">
-                    <h3>Processing</h3>
-                    <p class="value" id="countProcessing" style="color: #16a34a;">0</p>
-                    <span class="trend" style="color: #16a34a;">In progress</span>
-                </div>
-                <div class="overview-card" onclick="showNavOptionModal('ready')">
-                    <h3>Ready for Pickup</h3>
-                    <p class="value" id="countReadyPickup" style="color: #0891b2;">0</p>
-                    <span class="trend" style="color: #0891b2;">View</span>
-                </div>
+            <div class="overview-card blue" onclick="goToResidentPage('serviceRequests')">
+                <h3>Processing</h3>
+                <p class="value" id="countProcessing">0</p>
+                <span class="trend" style="color: #3b82f6;">In progress</span>
             </div>
-
-            <div class="overview-row overview-row-3">
-                <div class="overview-card" onclick="goToResidentPage('appointments')">
-                    <h3>Approved</h3>
-                    <p class="value" id="countApproved" style="color: #0284c7;">0</p>
-                    <span class="trend" style="color: #0284c7;">View</span>
-                </div>
-                <div class="overview-card" onclick="goToResidentPage('appointments')">
-                    <h3>Revisions</h3>
-                    <p class="value" id="countRevisions" style="color: #d97706;">0</p>
-                    <span class="trend" style="color: #d97706;">View</span>
-                </div>
-                <div class="overview-card" onclick="showNavOptionModal('rejected')">
-                    <h3>Rejected</h3>
-                    <p class="value" id="countRejected" style="color: #dc2626;">0</p>
-                    <span class="trend" style="color: #dc2626;">View</span>
-                </div>
+            <div class="overview-card teal" onclick="showNavOptionModal('ready')">
+                <h3>Ready for Pickup</h3>
+                <p class="value" id="countReadyPickup">0</p>
+                <span class="trend" style="color: #0891b2;">View</span>
+            </div>
+            <div class="overview-card green" onclick="showNavOptionModal('completed')">
+                <h3>Completed</h3>
+                <p class="value" id="countCompleted">0</p>
+                <span class="trend" style="color: #16a34a;">View</span>
             </div>
         </div>
 
@@ -710,7 +610,7 @@
             currentNavType = navType;
             const titleEl = document.getElementById('navOptionTitle');
             const descEl = document.getElementById('navOptionDesc');
-            
+
             if (navType === 'ready') {
                 titleEl.textContent = 'Ready for Pickup';
                 descEl.textContent = 'Choose where to view items ready for pickup:';
@@ -721,7 +621,7 @@
                 titleEl.textContent = 'Rejected';
                 descEl.textContent = 'Choose where to view rejected items:';
             }
-            
+
             if (navOptionModal) navOptionModal.classList.add('show');
         }
 
@@ -804,8 +704,6 @@
             const upcomingAppointmentList = document.getElementById('upcomingAppointmentList');
 
             // Row 1 element IDs
-            const countTotalRequestEl = document.getElementById('countTotalRequest');
-            const countTotalAppointmentsEl = document.getElementById('countTotalAppointments');
 
             // Row 2 element IDs
             const countPendingEl = document.getElementById('countPending');
@@ -814,9 +712,6 @@
             const countCompletedEl = document.getElementById('countCompleted');
 
             // Row 3 element IDs
-            const countApprovedEl = document.getElementById('countApproved');
-            const countRevisionsEl = document.getElementById('countRevisions');
-            const countRejectedEl = document.getElementById('countRejected');
 
             if (recentRequestList) recentRequestList.innerHTML = `<p style="color:var(--text-muted); font-size:0.9rem;">Loading recent requests...</p>`;
             if (upcomingAppointmentList) upcomingAppointmentList.innerHTML = `<p style="color:var(--text-muted); font-size:0.9rem;">Loading appointments...</p>`;
@@ -842,11 +737,7 @@
                 const now = new Date();
                 now.setHours(0, 0, 0, 0);
 
-                // Row 1 counts
-                const totalRequestCount = requests.length;
-                const totalAppointmentsCount = appointments.length;
-
-                // Row 2 counts (from requests)
+                // Status counts
                 const pendingCount = requests.filter((r) => String(r.status || "").toLowerCase() === "pending").length;
                 const processingCount = requests.filter((r) => {
                     const status = String(r.status || "").toLowerCase();
@@ -859,27 +750,12 @@
                 const completedCountAppts = appointments.filter((a) => String(a.status || "").toLowerCase() === "completed").length;
                 const completedCount = completedCountRequests + completedCountAppts;
 
-                // Row 3 counts (from appointments)
-                const approvedCount = appointments.filter((a) => String(a.status || "").toLowerCase() === "approved").length;
-                const revisionsCount = appointments.filter((a) => String(a.status || "").toLowerCase() === "revisions").length;
-                const rejectedCountRequests = requests.filter((r) => String(r.status || "").toLowerCase() === "rejected").length;
-                const rejectedCountAppts = appointments.filter((a) => String(a.status || "").toLowerCase() === "rejected").length;
-                const rejectedCount = rejectedCountRequests + rejectedCountAppts;
-
-                // Update Row 1
-                if (countTotalRequestEl) countTotalRequestEl.innerText = String(totalRequestCount).padStart(2, "0");
-                if (countTotalAppointmentsEl) countTotalAppointmentsEl.innerText = String(totalAppointmentsCount).padStart(2, "0");
-
-                // Update Row 2
+                
+                // Update counts
                 if (countPendingEl) countPendingEl.innerText = String(pendingCount).padStart(2, "0");
                 if (countProcessingEl) countProcessingEl.innerText = String(processingCount).padStart(2, "0");
                 if (countReadyPickupEl) countReadyPickupEl.innerText = String(readyPickupCount).padStart(2, "0");
                 if (countCompletedEl) countCompletedEl.innerText = String(completedCount).padStart(2, "0");
-
-                // Update Row 3
-                if (countApprovedEl) countApprovedEl.innerText = String(approvedCount).padStart(2, "0");
-                if (countRevisionsEl) countRevisionsEl.innerText = String(revisionsCount).padStart(2, "0");
-                if (countRejectedEl) countRejectedEl.innerText = String(rejectedCount).padStart(2, "0");
 
                 const sortedByRecent = requests.slice().sort((a, b) => {
                     const aTime = new Date(a.createdAt || a.preferredDate || 0).getTime();
@@ -953,15 +829,10 @@
                     }
                 }
             } catch (_error) {
-                if (countTotalRequestEl) countTotalRequestEl.innerText = "00";
-                if (countTotalAppointmentsEl) countTotalAppointmentsEl.innerText = "00";
                 if (countPendingEl) countPendingEl.innerText = "00";
                 if (countProcessingEl) countProcessingEl.innerText = "00";
                 if (countReadyPickupEl) countReadyPickupEl.innerText = "00";
                 if (countCompletedEl) countCompletedEl.innerText = "00";
-                if (countApprovedEl) countApprovedEl.innerText = "00";
-                if (countRevisionsEl) countRevisionsEl.innerText = "00";
-                if (countRejectedEl) countRejectedEl.innerText = "00";
                 if (recentRequestList) recentRequestList.innerHTML = `<p style="color:#b91c1c; font-size:0.9rem;">Unable to load requests. Make sure backend is running.</p>`;
                 if (upcomingAppointmentList) upcomingAppointmentList.innerHTML = `<p style="color:#b91c1c; font-size:0.9rem;">Unable to load appointments. Make sure backend is running.</p>`;
             }

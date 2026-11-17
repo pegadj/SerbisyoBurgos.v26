@@ -48,7 +48,8 @@ admin: {
       serviceRequests: `${residentFolderPrefix}service-requests.html`,
       appointments: `${residentFolderPrefix}appointments.html`,
       notifications: `${residentFolderPrefix}notifications.html`,
-      requestHistory: `${residentFolderPrefix}request-history.html`
+      requestHistory: `${residentFolderPrefix}request-history.html`,
+      changePassword: `${residentFolderPrefix}change-password.html`
     }
   };
 

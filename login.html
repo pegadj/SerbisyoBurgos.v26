@@ -524,8 +524,8 @@
         <p class="subtitle">Log in to your SerbisyoBurgos account.</p>
 
         <div class="input-group">
-            <label>Email Address</label>
-            <input type="email" id="resident-login-email" placeholder="user@gmail.com" maxlength="254" autocomplete="username">
+            <label>Email or Resident ID</label>
+            <input type="text" id="resident-login-email" placeholder="Email or Resident ID" maxlength="254" autocomplete="username">
         </div>
 
         <div class="input-group">
@@ -543,7 +543,7 @@
             </span>
         </button>
         <p id="resident-login-error" style="margin-top:0.9rem; color:#b91c1c; font-size:0.85rem; min-height:1.1rem; text-align:left;"></p>
-        <p class="footer-text">New resident? <span onclick="toggleForm()">Create an account</span></p>
+        <p class="footer-text">No account yet? Please visit the Barangay Hall &mdash; staff will issue your Resident ID and password.</p>
     </div>
 
     <div id="register-form" class="hidden">
@@ -551,13 +551,59 @@
         <p class="subtitle">Welcome to the community</p>
 
         <div class="input-group">
-            <label>Full Name</label>
-            <input type="text" id="resident-register-name" placeholder="Juan Dela Cruz" maxlength="120" autocomplete="name">
+            <label for="resident-register-first">First Name</label>
+            <input type="text" id="resident-register-first" placeholder="Juan" maxlength="60" autocomplete="given-name">
         </div>
 
         <div class="input-group">
-            <label>Email Address</label>
+            <label for="resident-register-middle">Middle Name <span style="color:var(--text-muted, #64748b);font-weight:400;">(optional)</span></label>
+            <input type="text" id="resident-register-middle" placeholder="Santos" maxlength="60" autocomplete="additional-name">
+        </div>
+
+        <div class="input-group">
+            <label for="resident-register-last">Last Name</label>
+            <input type="text" id="resident-register-last" placeholder="Dela Cruz" maxlength="60" autocomplete="family-name">
+        </div>
+
+        <div class="input-group">
+            <label for="resident-register-email">Email Address</label>
             <input type="email" id="resident-register-email" placeholder="your@email.com" maxlength="254" autocomplete="email">
+        </div>
+
+        <div class="input-group">
+            <label for="resident-register-phone">Phone Number</label>
+            <input type="tel" inputmode="tel" id="resident-register-phone" placeholder="0917 123 4567" maxlength="20" autocomplete="tel">
+            <span class="verification-note">Your Philippine mobile number, so the barangay office can reach you.</span>
+        </div>
+
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" id="resident-register-pass" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" maxlength="128" autocomplete="new-password">
+            <span class="password-toggle" onclick="togglePassword('resident-register-pass', this)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </span>
+            <p id="resident-register-pass-length-msg" class="pw-length-line" role="status" aria-live="polite"></p>
+            <div class="pw-strength-wrap" id="pw-strength-wrap" style="display:none;">
+                <div class="pw-strength-label" id="pw-strength-label">Weak</div>
+                <div class="pw-strength-bar-track">
+                    <div class="pw-strength-bar-fill" id="pw-strength-bar"></div>
+                </div>
+                <ul class="pw-checklist">
+                    <li id="pwc-length"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>At least 8 characters</li>
+                    <li id="pwc-upper"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>Uppercase letter</li>
+                    <li id="pwc-lower"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>Lowercase letter</li>
+                    <li id="pwc-number"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>Number (0-9)</li>
+                    <li id="pwc-special"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>Special character</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Confirm Password</label>
+            <input type="password" id="resident-register-confirm" placeholder="••••••••" maxlength="128" autocomplete="new-password">
+            <span class="password-toggle" onclick="togglePassword('resident-register-confirm', this)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </span>
         </div>
 
         <div class="input-group">
@@ -592,38 +638,6 @@
             <span class="verification-note">Upload a document that proves you are a resident.</span>
         </div>
 
-        <div class="input-group">
-            <label>Password</label>
-            <input type="password" id="resident-register-pass" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" maxlength="128" autocomplete="new-password">
-            <span class="password-toggle" onclick="togglePassword('resident-register-pass', this)">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            </span>
-            <p id="resident-register-pass-length-msg" class="pw-length-line" role="status" aria-live="polite"></p>
-            <div class="pw-strength-wrap" id="pw-strength-wrap" style="display:none;">
-                <div class="pw-strength-label" id="pw-strength-label">Weak</div>
-                <div class="pw-strength-bar-track">
-                    <div class="pw-strength-bar-fill" id="pw-strength-bar"></div>
-                </div>
-                <ul class="pw-checklist">
-                    <li id="pwc-length"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>At least 8 characters</li>
-                    <li id="pwc-upper"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>Uppercase letter</li>
-                    <li id="pwc-lower"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>Lowercase letter</li>
-                    <li id="pwc-number"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>Number (0-9)</li>
-                    <li id="pwc-special"><span class="pw-check-icon"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5 4,7.5 8.5,2.5"></polyline></svg></span>Special character</li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="input-group">
-            <label>Confirm Password</label>
-            <input type="password" id="resident-register-confirm" placeholder="••••••••" maxlength="128" autocomplete="new-password">
-            <span class="password-toggle" onclick="togglePassword('resident-register-confirm', this)">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            </span>
-        </div>
-
-
-
         <button type="button" id="resident-register-submit" class="btn-submit" onclick="handleResidentRegister()" disabled style="opacity:0.6; cursor:not-allowed;">
             <span class="btn-submit-inner">
                 <span class="btn-spinner" aria-hidden="true"></span>
@@ -645,8 +659,11 @@
         <div class="success-icon-circle" aria-hidden="true">
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
         </div>
-        <h3 id="registerSuccessTitle" class="register-success-heading">Registered successfully.</h3>
-        <button type="button" class="btn-success-cta" id="registerSuccessContinueBtn">Continue to log in</button>
+        <h3 id="registerSuccessTitle" class="register-success-heading">Registration submitted</h3>
+        <p id="registerSuccessMessage" style="margin:0.5rem 0 0 0; font-size:0.95rem; line-height:1.5; color:#475569;">
+            Your account is now <strong>pending approval</strong> by the barangay office. You will be able to log in once it has been approved.
+        </p>
+        <button type="button" class="btn-success-cta" id="registerSuccessContinueBtn">Back to log in</button>
     </div>
 </div>
 
@@ -667,6 +684,17 @@
 
     const CLIENT_MAX_EMAIL_LEN = 254;
     const CLIENT_MAX_NAME_LEN = 120;
+    const CLIENT_MAX_NAME_PART_LEN = 60;
+
+    /** "0917 123 4567", "+63 917 123 4567", "9171234567" -> "09171234567"; null when it is not a PH mobile number. */
+    function normalizeClientPhMobile(raw) {
+        let d = String(raw || "").replace(/[^\d+]/g, "");
+        if (d.startsWith("+")) d = d.slice(1);
+        if (/^09\d{9}$/.test(d)) return d;
+        if (/^639\d{9}$/.test(d)) return "0" + d.slice(2);
+        if (/^9\d{9}$/.test(d)) return "0" + d;
+        return null;
+    }
     const CLIENT_MAX_PASSWORD_LEN = 128;
     const REGISTER_MIN_PASSWORD_LEN = 8;
 
@@ -697,7 +725,7 @@
 
     function showRegisterSuccessModal() {
         if (!registerSuccessModal || !registerSuccessTitle) return;
-        registerSuccessTitle.textContent = "Registered successfully.";
+        registerSuccessTitle.textContent = "Registration submitted";
         registerSuccessModal.style.display = "flex";
         registerSuccessContinueBtn?.focus();
     }
@@ -742,7 +770,10 @@
 
     function getRegisterElements() {
         return {
-            nameInput: document.getElementById("resident-register-name"),
+            firstNameInput: document.getElementById("resident-register-first"),
+            middleNameInput: document.getElementById("resident-register-middle"),
+            lastNameInput: document.getElementById("resident-register-last"),
+            phoneInput: document.getElementById("resident-register-phone"),
             emailInput: document.getElementById("resident-register-email"),
             passInput: document.getElementById("resident-register-pass"),
             confirmInput: document.getElementById("resident-register-confirm"),
@@ -886,10 +917,10 @@
      * hasn't been redeployed yet (404), falls back to the two legacy endpoints.
      */
     async function requestLogin(email, password) {
-        const unified = await postJson("/auth/login", { email, password });
+        const unified = await postJson("/auth/login", { identifier: email, email, password });
         if (unified.response.status !== 404) return unified;
 
-        const resident = await postJson("/auth/resident/login", { email, password });
+        const resident = await postJson("/auth/resident/login", { identifier: email, email, password });
         if (resident.response.ok && resident.result?.ok) return resident;
         if (resident.response.status === 403 || resident.response.status === 429 || resident.response.status >= 500) {
             // Valid credentials but blocked account (or server problem): report as-is,
@@ -911,10 +942,10 @@
         const password = String(passInput?.value || "");
 
         if (!email || !password) {
-            if (errorEl) errorEl.innerText = "Please enter your email and password.";
+            if (errorEl) errorEl.innerText = "Please enter your email or Resident ID and password.";
             return;
         }
-        if (!isClientEmailValid(email)) {
+        if (email.includes("@") && !isClientEmailValid(email)) {
             if (errorEl) errorEl.innerText = "Please enter a valid email address.";
             return;
         }
@@ -944,11 +975,15 @@
                     maintenanceMode = false;
                 }
             }
+            // A password issued or reset by barangay staff has to be replaced first.
+            const mustChangePassword = role === "resident" && result.user?.mustChangePassword === true;
             window.location.href = maintenanceMode
                 ? window.SB_MAINTENANCE?.maintenancePageHref?.() ||
                   window.APP_ROUTES?.common?.maintenance ||
                   "maintenance.html"
-                : destination();
+                : mustChangePassword
+                  ? window.APP_ROUTES?.resident?.changePassword || "resident/change-password.html"
+                  : destination();
         } catch (_error) {
             if (errorEl) errorEl.innerText = "Cannot connect to backend. Make sure API server is running.";
         } finally {
@@ -957,24 +992,34 @@
     }
 
     async function handleResidentRegister() {
-        const { nameInput, emailInput, passInput, confirmInput, errorEl } = getRegisterElements();
+        const { firstNameInput, middleNameInput, lastNameInput, phoneInput, emailInput, passInput, confirmInput, errorEl } = getRegisterElements();
         if (errorEl) errorEl.innerText = "";
 
-        const fullName = String(nameInput?.value || "").trim();
+        const clean = (el) => String(el?.value || "").replace(/\s+/g, " ").trim();
+        const firstName = clean(firstNameInput);
+        const middleName = clean(middleNameInput); // optional
+        const lastName = clean(lastNameInput);
+        const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ");
         const email = String(emailInput?.value || "").trim();
+        const phoneRaw = String(phoneInput?.value || "").trim();
         const password = String(passInput?.value || "");
         const confirmPassword = String(confirmInput?.value || "");
 
-        if (!fullName || !email || !password || !confirmPassword) {
+        if (!firstName || !lastName || !email || !phoneRaw || !password || !confirmPassword) {
             if (errorEl) errorEl.innerText = "Please complete all required fields.";
             return;
         }
-        if (!hasIdentityVerificationFile()) {
-            if (errorEl) errorEl.innerText = "Please upload a valid ID (JPEG, PNG, or PDF). This is required.";
+        if (firstName.length > CLIENT_MAX_NAME_PART_LEN || middleName.length > CLIENT_MAX_NAME_PART_LEN || lastName.length > CLIENT_MAX_NAME_PART_LEN) {
+            if (errorEl) errorEl.innerText = "A name field is too long (60 characters at most).";
+            return;
+        }
+        const contactNumber = normalizeClientPhMobile(phoneRaw);
+        if (!contactNumber) {
+            if (errorEl) errorEl.innerText = "Please enter a valid Philippine mobile number, for example 09171234567.";
             return;
         }
         if (fullName.length > CLIENT_MAX_NAME_LEN) {
-            if (errorEl) errorEl.innerText = "Full name is too long.";
+            if (errorEl) errorEl.innerText = "Your name is too long.";
             return;
         }
         if (!isClientEmailValid(email)) {
@@ -992,6 +1037,10 @@
             if (errorEl) errorEl.innerText = "Password is too long.";
             return;
         }
+        if (!hasIdentityVerificationFile()) {
+            if (errorEl) errorEl.innerText = "Please upload a valid ID (JPEG, PNG, or PDF). This is required.";
+            return;
+        }
 
         const idInput = document.getElementById("id-upload");
         const idFile = idInput?.files?.[0];
@@ -1003,7 +1052,11 @@
         setRegisterSubmitLoading(true);
         try {
             const formData = new FormData();
-            formData.append("fullName", fullName);
+            formData.append("firstName", firstName);
+            formData.append("middleName", middleName);
+            formData.append("lastName", lastName);
+            formData.append("fullName", fullName); // composed from the parts above; the server builds its own
+            formData.append("contactNumber", contactNumber);
             formData.append("email", email);
             formData.append("password", password);
             formData.append("identityVerification", idFile, idFile.name);

@@ -262,6 +262,8 @@
         .status-pickup { background: #dbeafe; color: #2563eb; }
         .status-completed { background: #ccfbf1; color: #047857; }
         .status-rejected { background: #fee2e2; color: #dc2626; }
+        .status-cancelled { background: #f1f5f9; color: #64748b; }
+        .btn-delete:disabled:hover { background: transparent; color: inherit; }
         
         /* Gmail-style Delete Icon */
         .btn-delete {
@@ -457,51 +459,7 @@
 </head>
 <body>
 
-    <aside>
-        <div class="sidebar-header">
-            <img src="../asset/SB.png" alt="Logo">
-            <span>SerbisyoBurgos</span>
-        </div>
-        <nav>
-            <a href="dashboard.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                Dashboard
-            </a>
-            <a href="service-requests.html" class="nav-link active">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                Service Requests
-            </a>
-            <a href="appointments.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                Appointments
-            </a>
-            <a href="notifications.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                Bulletin Board
-            </a>
-            <a href="request-history.html" class="nav-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                Request History
-            </a>
-        </nav>
-        <div class="sidebar-footer">
-            <div class="user-profile" id="residentProfileBtn" style="cursor: pointer;">
-                <div class="user-avatar" id="residentSidebarAvatar" aria-hidden="true">?</div>
-                <div class="user-info">
-                    <span class="user-name" id="residentSidebarName">Resident</span>
-                    <span class="user-role">View Profile</span>
-                </div>
-            </div>
-            <a href="landing.html" class="logout-btn" onclick="handleLogout(event)">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                <span>Logout</span>
-            </a>
-        </div>
-    </aside>
+    <script src="../shared/sidebar.js" data-portal="resident"></script>
 
     <main>
         <div class="header-section">
@@ -537,6 +495,7 @@
             <option value="ready for pickup">Ready for Pickup</option>
             <option value="completed">Completed</option>
             <option value="rejected">Rejected</option>
+            <option value="cancelled">Cancelled</option>
         </select>
 
         <button class="btn-new" onclick="openModal()">
@@ -592,10 +551,7 @@
                     <div class="form-group">
                         <label>Preferred Time Slot *</label>
                         <select id="reqTime" required>
-                            <option value="" disabled selected>Select Time...</option>
-                            <option>09:00 AM - 10:00 AM</option>
-                            <option>10:00 AM - 11:00 AM</option>
-                            <option>11:00 AM - 12:00 NN</option>
+                            <option value="" disabled selected>Select a date first...</option>
                         </select>
                     </div>
                 </div>
@@ -629,11 +585,11 @@
             <div class="delete-icon-large">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </div>
-            <h3>Confirm Deletion</h3>
-            <p style="color: var(--text-muted); margin: 12px 0 24px;">Are you sure you want to delete this request? This action cannot be undone.</p>
+            <h3>Cancel this request?</h3>
+            <p style="color: var(--text-muted); margin: 12px 0 24px;">Are you sure you want to cancel this request? Barangay staff will see it as cancelled. You can submit a new request anytime.</p>
             <div style="display: flex; gap: 12px; justify-content: center;">
-                <button onclick="closeDeleteModal()" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; cursor: pointer;">Cancel</button>
-                <button id="confirmDeleteBtn" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: none; background: var(--danger-red); color: white; font-weight: 600; cursor: pointer;">Delete</button>
+                <button onclick="closeDeleteModal()" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; cursor: pointer;">Keep Request</button>
+                <button id="confirmDeleteBtn" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: none; background: var(--danger-red); color: white; font-weight: 600; cursor: pointer;">Cancel Request</button>
             </div>
         </div>
     </div>
@@ -777,6 +733,42 @@
             return `${y}-${m}-${day}`;
         }
 
+        // Morning time slots for service requests come from the server so closed / full / past slots are shown as unavailable.
+        const REQUEST_SLOT_CODES = new Set(["0900", "1000", "1100"]);
+
+        function resetRequestSlotOptions() {
+            const sel = document.getElementById("reqTime");
+            if (sel) sel.innerHTML = '<option value="" disabled selected>Select a date first...</option>';
+        }
+
+        async function refreshRequestSlotsForDate(dateValue) {
+            const sel = document.getElementById("reqTime");
+            const date = String(dateValue || "").trim();
+            if (!sel) return;
+            if (!date) {
+                resetRequestSlotOptions();
+                return;
+            }
+            sel.innerHTML = '<option value="" disabled selected>Loading slots...</option>';
+            try {
+                const response = await residentApiFetch(`${API_BASE_URL}/appointment-slots?date=${encodeURIComponent(date)}`);
+                const result = await response.json();
+                if (!response.ok || !result?.ok || !Array.isArray(result.slots)) {
+                    throw new Error(result?.message || "Unable to load slots.");
+                }
+                const morning = result.slots.filter((s) => REQUEST_SLOT_CODES.has(String(s?.code || "")));
+                const options = morning.map((slot) => {
+                    const unavailable = Boolean(slot.isClosed || slot.isFull);
+                    const suffix = slot.isClosed ? " (Closed)" : slot.isFull ? " (Full)" : "";
+                    const label = String(slot.label || "Time");
+                    return `<option value="${escapeHtmlText(label)}" ${unavailable ? "disabled" : ""}>${escapeHtmlText(label)}${suffix}</option>`;
+                });
+                sel.innerHTML = '<option value="" disabled selected>Select Time...</option>' + options.join("");
+            } catch (_error) {
+                sel.innerHTML = '<option value="" disabled selected>Unable to load time slots</option>';
+            }
+        }
+
         function applyServicePreferredDateMin() {
             const reqDate = document.getElementById("reqDate");
             if (!reqDate) return;
@@ -784,6 +776,7 @@
             reqDate.min = today;
             if (reqDate.value && reqDate.value < today) {
                 reqDate.value = "";
+                resetRequestSlotOptions();
             }
         }
 
@@ -1182,6 +1175,8 @@ async function populateResidentNameField() {
         uploadInput?.addEventListener('change', handleSupportingDocumentUpload);
 
         function openDeleteModal(id) {
+            const row = latestRequests.find((r) => String(r.id) === String(id));
+            if (row && !isCancellableRequest(row.status)) return;
             requestIdToDelete = id;
             document.getElementById('deleteModal').style.display = 'flex';
         }
@@ -1321,7 +1316,7 @@ async function populateResidentNameField() {
             const reqDate = document.getElementById("reqDate");
             const reqTime = document.getElementById("reqTime");
             if (reqDate) reqDate.value = "";
-            if (reqTime) reqTime.value = "";
+            if (reqTime) resetRequestSlotOptions();
             const modal = document.getElementById("requestModal");
             if (modal) modal.style.display = "flex";
             applyServicePreferredDateMin();
@@ -1343,13 +1338,18 @@ async function populateResidentNameField() {
             return `<div class="status-cell-stack">${badge}<div class="pickup-appointment-hint">Book an <a href="${escapeHtmlText(apptUrl)}">appointment</a> for when you want to pick it up.</div></div>`;
         }
 
-function statusClass(status) {
+function isCancellableRequest(status) {
+            return ["pending", "processing", "in progress", "revision requested", "approved"].includes(String(status || "").trim().toLowerCase());
+        }
+
+        function statusClass(status) {
             const normalized = String(status || "").toLowerCase();
             if (normalized === "pending") return "status-pending";
             if (normalized === "processing" || normalized === "in progress") return "status-processing";
             if (normalized === "ready for pickup") return "status-pickup";
             if (normalized === "completed") return "status-completed";
             if (normalized === "rejected") return "status-rejected";
+            if (normalized === "cancelled") return "status-cancelled";
             return "status-pending";
         }
 
@@ -1416,7 +1416,7 @@ function statusClass(status) {
                     <td>${buildRequestStatusCellHtml(req)}</td>
                     <td style="text-align: right;">
                         <button class="btn-action" onclick="openViewRequestModal('${req.id}')">View</button>
-                        <button class="btn-delete" onclick="openDeleteModal('${req.id}')" title="Delete Request">
+                        <button class="btn-delete" ${isCancellableRequest(req.status) ? '' : 'disabled style="opacity:0.35;cursor:not-allowed;"'} onclick="openDeleteModal('${req.id}')" title="${isCancellableRequest(req.status) ? 'Cancel Request' : 'This request can no longer be cancelled'}">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                         </button>
                     </td>
@@ -1479,10 +1479,13 @@ function statusClass(status) {
                 openFeedbackModal("Request Submitted", "Request submitted successfully.");
                 closeModal();
                 this.reset();
+                resetRequestSlotOptions();
                 applyServicePreferredDateMin();
                 resetUploadState();
             } catch (error) {
                 openFeedbackModal("Submission Failed", error.message || "Failed to submit request. Make sure backend is running.");
+                // The slot may have just closed or filled up: show the latest availability.
+                void refreshRequestSlotsForDate(document.getElementById('reqDate')?.value);
             }
         };
 
@@ -1492,12 +1495,12 @@ function statusClass(status) {
                 const response = await residentApiFetch(`${API_BASE_URL}/requests/${requestIdToDelete}`, { method: 'DELETE' });
                 const result = await response.json();
                 if (!response.ok || !result.ok) {
-                    throw new Error(result.message || 'Unable to delete request.');
+                    throw new Error(result.message || 'Unable to cancel request.');
                 }
                 closeDeleteModal();
                 await loadRequests();
             } catch (error) {
-                openFeedbackModal("Delete Failed", error.message || "Failed to delete request.");
+                openFeedbackModal("Cancel Failed", error.message || "Failed to cancel request.");
             }
         };
 
@@ -1518,7 +1521,10 @@ function statusClass(status) {
             if (v && v < todayISO) {
                 openFeedbackModal("Invalid date", "You can only select today or a future date.");
                 event.target.value = "";
+                resetRequestSlotOptions();
+                return;
             }
+            void refreshRequestSlotsForDate(v);
         });
 
         window.onload = async function () {
