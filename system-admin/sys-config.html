@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Configuration | SerbisyoBurgos</title>
-    <link rel="icon" type="image/png" href="../asset/SB.png">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#043d2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
+    <link rel="apple-touch-icon" href="../asset/icons/apple-touch-icon.png">
+    <script src="../shared/pwa.js" defer></script>
+    <link rel="icon" type="image/png" href="../asset/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
@@ -322,6 +330,7 @@
 <body>
 
     <script src="../shared/sidebar.js" data-portal="system-admin"></script>
+    <script src="../shared/user-badge.js"></script>
 
     <main>
         <div class="top-bar">
@@ -329,13 +338,7 @@
                 <h1 class="page-title">System Configuration and Maintenance</h1>
                 <p class="page-subtitle">Manage system settings, notification preferences, and service parameters.</p>
             </div>
-            <div class="user-profile">
-                <div class="user-avatar">SA</div>
-                <div style="line-height: 1.2;">
-                    <p style="font-weight: 700; font-size: 0.85rem;">System Admin</p>
-                    <p style="font-size: 0.75rem; color: var(--text-muted);">IT Personnel</p>
-                </div>
-            </div>
+            <user-badge></user-badge>
         </div>
 
         <div class="card">
@@ -636,7 +639,7 @@
                 if (!environmentConfirmModal || !environmentConfirmMessage) return;
                 const isMaintenance = pendingEnvironmentValue === "maintenance";
                 const extra = isMaintenance
-                    ? " While in Maintenance mode, residents, staff and barangay admins are blocked from the portal and only system administrators can sign in, until you switch back to Production."
+                    ? " While in Maintenance mode, residents and the Barangay Secretary are blocked from the portal and only system administrators can sign in, until you switch back to Production."
                     : " Production is the standard live operating mode.";
                 environmentConfirmMessage.textContent =
                     `Apply "${pendingEnvironmentLabel}" as the system environment? ${extra}`;
@@ -670,7 +673,7 @@
                     environmentSelect.value = committedEnvironmentValue;
                     showConfigMessage(
                         committedEnvironmentValue === "maintenance"
-                            ? "Maintenance mode is active. Residents, staff and barangay admins are locked out; only system administrators can use the portal until you switch back to Production."
+                            ? "Maintenance mode is active. Residents and the Barangay Secretary are locked out; only system administrators can use the portal until you switch back to Production."
                             : `System environment set to ${label}. Full portal access is restored.`
                     );
                     closeEnvironmentConfirmModal();

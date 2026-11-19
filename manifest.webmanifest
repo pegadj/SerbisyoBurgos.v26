@@ -1,0 +1,36 @@
+{
+  "id": "./",
+  "name": "SerbisyoBurgos",
+  "short_name": "SerbisyoBurgos",
+  "description": "Web-based appointment and service request system for the residents and personnel of Barangay Burgos, San Marcelino.",
+  "start_url": "./index.html?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#043d2e",
+  "lang": "en-PH",
+  "dir": "ltr",
+  "categories": ["government", "utilities"],
+  "icons": [
+    { "src": "asset/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "asset/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "asset/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Log in",
+      "short_name": "Log in",
+      "description": "Open the resident and Barangay Secretary login",
+      "url": "./login.html?source=shortcut",
+      "icons": [{ "src": "asset/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "How it works",
+      "short_name": "How it works",
+      "description": "See how to request services and book appointments",
+      "url": "./how-it-works.html?source=shortcut",
+      "icons": [{ "src": "asset/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

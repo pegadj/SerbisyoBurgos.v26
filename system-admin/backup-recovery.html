@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Backup & Recovery | SerbisyoBurgos</title>
-    <link rel="icon" type="image/png" href="../asset/SB.png">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#043d2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
+    <link rel="apple-touch-icon" href="../asset/icons/apple-touch-icon.png">
+    <script src="../shared/pwa.js" defer></script>
+    <link rel="icon" type="image/png" href="../asset/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
@@ -431,6 +439,7 @@
 <body>
 
     <script src="../shared/sidebar.js" data-portal="system-admin"></script>
+    <script src="../shared/user-badge.js"></script>
 
     <main>
         <div class="top-bar">
@@ -438,13 +447,7 @@
                 <h1 class="page-title">Data Backup and Recovery</h1>
                 <p class="page-subtitle">Download a copy of the system’s data and learn how to recover it.</p>
             </div>
-            <div class="user-profile">
-                <div class="user-avatar">SA</div>
-                <div style="line-height: 1.2;">
-                    <p style="font-weight: 700; font-size: 0.85rem;">System Admin</p>
-                    <p style="font-size: 0.75rem; color: var(--text-muted);">IT Personnel</p>
-                </div>
-            </div>
+            <user-badge></user-badge>
         </div>
 
         <!-- Database Stats Summary -->
@@ -548,7 +551,7 @@
                     </div>
                     <div class="inclusion-text">
                         <h4>User Accounts</h4>
-                        <p>All admin, staff and resident accounts. Passwords and login sessions are never included.</p>
+                        <p>All Barangay Secretary, system administrator and resident accounts. Passwords and login sessions are never included.</p>
                     </div>
                 </div>
 
@@ -853,8 +856,7 @@
         }
         const ROLE_LABELS = {
             resident: "Resident",
-            staff: "Barangay Staff",
-            admin: "Barangay Administrator",
+            staff: "Barangay Secretary",
             "system-admin": "System Administrator"
         };
         const PERMISSION_LABELS = {
@@ -959,7 +961,7 @@
             });
             [
                 ["Residents", residents.length],
-                ["Staff & Admins", staffAdmins.length],
+                ["Secretary & System Admins", staffAdmins.length],
                 ["Service Requests", requests.length],
                 ["Appointments", appointments.length],
                 ["Services", services.length],
@@ -998,13 +1000,13 @@
                 { header: "Registered On", get: (u) => fmtDateTime(u.createdAt) }
             ], residents);
 
-            addSheet("Staff & Admins", [
+            addSheet("Secretary & System Admins", [
                 { header: "Full Name", get: (u) => u.fullName || "" },
                 { header: "Email", get: (u) => u.email || "" },
                 { header: "Role", get: (u) => ROLE_LABELS[u.role] || u.role || "" },
                 { header: "Account Status", get: (u) => titleCase(u.accountStatus) },
                 {
-                    header: "Staff Permissions",
+                    header: "Secretary Permissions",
                     wide: true,
                     get: (u) =>
                         u.role === "staff" && u.staffPermissions

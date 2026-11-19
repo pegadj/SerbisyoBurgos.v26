@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Service Requests | SerbisyoBurgos</title>
-    <link rel="icon" type="image/png" href="../asset/SB.png">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#043d2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
+    <link rel="apple-touch-icon" href="../asset/icons/apple-touch-icon.png">
+    <script src="../shared/pwa.js" defer></script>
+    <link rel="icon" type="image/png" href="../asset/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -586,7 +594,7 @@
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </div>
             <h3>Cancel this request?</h3>
-            <p style="color: var(--text-muted); margin: 12px 0 24px;">Are you sure you want to cancel this request? Barangay staff will see it as cancelled. You can submit a new request anytime.</p>
+            <p style="color: var(--text-muted); margin: 12px 0 24px;">Are you sure you want to cancel this request? The Barangay Secretary will see it as cancelled. You can submit a new request anytime.</p>
             <div style="display: flex; gap: 12px; justify-content: center;">
                 <button onclick="closeDeleteModal()" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; cursor: pointer;">Keep Request</button>
                 <button id="confirmDeleteBtn" style="padding: 0.8rem 1.5rem; border-radius: 8px; border: none; background: var(--danger-red); color: white; font-weight: 600; cursor: pointer;">Cancel Request</button>

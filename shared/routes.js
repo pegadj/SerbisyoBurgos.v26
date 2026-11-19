@@ -8,7 +8,6 @@
     if (
       normalized.includes("/resident/") ||
       normalized.includes("/staff/") ||
-      normalized.includes("/admin/") ||
       normalized.includes("/system-admin/")
     ) {
       return "../";
@@ -30,13 +29,10 @@
       residentLogin: `${rootPrefix}login.html`,
       staffLogin: `${rootPrefix}login.html`
     },
+    // Barangay Secretary: one portal that covers the old staff pages and the old admin pages.
     staff: {
       login: `${rootPrefix}login.html`,
       dashboard: `${rootPrefix}staff/staff-dashboard.html`
-    },
-admin: {
-      login: `${rootPrefix}login.html`,
-      dashboard: `${rootPrefix}admin/service-mngmt.html`
     },
     systemAdmin: {
       login: `${rootPrefix}login.html`,

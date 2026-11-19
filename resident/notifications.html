@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bulletin Board | SerbisyoBurgos</title>
-    <link rel="icon" type="image/png" href="../asset/SB.png">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#043d2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
+    <link rel="apple-touch-icon" href="../asset/icons/apple-touch-icon.png">
+    <script src="../shared/pwa.js" defer></script>
+    <link rel="icon" type="image/png" href="../asset/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -298,7 +306,7 @@
             letter-spacing: 0.02em;
         }
         .notif-card.unread { border-left: 4px solid var(--brand-green); }
-        /* Request/appointment updates + new barangay admin posts */
+        /* Request/appointment updates + new barangay posts */
         .notif-card.bulletin-spotlight {
             background: linear-gradient(135deg, #fffbeb 0%, #fff7ed 55%, #ffffff 100%);
             border-color: #fcd34d;
@@ -711,8 +719,8 @@
 
         function formatPostedByDisplay(role) {
             const r = String(role || "").trim().toLowerCase();
-            if (r === "admin") return "Barangay admin";
-            if (r === "staff") return "Barangay staff";
+            // Admin and Staff were merged into one office (Barangay Secretary); older posts say "admin".
+            if (r === "admin" || r === "staff") return "Barangay Secretary";
             if (r === "system-admin") return "System admin";
             return r ? String(role).trim() : "Barangay office";
         }
@@ -897,7 +905,7 @@
             return (announcements || [])
                 .filter((a) => {
                     if (!onlyAdmin) return true;
-                    return String(a?.postedByRole || "").trim() === "admin";
+                    return ["admin", "staff"].includes(String(a?.postedByRole || "").trim().toLowerCase());
                 })
                 .map((a) => {
                     const id = normalizeAnnouncementId(a.id);
@@ -955,7 +963,7 @@
                     const isAnnouncement = row.type === "announcement";
                     const annId = isAnnouncement && row.announcementId !== null ? String(row.announcementId) : "";
                     const isAdminPost =
-                        row.type === "announcement" && String(row.postedByRole || "").toLowerCase() === "admin";
+                        row.type === "announcement" && ["admin", "staff"].includes(String(row.postedByRole || "").trim().toLowerCase());
                     const spotlight =
                         (isActivity && row.unread) || (isAdminPost && row.unread);
                     const spotlightClass = spotlight ? " bulletin-spotlight" : "";

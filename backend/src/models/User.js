@@ -12,14 +12,19 @@ const { Schema } = mongoose;
 // them split would just mean two round-trips (and two places that can go
 // out of sync) for data that's always read/written together. One
 // collection, one lookup, one source of truth.
-const USER_ROLES = ['resident', 'admin', 'staff', 'system-admin'];
+// 'staff' is the Barangay Secretary: the single barangay-side role. It carries everything the old
+// separate 'admin' role did (service catalog, users, analytics, announcements) plus the old staff
+// pages (requests, appointments, documents, profiling). The 'admin' role was removed; run
+// scripts/migrate-admin-to-staff.js once to convert any existing 'admin' accounts.
+const USER_ROLES = ['resident', 'staff', 'system-admin'];
 // 'pending'  = self-registered resident awaiting barangay approval (cannot log in yet)
 // 'rejected' = registration was reviewed and declined (cannot log in)
 // Accounts created before this change keep their stored value ('active', etc.).
 const ACCOUNT_STATUSES = ['pending', 'active', 'suspended', 'deactivated', 'rejected'];
 
-// 20260506_staff_permissions — jsonb shape, documented in the migration
-// comment as: { dashboard, appointmentScheduling, requestProcessing, documentGenerator }
+// 20260506_staff_permissions (LEGACY): per-page switches the old Barangay Admin could toggle.
+// The Barangay Secretary now has full access, so these are no longer enforced; the field is kept
+// only so existing documents still validate.
 const staffPermissionsSchema = new Schema({
   dashboard: { type: Boolean, default: false },
   appointmentScheduling: { type: Boolean, default: false },
@@ -79,6 +84,11 @@ const userSchema = new Schema({
   // bumping this invalidates every previously issued refresh token at once
   // (used on password change, account deactivation, or forced logout).
   tokenVersion: { type: Number, required: true, default: 0 },
+
+  // --- sign-in lockout (too many wrong passwords) ---
+  failedLoginCount: { type: Number, default: 0 },
+  lastFailedLoginAt: { type: Date, default: null },
+  lockedUntil: { type: Date, default: null },
 
   // --- from profiles (20260421 base) ---
   // (email/role above already cover the base profiles columns)

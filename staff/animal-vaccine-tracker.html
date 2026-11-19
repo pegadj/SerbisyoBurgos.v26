@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animal Vaccine Tracker | SerbisyoBurgos</title>
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#043d2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
+    <link rel="apple-touch-icon" href="../asset/icons/apple-touch-icon.png">
+    <script src="../shared/pwa.js" defer></script>
+    <link rel="icon" type="image/png" href="../asset/logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand-green: #16a34a;
+            --brand-dark: #043d2e;
+            --brand-blue: #2563eb;
+            --bg-light: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-width: 260px;
+            --white: #ffffff;
+            
+            /* Status Colors */
+            --status-pending-bg: #fef9c3;
+            --status-pending-text: #854d0e;
+            --status-processing-bg: #dbeafe;
+            --status-processing-text: #1d4ed8;
+            --status-pickup-bg: #f0fdf4;
+            --status-pickup-text: #16a34a;
+            --status-completed-bg: #f1f5f9;
+            --status-completed-text: #475569;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); color: var(--text-main); display: flex; min-height: 100vh; }
+
+        /* SIDEBAR NAVIGATION */
+        aside {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            color: var(--brand-dark);
+            font-size: 1.25rem;
+        }
+
+        .sidebar-header img {
+            width: 32px;
+            border-radius: 50%;
+            background: white;
+            padding: 3px;
+            border: 3px solid var(--brand-dark);
+        }
+        nav { flex-grow: 1; padding: 1rem; }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.85rem 1rem;
+            text-decoration: none;
+            color: var(--text-muted);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+
+        .nav-link:hover { background: #f8fafc; color: var(--brand-green); transform: translateY(-2px); opacity: 0.9; }
+        .nav-link.active { background: #f0fdf4; color: var(--brand-green); font-weight: 600; }
+
+        .sidebar-footer { padding: 1.5rem; border-top: 1px solid #f1f5f9; margin-top: auto; }
+
+        .logout-btn {
+            width: 100%;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff1f2;
+            color: #e11d48;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            border: none;
+            margin-top: 10px;
+        }
+
+        .logout-btn:hover {
+            background: #ffe4e6;
+        }
+
+        /* Sidebar theme */
+        aside {
+            background: #5f9632;
+            border-right: 1px solid rgba(4, 61, 46, 0.18);
+        }
+.sidebar-header {
+            padding: 1.75rem 1.25rem 1.25rem;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.75rem;
+color: white;
+            font-weight: 800;
+            text-align: center;
+        }
+        .sidebar-header img {
+            width: 54px !important;
+            height: 54px !important;
+            object-fit: contain;
+        }
+        .nav-link { color: rgba(255, 255, 255, 0.9); }
+        .nav-link:hover { background: #4f7f29; color: white; transform: none; opacity: 1; }
+        .nav-link.active { background: #426c22; color: white; }
+        .logout-btn { background: rgba(255, 255, 255, 0.14); color: white; }
+        .logout-btn:hover,
+        .logout-btn:focus-visible { background: #b91c1c; }
+        .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.18); }
+
+        /* MAIN CONTENT */
+        main { margin-left: var(--sidebar-width); flex-grow: 1; padding: 2.5rem; }
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--white);
+            padding: 6px 16px 6px 6px;
+            border-radius: 30px;
+            border: 1px solid #e2e8f0;
+        }
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            background: var(--brand-green);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+        .welcome-section { margin-bottom: 2rem; }
+        .top-bar .welcome-section { margin-bottom: 0; }
+        .welcome-section h1 { font-size: 1.875rem; color: var(--brand-dark); font-weight: 700; }
+        .welcome-section p { color: var(--text-muted); margin-top: 0.5rem; }
+
+        /* FILTER BAR */
+        .filter-bar {
+            background: white;
+            padding: 1.25rem 1.5rem;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-wrapper { position: relative; }
+        .search-wrapper input {
+            width: 100%;
+            padding: 0.7rem 0.7rem 0.7rem 2.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .search-wrapper input:focus { border-color: var(--brand-green); box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1); }
+        .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+
+        .filter-dropdown, .date-input { width: 100%; padding: 0.7rem; border: 1px solid #e2e8f0; border-radius: 10px; outline: none; background: white; }
+
+        .showing-text { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 500;}
+
+        /* REQUEST CARDS */
+        .request-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 1rem;
+            display: block; /* Changed from grid to block */
+            transition: all 0.2s ease;
+        }
+
+        .request-card:hover { border-color: var(--brand-green); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+        .title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+        .title-row h2 { font-size: 1.15rem; color: var(--brand-dark); font-weight: 600; }
+        
+        /* ROUNDER BADGES */
+        .badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-type { background: #e2e8f0; color: #475569; }
+        .badge-pending { background: var(--status-pending-bg); color: var(--status-pending-text); }
+        .badge-processing { background: var(--status-processing-bg); color: var(--status-processing-text); }
+        .badge-pickup { background: var(--status-pickup-bg); color: var(--status-pickup-text); }
+        .badge-completed { background: var(--status-completed-bg); color: var(--status-completed-text); }
+        .badge-approved { background: #d1fae5; color: #065f46; }
+        .badge-revision { background: #fef3c7; color: #92400e; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; }
+
+        .desc-text { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px; }
+        .meta-row { display: flex; align-items: center; gap: 1rem; font-size: 0.8rem; color: var(--text-muted); }
+
+        /* BUTTONS */
+        .btn-review {
+            background-color: var(--brand-green);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none; /* In case it's an <a> tag */
+            display: inline-block; /* Corrects alignment */
+            font-size: 0.85rem;
+        }
+
+        .btn-review:hover {
+            background-color: #15803d; /* Darker green on hover */
+        }
+
+        .btn-review--outline {
+            background-color: #ffffff;
+            color: var(--brand-green);
+            border: 1.5px solid var(--brand-green);
+            margin-left: 8px;
+        }
+        .btn-review--outline:hover { background-color: #f0fdf4; }
+
+        .pagination {
+            display: none;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .page-btn {
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: var(--text-main);
+            border-radius: 8px;
+            padding: 0.45rem 0.8rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .page-indicator {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin: 0 0.25rem;
+        }
+
+        .empty-state {
+            background: white;
+            border: 1px dashed #cbd5e1;
+            border-radius: 16px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-card {
+            width: 100%;
+            max-width: 420px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px rgba(2, 6, 23, 0.2);
+        }
+        .modal-title { font-size: 1.1rem; font-weight: 700; color: var(--brand-dark); margin-bottom: 0.6rem; }
+        .modal-text { font-size: 0.92rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.25rem; }
+        .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+        .modal-btn {
+            border: none;
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .modal-btn-cancel { background: #f1f5f9; color: #334155; }
+        .modal-btn-confirm { background: #e11d48; color: white; }
+
+
+        /* ===== Animal Vaccine Tracker ===== */
+        .av-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+        .av-btn { border: 1px solid #e2e8f0; background: white; color: #334155; border-radius: 10px; padding: 0.6rem 1rem; font-size: 0.88rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+        .av-btn:hover { background: #f8fafc; }
+        .av-btn.primary { background: var(--brand-green); border-color: var(--brand-green); color: #fff; }
+        .av-btn.primary:hover { background: #15803d; }
+        .av-btn.danger { color: #b91c1c; border-color: #fecaca; }
+        .av-btn.danger:hover { background: #fef2f2; }
+        .av-btn.small { padding: 0.35rem 0.7rem; font-size: 0.8rem; border-radius: 8px; }
+        .av-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .av-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.9rem; margin-bottom: 1.25rem; }
+        .av-stat { background: white; border: 1px solid #e2e8f0; border-radius: 14px; padding: 0.9rem 1rem; text-align: left; cursor: pointer; font-family: inherit; }
+        .av-stat:hover, .av-stat.active { border-color: var(--brand-green); box-shadow: 0 0 0 3px rgba(22,163,74,0.12); }
+        .av-stat .n { font-size: 1.6rem; font-weight: 700; color: var(--brand-dark); display: block; }
+        .av-stat .l { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; }
+        .av-filter { background: white; padding: 1rem 1.25rem; border-radius: 16px; border: 1px solid #e2e8f0; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+        .av-filter input, .av-filter select { width: 100%; padding: 0.7rem; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; font-family: inherit; background: white; }
+        .av-filter input:focus, .av-filter select:focus { outline: none; border-color: var(--brand-green); box-shadow: 0 0 0 3px rgba(22,163,74,0.12); }
+        .av-table-wrap { background: white; border: 1px solid #e2e8f0; border-radius: 16px; overflow-x: auto; }
+        table.av-table { width: 100%; border-collapse: collapse; min-width: 860px; }
+        .av-table th { text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); padding: 0.85rem 1rem; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+        .av-table td { padding: 0.85rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; vertical-align: middle; }
+        .av-table tr:last-child td { border-bottom: none; }
+        .av-sub { display: block; font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+        .av-empty { text-align: center; color: var(--text-muted); padding: 2.5rem 1rem; }
+        .av-badge { display: inline-block; padding: 4px 12px; border-radius: 30px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+        .av-badge.ok { background: #dcfce7; color: #166534; }
+        .av-badge.soon { background: #fef9c3; color: #854d0e; }
+        .av-badge.over { background: #fee2e2; color: #991b1b; }
+        .av-badge.none { background: #e2e8f0; color: #475569; }
+        .av-pager { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1rem; font-size: 0.85rem; color: var(--text-muted); }
+        .av-pager .btns { display: flex; gap: 0.5rem; }
+        .modal-card.av-wide { max-width: 720px; max-height: 92vh; overflow-y: auto; }
+        .av-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem 1rem; }
+        .av-form-grid .full { grid-column: 1 / -1; }
+        .av-field label { display: block; font-size: 0.78rem; font-weight: 600; color: #334155; margin-bottom: 4px; }
+        .av-field input, .av-field select, .av-field textarea { width: 100%; padding: 0.6rem 0.7rem; border: 1px solid #e2e8f0; border-radius: 9px; font-size: 0.9rem; font-family: inherit; background: white; }
+        .av-field input:focus, .av-field select:focus, .av-field textarea:focus { outline: none; border-color: var(--brand-green); box-shadow: 0 0 0 3px rgba(22,163,74,0.12); }
+        .av-section-title { font-size: 0.8rem; font-weight: 700; color: var(--brand-dark); text-transform: uppercase; letter-spacing: 0.04em; margin: 1.1rem 0 0.6rem; padding-top: 0.9rem; border-top: 1px solid #f1f5f9; }
+        .av-section-title.first { border-top: none; padding-top: 0; margin-top: 0; }
+        .av-owner-results { border: 1px solid #e2e8f0; border-radius: 10px; margin-top: 6px; max-height: 190px; overflow-y: auto; background: white; }
+        .av-owner-results button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 0.55rem 0.8rem; cursor: pointer; font-family: inherit; font-size: 0.88rem; border-bottom: 1px solid #f1f5f9; }
+        .av-owner-results button:hover { background: #f0fdf4; }
+        .av-owner-chip { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: 9px; padding: 0.45rem 0.7rem; font-size: 0.85rem; margin-top: 6px; }
+        .av-link-btn { background: none; border: none; color: #166534; font-weight: 700; cursor: pointer; font-size: 0.8rem; font-family: inherit; }
+        .av-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1.5rem; font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .av-detail-grid dt { font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.04em; }
+        .av-detail-grid dd { margin: 0 0 0.4rem; color: #1e293b; }
+        .av-msg { font-size: 0.85rem; min-height: 1.1rem; margin-top: 0.6rem; color: #b91c1c; }
+        .av-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #043d2e; color: white; padding: 0.75rem 1.1rem; border-radius: 10px; font-size: 0.9rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 1200; opacity: 0; transform: translateY(8px); transition: all 0.2s; pointer-events: none; }
+        .av-toast.show { opacity: 1; transform: none; }
+        .av-toast.err { background: #b91c1c; }
+        @media (max-width: 900px) {
+            .av-stats { grid-template-columns: repeat(2, 1fr); }
+            .av-filter { grid-template-columns: 1fr; }
+            .av-form-grid, .av-detail-grid { grid-template-columns: 1fr; }
+        }
+
+        [hidden] { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <script src="../shared/sidebar.js" data-portal="staff"></script>
+    <script src="../shared/user-badge.js"></script>
+
+    <main>
+        <div class="top-bar">
+            <section class="welcome-section">
+                <h1 id="pageHeading">Animal Vaccine Tracker</h1>
+                <p>Register animals, record vaccinations and see which ones are due for a booster</p>
+            </section>
+
+            <user-badge></user-badge>
+        </div>
+
+        <div class="av-actions">
+            <button type="button" class="av-btn primary" id="addAnimalBtn">+ Add Animal</button>
+            <button type="button" class="av-btn" id="exportBtn">Export CSV</button>
+            <button type="button" class="av-btn" id="toggleArchivedBtn">View archived</button>
+        </div>
+
+        <div class="av-stats" id="statsRow">
+            <button type="button" class="av-stat active" data-status="all"><span class="n" id="statTotal">0</span><span class="l">Total animals</span></button>
+            <button type="button" class="av-stat" data-status="Up to Date"><span class="n" id="statOk">0</span><span class="l">Up to date</span></button>
+            <button type="button" class="av-stat" data-status="Due Soon"><span class="n" id="statSoon">0</span><span class="l">Due within 30 days</span></button>
+            <button type="button" class="av-stat" data-status="Overdue"><span class="n" id="statOver">0</span><span class="l">Overdue</span></button>
+            <button type="button" class="av-stat" data-status="Not Vaccinated"><span class="n" id="statNone">0</span><span class="l">Not vaccinated</span></button>
+        </div>
+
+        <div class="av-filter">
+            <input type="text" id="searchInput" placeholder="Search animal, owner, breed or code…" autocomplete="off">
+            <select id="speciesFilter">
+                <option value="all">All animals</option>
+                <option value="Dog">Dogs</option>
+                <option value="Cat">Cats</option>
+                <option value="Other">Other</option>
+            </select>
+            <select id="statusFilter">
+                <option value="all">All status</option>
+                <option value="Up to Date">Up to date</option>
+                <option value="Due Soon">Due soon</option>
+                <option value="Overdue">Overdue</option>
+                <option value="Not Vaccinated">Not vaccinated</option>
+            </select>
+        </div>
+
+        <div class="av-table-wrap">
+            <table class="av-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Animal</th>
+                        <th>Owner</th>
+                        <th>Last vaccinated</th>
+                        <th>Next due</th>
+                        <th>Status</th>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="animalsBody">
+                    <tr><td colspan="7" class="av-empty">Loading…</td></tr>
+                </tbody>
+            </table>
+            <div class="av-pager">
+                <span id="pagerInfo"></span>
+                <div class="btns">
+                    <button type="button" class="av-btn small" id="prevPageBtn">Previous</button>
+                    <button type="button" class="av-btn small" id="nextPageBtn">Next</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add / edit animal -->
+    <div id="animalModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="animalModalTitle">
+        <div class="modal-card av-wide">
+            <h2 class="modal-title" id="animalModalTitle">Add Animal</h2>
+
+            <div class="av-section-title first">Owner</div>
+            <div class="av-field">
+                <label for="ownerSearch">Find a resident (optional)</label>
+                <input type="text" id="ownerSearch" placeholder="Type a name, Resident ID or contact number…" autocomplete="off">
+                <div id="ownerResults" class="av-owner-results" hidden></div>
+                <div id="ownerChip" class="av-owner-chip" hidden>
+                    <span id="ownerChipText"></span>
+                    <button type="button" class="av-link-btn" id="ownerUnlinkBtn">Unlink</button>
+                </div>
+            </div>
+            <div class="av-form-grid" style="margin-top:0.8rem;">
+                <div class="av-field">
+                    <label for="ownerName">Owner name *</label>
+                    <input type="text" id="ownerName" maxlength="120">
+                </div>
+                <div class="av-field">
+                    <label for="ownerContact">Contact number</label>
+                    <input type="text" id="ownerContact" maxlength="30">
+                </div>
+                <div class="av-field full">
+                    <label for="ownerAddress">Address / Purok</label>
+                    <input type="text" id="ownerAddress" maxlength="250">
+                </div>
+            </div>
+
+            <div class="av-section-title">Animal</div>
+            <div class="av-form-grid">
+                <div class="av-field">
+                    <label for="animalName">Animal name *</label>
+                    <input type="text" id="animalName" maxlength="80">
+                </div>
+                <div class="av-field">
+                    <label for="animalSpecies">Species *</label>
+                    <select id="animalSpecies">
+                        <option value="Dog">Dog</option>
+                        <option value="Cat">Cat</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="av-field full" id="speciesOtherWrap" hidden>
+                    <label for="animalSpeciesOther">What kind of animal? *</label>
+                    <input type="text" id="animalSpeciesOther" maxlength="60">
+                </div>
+                <div class="av-field">
+                    <label for="animalBreed">Breed</label>
+                    <input type="text" id="animalBreed" maxlength="80">
+                </div>
+                <div class="av-field">
+                    <label for="animalColor">Color</label>
+                    <input type="text" id="animalColor" maxlength="60">
+                </div>
+                <div class="av-field">
+                    <label for="animalSex">Sex</label>
+                    <select id="animalSex">
+                        <option value="Unknown">Unknown</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </div>
+                <div class="av-field">
+                    <label for="animalBirthDate">Birth date (approximate is fine)</label>
+                    <input type="date" id="animalBirthDate">
+                </div>
+            </div>
+
+            <div id="firstDoseSection">
+                <div class="av-section-title">First vaccination (optional)</div>
+                <div class="av-form-grid">
+                    <div class="av-field">
+                        <label for="firstVaccine">Vaccine</label>
+                        <input type="text" id="firstVaccine" maxlength="80" list="vaccineList" placeholder="e.g. Anti-Rabies">
+                    </div>
+                    <div class="av-field">
+                        <label for="firstDateGiven">Date given</label>
+                        <input type="date" id="firstDateGiven">
+                    </div>
+                    <div class="av-field">
+                        <label for="firstNextDue">Next due date (booster)</label>
+                        <input type="date" id="firstNextDue">
+                    </div>
+                    <div class="av-field">
+                        <label for="firstAdministeredBy">Administered by</label>
+                        <input type="text" id="firstAdministeredBy" maxlength="120">
+                    </div>
+                </div>
+            </div>
+
+            <p class="av-msg" id="animalMsg" role="alert"></p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="animalCancelBtn">Cancel</button>
+                <button type="button" class="modal-btn" style="background:var(--brand-green);color:#fff;" id="animalSaveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Animal details + vaccination history -->
+    <div id="detailModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+        <div class="modal-card av-wide">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
+                <div>
+                    <h2 class="modal-title" id="detailTitle" style="margin-bottom:0.2rem;">Animal</h2>
+                    <span id="detailBadge"></span>
+                </div>
+                <div style="display:flex; gap:0.5rem;">
+                    <button type="button" class="av-btn small" id="detailEditBtn">Edit</button>
+                    <button type="button" class="av-btn small danger" id="detailArchiveBtn">Archive</button>
+                </div>
+            </div>
+
+            <dl class="av-detail-grid" style="margin-top:1rem;" id="detailInfo"></dl>
+
+            <div class="av-section-title">Vaccination history</div>
+            <div style="overflow-x:auto;">
+                <table class="av-table" style="min-width:560px;">
+                    <thead><tr><th>Vaccine</th><th>Given</th><th>Next due</th><th>By</th><th></th></tr></thead>
+                    <tbody id="doseBody"></tbody>
+                </table>
+            </div>
+
+            <div class="av-section-title" id="doseFormTitle">Record a vaccination</div>
+            <div class="av-form-grid" id="doseForm">
+                <div class="av-field">
+                    <label for="doseVaccine">Vaccine *</label>
+                    <input type="text" id="doseVaccine" maxlength="80" list="vaccineList" placeholder="e.g. Anti-Rabies">
+                </div>
+                <div class="av-field">
+                    <label for="doseDateGiven">Date given *</label>
+                    <input type="date" id="doseDateGiven">
+                </div>
+                <div class="av-field">
+                    <label for="doseNextDue">Next due date (booster)</label>
+                    <input type="date" id="doseNextDue">
+                </div>
+                <div class="av-field">
+                    <label for="doseAdministeredBy">Administered by</label>
+                    <input type="text" id="doseAdministeredBy" maxlength="120">
+                </div>
+                <div class="av-field">
+                    <label for="doseBatchNo">Batch / lot no.</label>
+                    <input type="text" id="doseBatchNo" maxlength="60">
+                </div>
+                <div class="av-field">
+                    <label for="doseRemarks">Remarks</label>
+                    <input type="text" id="doseRemarks" maxlength="300">
+                </div>
+            </div>
+            <p class="av-msg" id="doseMsg" role="alert"></p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="detailCloseBtn">Close</button>
+                <button type="button" class="modal-btn modal-btn-cancel" id="doseCancelEditBtn" hidden>Cancel edit</button>
+                <button type="button" class="modal-btn" style="background:var(--brand-green);color:#fff;" id="doseSaveBtn">Save vaccination</button>
+            </div>
+        </div>
+    </div>
+
+    <datalist id="vaccineList">
+        <option value="Anti-Rabies"></option>
+        <option value="5-in-1 (DHPP)"></option>
+        <option value="Parvovirus"></option>
+        <option value="Distemper"></option>
+        <option value="Leptospirosis"></option>
+        <option value="Kennel Cough (Bordetella)"></option>
+        <option value="Feline 4-in-1"></option>
+        <option value="Deworming"></option>
+    </datalist>
+
+    <!-- Generic confirm -->
+    <div id="confirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <div class="modal-card">
+            <h2 class="modal-title" id="confirmTitle">Confirm</h2>
+            <p class="modal-text" id="confirmText"></p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="confirmCancelBtn">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-confirm" id="confirmOkBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="av-toast" role="status" aria-live="polite"></div>
+
+    <div id="logoutModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+        <div class="modal-card">
+            <h2 class="modal-title" id="logoutModalTitle">Confirm Logout</h2>
+            <p class="modal-text">Are you sure you want to logout?</p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="logoutCancelBtn">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-confirm" id="logoutConfirmBtn">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/routes.js"></script>
+    <script src="../shared/maintenance-check.js"></script>
+    <script>
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
+        const STAFF_ROUTES = window.APP_ROUTES?.staff || { login: "../login.html", dashboard: "staff-dashboard.html" };
+        const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "index.html" };
+        function applyStaffRouteLinks() {
+            document.querySelectorAll('a[href="staff-dashboard.html"]').forEach((link) => {
+                link.href = STAFF_ROUTES.dashboard;
+            });
+            document.querySelectorAll('a[href="index.html"]').forEach((link) => {
+                link.href = COMMON_ROUTES.landing;
+            });
+        }
+        applyStaffRouteLinks();
+
+        function initialsFromName(name) {
+            if (!name || typeof name !== "string") return "—";
+            const parts = name.trim().split(/\s+/).filter(Boolean);
+            if (!parts.length) return "—";
+            if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+
+        function roleLabel(role) {
+            if (role === "system-admin") return "System Admin";
+            if (role === "staff") return "Barangay Secretary";
+            return role || "Secretary";
+        }
+
+        async function verifyBackendRole(requiredRole, accessToken) {
+            const response = await fetch(`${API_BASE_URL}/auth/admin/authorize/${encodeURIComponent(requiredRole)}`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${accessToken}`
+                }
+            });
+            if (!response.ok) throw new Error("Role authorization failed");
+        }
+
+        async function applySessionSidebar() {
+            try {
+                const raw = sessionStorage.getItem("adminAuth");
+                if (!raw) {
+                    window.location.href = STAFF_ROUTES.login;
+                    return;
+                }
+                const { user, session } = JSON.parse(raw);
+                if (!user || user.role !== "staff") {
+                    window.location.href = STAFF_ROUTES.login;
+                    return;
+                }
+                const accessToken = session?.accessToken;
+                if (!accessToken) {
+                    window.location.href = STAFF_ROUTES.login;
+                    return;
+                }
+                await verifyBackendRole("staff", accessToken);
+                if (await window.SB_MAINTENANCE?.redirectStaffPortalFromMaintenanceIfNeeded?.()) return;
+                const welcomeEl = document.getElementById("welcomeHeading");
+                const display = user.fullName || user.email || "Secretary";
+                if (welcomeEl) welcomeEl.textContent = user.fullName ? `Welcome, ${user.fullName}!` : "Welcome!";
+            } catch (_e) {
+                window.location.href = STAFF_ROUTES.login;
+            }
+        }
+
+        const adminLogoutBtn = document.getElementById("adminLogoutBtn");
+        const logoutModal = document.getElementById("logoutModal");
+        const logoutCancelBtn = document.getElementById("logoutCancelBtn");
+        const logoutConfirmBtn = document.getElementById("logoutConfirmBtn");
+
+        function openLogoutModal() {
+            if (logoutModal) logoutModal.classList.add("show");
+        }
+
+        function closeLogoutModal() {
+            if (logoutModal) logoutModal.classList.remove("show");
+        }
+
+        adminLogoutBtn?.addEventListener("click", (event) => {
+            event.preventDefault();
+            openLogoutModal();
+        });
+
+        logoutCancelBtn?.addEventListener("click", closeLogoutModal);
+        logoutModal?.addEventListener("click", (event) => {
+            if (event.target === logoutModal) closeLogoutModal();
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") closeLogoutModal();
+        });
+        logoutConfirmBtn?.addEventListener("click", () => {
+            if (window.APP_NAV?.logout) {
+                window.APP_NAV.logout();
+                return;
+            }
+            sessionStorage.removeItem("adminAuth");
+            window.location.href = COMMON_ROUTES.landing;
+        });
+
+        applySessionSidebar();
+
+        // ===================== Animal Vaccine Tracker =====================
+        const PAGE_SIZE = 10;
+        let animals = [];
+        let todayISO = new Date().toISOString().slice(0, 10);
+        let showArchived = false;
+        let currentPage = 1;
+        let activeStatus = "all";
+        let editingAnimalId = null;
+        let linkedOwner = null;
+        let detailAnimalId = null;
+        let editingDoseId = null;
+        let confirmAction = null;
+        let ownerSearchTimer = null;
+
+        const $ = (id) => document.getElementById(id);
+
+        function authHeaders() {
+            try {
+                const raw = sessionStorage.getItem("adminAuth");
+                const t = raw ? JSON.parse(raw).session?.accessToken : null;
+                return t ? { Authorization: `Bearer ${t}` } : {};
+            } catch (_e) {
+                return {};
+            }
+        }
+
+        async function api(path, options = {}) {
+            const headers = { ...authHeaders(), ...(options.body ? { "Content-Type": "application/json" } : {}) };
+            const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json?.ok === false) {
+                throw new Error(json?.message || `Request failed (${res.status}).`);
+            }
+            return json;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+
+        function formatDate(iso) {
+            if (!iso) return "—";
+            const d = new Date(`${iso}T12:00:00`);
+            if (Number.isNaN(d.getTime())) return "—";
+            return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+        }
+
+        function speciesLabel(a) {
+            return a.species === "Other" ? (a.speciesOther || "Other") : a.species;
+        }
+
+        function statusBadge(status) {
+            const cls = status === "Up to Date" ? "ok" : status === "Due Soon" ? "soon" : status === "Overdue" ? "over" : "none";
+            return `<span class="av-badge ${cls}">${escapeHtml(status)}</span>`;
+        }
+
+        let toastTimer = null;
+        function toast(message, isError) {
+            const el = $("toast");
+            el.textContent = message;
+            el.classList.toggle("err", Boolean(isError));
+            el.classList.add("show");
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+        }
+
+        // ---------- list ----------
+        async function loadAnimals() {
+            try {
+                const json = await api(`/staff/animals?archived=${showArchived ? 1 : 0}`);
+                animals = json.animals || [];
+                if (json.today) todayISO = json.today;
+                applyDateLimits();
+                render();
+            } catch (err) {
+                $("animalsBody").innerHTML = `<tr><td colspan="7" class="av-empty" style="color:#b91c1c;">${escapeHtml(err.message || "Unable to load animal records.")}</td></tr>`;
+            }
+        }
+
+        function applyDateLimits() {
+            ["animalBirthDate", "firstDateGiven", "doseDateGiven"].forEach((id) => { if ($(id)) $(id).max = todayISO; });
+        }
+
+        function filteredAnimals() {
+            const q = $("searchInput").value.trim().toLowerCase();
+            const species = $("speciesFilter").value;
+            const status = $("statusFilter").value;
+            return animals.filter((a) => {
+                if (species !== "all" && a.species !== species) return false;
+                if (status !== "all" && a.status !== status) return false;
+                if (!q) return true;
+                return [a.name, a.ownerName, a.breed, a.animalCode, a.ownerContact, speciesLabel(a)]
+                    .some((v) => String(v || "").toLowerCase().includes(q));
+            });
+        }
+
+        function render() {
+            const counts = { total: animals.length, ok: 0, soon: 0, over: 0, none: 0 };
+            animals.forEach((a) => {
+                if (a.status === "Up to Date") counts.ok += 1;
+                else if (a.status === "Due Soon") counts.soon += 1;
+                else if (a.status === "Overdue") counts.over += 1;
+                else counts.none += 1;
+            });
+            $("statTotal").textContent = counts.total;
+            $("statOk").textContent = counts.ok;
+            $("statSoon").textContent = counts.soon;
+            $("statOver").textContent = counts.over;
+            $("statNone").textContent = counts.none;
+            document.querySelectorAll(".av-stat").forEach((b) => b.classList.toggle("active", b.dataset.status === $("statusFilter").value || (b.dataset.status === "all" && $("statusFilter").value === "all")));
+
+            const list = filteredAnimals();
+            const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+            if (currentPage > pages) currentPage = pages;
+            const slice = list.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+            if (!slice.length) {
+                $("animalsBody").innerHTML = `<tr><td colspan="7" class="av-empty">${showArchived ? "No archived animal records." : "No animal records found. Click “Add Animal” to register one."}</td></tr>`;
+            } else {
+                $("animalsBody").innerHTML = slice.map((a) => `
+                    <tr>
+                        <td><b>${escapeHtml(a.animalCode)}</b></td>
+                        <td>${escapeHtml(a.name)}<span class="av-sub">${escapeHtml(speciesLabel(a))}${a.breed ? " · " + escapeHtml(a.breed) : ""}</span></td>
+                        <td>${escapeHtml(a.ownerName)}<span class="av-sub">${escapeHtml(a.ownerContact || a.ownerAddress || "")}</span></td>
+                        <td>${escapeHtml(formatDate(a.lastVaccinatedOn))}</td>
+                        <td>${escapeHtml(formatDate(a.nextDueDate))}</td>
+                        <td>${statusBadge(a.status)}</td>
+                        <td style="text-align:right; white-space:nowrap;">
+                            <button type="button" class="av-btn small" data-view="${escapeHtml(a.id)}">View</button>
+                            ${showArchived
+                                ? `<button type="button" class="av-btn small" data-restore="${escapeHtml(a.id)}">Restore</button>`
+                                : `<button type="button" class="av-btn small danger" data-archive="${escapeHtml(a.id)}">Archive</button>`}
+                        </td>
+                    </tr>`).join("");
+            }
+            $("pagerInfo").textContent = list.length
+                ? `Showing ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, list.length)} of ${list.length}`
+                : "";
+            $("prevPageBtn").disabled = currentPage <= 1;
+            $("nextPageBtn").disabled = currentPage >= pages;
+        }
+
+        function upsertAnimal(animal) {
+            const i = animals.findIndex((a) => a.id === animal.id);
+            if (i >= 0) animals[i] = animal;
+            else animals.unshift(animal);
+        }
+
+        function removeAnimalFromList(id) {
+            animals = animals.filter((a) => a.id !== id);
+        }
+
+        // ---------- confirm ----------
+        function askConfirm({ title, text, okLabel, onConfirm }) {
+            $("confirmTitle").textContent = title;
+            $("confirmText").textContent = text;
+            $("confirmOkBtn").textContent = okLabel || "Confirm";
+            confirmAction = onConfirm;
+            $("confirmModal").classList.add("show");
+        }
+        function closeConfirm() {
+            $("confirmModal").classList.remove("show");
+            confirmAction = null;
+        }
+
+        // ---------- add / edit animal ----------
+        function setOwnerChip() {
+            const chip = $("ownerChip");
+            if (linkedOwner) {
+                $("ownerChipText").textContent = `Linked: ${linkedOwner.fullName}${linkedOwner.residentId ? " (" + linkedOwner.residentId + ")" : ""}`;
+                chip.hidden = false;
+            } else {
+                chip.hidden = true;
+            }
+        }
+
+        function toggleSpeciesOther() {
+            $("speciesOtherWrap").hidden = $("animalSpecies").value !== "Other";
+        }
+
+        function openAnimalModal(animal) {
+            editingAnimalId = animal ? animal.id : null;
+            $("animalModalTitle").textContent = animal ? "Edit Animal" : "Add Animal";
+            $("animalMsg").textContent = "";
+            $("ownerSearch").value = "";
+            $("ownerResults").hidden = true;
+            linkedOwner = animal && animal.ownerUserId
+                ? { id: animal.ownerUserId, fullName: animal.ownerName, residentId: animal.ownerResidentId }
+                : null;
+            setOwnerChip();
+            $("ownerName").value = animal?.ownerName || "";
+            $("ownerContact").value = animal?.ownerContact || "";
+            $("ownerAddress").value = animal?.ownerAddress || "";
+            $("animalName").value = animal?.name || "";
+            $("animalSpecies").value = animal?.species || "Dog";
+            $("animalSpeciesOther").value = animal?.speciesOther || "";
+            $("animalBreed").value = animal?.breed || "";
+            $("animalColor").value = animal?.color || "";
+            $("animalSex").value = animal?.sex || "Unknown";
+            $("animalBirthDate").value = animal?.birthDate || "";
+            toggleSpeciesOther();
+            $("firstDoseSection").hidden = Boolean(animal);
+            ["firstVaccine", "firstNextDue", "firstAdministeredBy"].forEach((id) => { $(id).value = ""; });
+            $("firstDateGiven").value = todayISO;
+            $("animalModal").classList.add("show");
+            setTimeout(() => (animal ? $("animalName") : $("ownerSearch")).focus(), 0);
+        }
+
+        function closeAnimalModal() {
+            $("animalModal").classList.remove("show");
+            editingAnimalId = null;
+        }
+
+        async function searchOwners(q) {
+            const box = $("ownerResults");
+            if (q.trim().length < 2) {
+                box.hidden = true;
+                return;
+            }
+            try {
+                const json = await api(`/staff/animals/owners?q=${encodeURIComponent(q.trim())}`);
+                const owners = json.owners || [];
+                box.innerHTML = owners.length
+                    ? owners.map((o) => `<button type="button" data-owner='${escapeHtml(JSON.stringify(o))}'>${escapeHtml(o.fullName)} <span class="av-sub">${escapeHtml([o.residentId, o.contactNumber].filter(Boolean).join(" · "))}</span></button>`).join("")
+                    : `<div class="av-empty" style="padding:0.8rem;">No matching resident. You can type the owner's details below.</div>`;
+                box.hidden = false;
+            } catch (_e) {
+                box.hidden = true;
+            }
+        }
+
+        async function saveAnimal() {
+            const msg = $("animalMsg");
+            msg.textContent = "";
+            const body = {
+                ownerName: $("ownerName").value,
+                ownerContact: $("ownerContact").value,
+                ownerAddress: $("ownerAddress").value,
+                ownerUserId: linkedOwner ? linkedOwner.id : "",
+                name: $("animalName").value,
+                species: $("animalSpecies").value,
+                speciesOther: $("animalSpeciesOther").value,
+                breed: $("animalBreed").value,
+                color: $("animalColor").value,
+                sex: $("animalSex").value,
+                birthDate: $("animalBirthDate").value
+            };
+            if (!editingAnimalId && $("firstVaccine").value.trim()) {
+                if (!$("firstDateGiven").value) {
+                    msg.textContent = "Please enter the date the first vaccine was given.";
+                    return;
+                }
+                body.vaccination = {
+                    vaccine: $("firstVaccine").value,
+                    dateGiven: $("firstDateGiven").value,
+                    nextDueDate: $("firstNextDue").value,
+                    administeredBy: $("firstAdministeredBy").value
+                };
+            }
+            const btn = $("animalSaveBtn");
+            btn.disabled = true;
+            try {
+                const json = editingAnimalId
+                    ? await api(`/staff/animals/${editingAnimalId}`, { method: "PATCH", body: JSON.stringify(body) })
+                    : await api("/staff/animals", { method: "POST", body: JSON.stringify(body) });
+                upsertAnimal(json.animal);
+                render();
+                const wasEditing = Boolean(editingAnimalId);
+                closeAnimalModal();
+                toast(wasEditing ? "Animal record updated." : `Animal registered (${json.animal.animalCode}).`);
+                if (wasEditing && detailAnimalId === json.animal.id) renderDetail();
+            } catch (err) {
+                msg.textContent = err.message || "Unable to save.";
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // ---------- detail + vaccinations ----------
+        function currentDetail() {
+            return animals.find((a) => a.id === detailAnimalId) || null;
+        }
+
+        function resetDoseForm() {
+            editingDoseId = null;
+            ["doseVaccine", "doseNextDue", "doseAdministeredBy", "doseBatchNo", "doseRemarks"].forEach((id) => { $(id).value = ""; });
+            $("doseDateGiven").value = todayISO;
+            $("doseFormTitle").textContent = "Record a vaccination";
+            $("doseSaveBtn").textContent = "Save vaccination";
+            $("doseCancelEditBtn").hidden = true;
+            $("doseMsg").textContent = "";
+        }
+
+        function renderDetail() {
+            const a = currentDetail();
+            if (!a) return;
+            $("detailTitle").textContent = `${a.name} · ${a.animalCode}`;
+            $("detailBadge").innerHTML = statusBadge(a.status);
+            const row = (label, value) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || "—")}</dd></div>`;
+            $("detailInfo").innerHTML = [
+                row("Owner", a.ownerName),
+                row("Contact", a.ownerContact),
+                row("Address / Purok", a.ownerAddress),
+                row("Resident ID", a.ownerResidentId),
+                row("Species", speciesLabel(a)),
+                row("Breed", a.breed),
+                row("Color", a.color),
+                row("Sex", a.sex),
+                row("Birth date", a.birthDate ? formatDate(a.birthDate) : ""),
+                row("Next due", a.nextDueDate ? formatDate(a.nextDueDate) : "")
+            ].join("");
+            const archived = Boolean(a.archivedAt);
+            $("detailEditBtn").hidden = archived;
+            $("detailArchiveBtn").hidden = archived;
+            $("doseForm").hidden = archived;
+            $("doseFormTitle").hidden = archived;
+            $("doseSaveBtn").hidden = archived;
+            $("doseBody").innerHTML = a.vaccinations.length
+                ? a.vaccinations.map((v) => `
+                    <tr>
+                        <td>${escapeHtml(v.vaccine)}${v.batchNo ? `<span class="av-sub">Batch ${escapeHtml(v.batchNo)}</span>` : ""}${v.remarks ? `<span class="av-sub">${escapeHtml(v.remarks)}</span>` : ""}</td>
+                        <td>${escapeHtml(formatDate(v.dateGiven))}</td>
+                        <td>${escapeHtml(formatDate(v.nextDueDate))}</td>
+                        <td>${escapeHtml(v.administeredBy || "—")}</td>
+                        <td style="text-align:right; white-space:nowrap;">${archived ? "" : `
+                            <button type="button" class="av-btn small" data-dose-edit="${escapeHtml(v.id)}">Edit</button>
+                            <button type="button" class="av-btn small danger" data-dose-remove="${escapeHtml(v.id)}">Remove</button>`}</td>
+                    </tr>`).join("")
+                : `<tr><td colspan="5" class="av-empty" style="padding:1.2rem;">No vaccinations recorded yet.</td></tr>`;
+        }
+
+        function openDetail(id) {
+            detailAnimalId = id;
+            resetDoseForm();
+            renderDetail();
+            $("detailModal").classList.add("show");
+        }
+
+        function closeDetail() {
+            $("detailModal").classList.remove("show");
+            detailAnimalId = null;
+            editingDoseId = null;
+        }
+
+        async function saveDose() {
+            const a = currentDetail();
+            if (!a) return;
+            const msg = $("doseMsg");
+            msg.textContent = "";
+            const body = {
+                vaccine: $("doseVaccine").value,
+                dateGiven: $("doseDateGiven").value,
+                nextDueDate: $("doseNextDue").value,
+                administeredBy: $("doseAdministeredBy").value,
+                batchNo: $("doseBatchNo").value,
+                remarks: $("doseRemarks").value
+            };
+            const btn = $("doseSaveBtn");
+            btn.disabled = true;
+            try {
+                const json = editingDoseId
+                    ? await api(`/staff/animals/${a.id}/vaccinations/${editingDoseId}`, { method: "PATCH", body: JSON.stringify(body) })
+                    : await api(`/staff/animals/${a.id}/vaccinations`, { method: "POST", body: JSON.stringify(body) });
+                const wasEditing = Boolean(editingDoseId);
+                upsertAnimal(json.animal);
+                resetDoseForm();
+                renderDetail();
+                render();
+                toast(wasEditing ? "Vaccination updated." : "Vaccination recorded.");
+            } catch (err) {
+                msg.textContent = err.message || "Unable to save the vaccination.";
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function startEditDose(doseId) {
+            const a = currentDetail();
+            const v = a?.vaccinations.find((d) => d.id === doseId);
+            if (!v) return;
+            editingDoseId = v.id;
+            $("doseVaccine").value = v.vaccine;
+            $("doseDateGiven").value = v.dateGiven;
+            $("doseNextDue").value = v.nextDueDate || "";
+            $("doseAdministeredBy").value = v.administeredBy || "";
+            $("doseBatchNo").value = v.batchNo || "";
+            $("doseRemarks").value = v.remarks || "";
+            $("doseFormTitle").textContent = "Edit vaccination";
+            $("doseSaveBtn").textContent = "Update vaccination";
+            $("doseCancelEditBtn").hidden = false;
+            $("doseMsg").textContent = "";
+            $("doseVaccine").focus();
+        }
+
+        function removeDose(doseId) {
+            const a = currentDetail();
+            const v = a?.vaccinations.find((d) => d.id === doseId);
+            if (!a || !v) return;
+            askConfirm({
+                title: "Remove this vaccination entry?",
+                text: `${v.vaccine} (${formatDate(v.dateGiven)}) will be removed from ${a.name}'s history. Use this only to correct a wrong entry.`,
+                okLabel: "Remove",
+                onConfirm: async () => {
+                    try {
+                        const json = await api(`/staff/animals/${a.id}/vaccinations/${doseId}`, { method: "DELETE" });
+                        upsertAnimal(json.animal);
+                        if (editingDoseId === doseId) resetDoseForm();
+                        renderDetail();
+                        render();
+                        toast("Vaccination entry removed.");
+                    } catch (err) {
+                        toast(err.message || "Unable to remove the entry.", true);
+                    }
+                }
+            });
+        }
+
+        // ---------- archive / restore ----------
+        function archiveAnimal(id) {
+            const a = animals.find((x) => x.id === id);
+            if (!a) return;
+            askConfirm({
+                title: "Archive this animal record?",
+                text: `${a.name} (${a.animalCode}) will move to the archive. You can restore it later.`,
+                okLabel: "Archive",
+                onConfirm: async () => {
+                    try {
+                        await api(`/staff/animals/${id}/archive`, { method: "POST" });
+                        removeAnimalFromList(id);
+                        if (detailAnimalId === id) closeDetail();
+                        render();
+                        toast("Animal record archived.");
+                    } catch (err) {
+                        toast(err.message || "Unable to archive the record.", true);
+                    }
+                }
+            });
+        }
+
+        async function restoreAnimal(id) {
+            try {
+                await api(`/staff/animals/${id}/restore`, { method: "POST" });
+                removeAnimalFromList(id);
+                render();
+                toast("Animal record restored.");
+            } catch (err) {
+                toast(err.message || "Unable to restore the record.", true);
+            }
+        }
+
+        async function exportCsv() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/staff/animals/export?archived=${showArchived ? 1 : 0}`, { headers: authHeaders() });
+                if (!res.ok) {
+                    const j = await res.json().catch(() => ({}));
+                    throw new Error(j?.message || "Unable to export.");
+                }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `Animal-Vaccine-Tracker-${todayISO}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                toast(err.message || "Unable to export.", true);
+            }
+        }
+
+        // ---------- events ----------
+        $("addAnimalBtn").addEventListener("click", () => openAnimalModal(null));
+        $("exportBtn").addEventListener("click", exportCsv);
+        $("toggleArchivedBtn").addEventListener("click", () => {
+            showArchived = !showArchived;
+            $("toggleArchivedBtn").textContent = showArchived ? "View active" : "View archived";
+            $("addAnimalBtn").hidden = showArchived;
+            $("pageHeading").textContent = showArchived ? "Archived Animal Records" : "Animal Vaccine Tracker";
+            currentPage = 1;
+            loadAnimals();
+        });
+        $("searchInput").addEventListener("input", () => { currentPage = 1; render(); });
+        $("speciesFilter").addEventListener("change", () => { currentPage = 1; render(); });
+        $("statusFilter").addEventListener("change", () => { currentPage = 1; render(); });
+        $("statsRow").addEventListener("click", (e) => {
+            const b = e.target.closest(".av-stat");
+            if (!b) return;
+            $("statusFilter").value = b.dataset.status;
+            currentPage = 1;
+            render();
+        });
+        $("prevPageBtn").addEventListener("click", () => { currentPage = Math.max(1, currentPage - 1); render(); });
+        $("nextPageBtn").addEventListener("click", () => { currentPage += 1; render(); });
+
+        $("animalsBody").addEventListener("click", (e) => {
+            const view = e.target.closest("[data-view]");
+            if (view) return openDetail(view.dataset.view);
+            const arch = e.target.closest("[data-archive]");
+            if (arch) return archiveAnimal(arch.dataset.archive);
+            const rest = e.target.closest("[data-restore]");
+            if (rest) return restoreAnimal(rest.dataset.restore);
+        });
+
+        $("animalSpecies").addEventListener("change", toggleSpeciesOther);
+        $("animalCancelBtn").addEventListener("click", closeAnimalModal);
+        $("animalSaveBtn").addEventListener("click", saveAnimal);
+        $("ownerSearch").addEventListener("input", (e) => {
+            clearTimeout(ownerSearchTimer);
+            const q = e.target.value;
+            ownerSearchTimer = setTimeout(() => searchOwners(q), 250);
+        });
+        $("ownerResults").addEventListener("click", (e) => {
+            const b = e.target.closest("[data-owner]");
+            if (!b) return;
+            try {
+                const o = JSON.parse(b.getAttribute("data-owner"));
+                linkedOwner = { id: o.id, fullName: o.fullName, residentId: o.residentId };
+                $("ownerName").value = o.fullName || "";
+                $("ownerContact").value = o.contactNumber || "";
+                if (o.address) $("ownerAddress").value = o.address;
+                setOwnerChip();
+                $("ownerSearch").value = "";
+                $("ownerResults").hidden = true;
+            } catch (_e) { /* ignore */ }
+        });
+        $("ownerUnlinkBtn").addEventListener("click", () => { linkedOwner = null; setOwnerChip(); });
+
+        $("detailCloseBtn").addEventListener("click", closeDetail);
+        $("detailEditBtn").addEventListener("click", () => {
+            const a = currentDetail();
+            if (a) openAnimalModal(a);
+        });
+        $("detailArchiveBtn").addEventListener("click", () => { if (detailAnimalId) archiveAnimal(detailAnimalId); });
+        $("doseSaveBtn").addEventListener("click", saveDose);
+        $("doseCancelEditBtn").addEventListener("click", resetDoseForm);
+        $("doseBody").addEventListener("click", (e) => {
+            const ed = e.target.closest("[data-dose-edit]");
+            if (ed) return startEditDose(ed.dataset.doseEdit);
+            const rm = e.target.closest("[data-dose-remove]");
+            if (rm) return removeDose(rm.dataset.doseRemove);
+        });
+
+        $("confirmCancelBtn").addEventListener("click", closeConfirm);
+        $("confirmOkBtn").addEventListener("click", async () => {
+            const fn = confirmAction;
+            closeConfirm();
+            if (fn) await fn();
+        });
+
+        ["animalModal", "detailModal", "confirmModal"].forEach((id) => {
+            $(id).addEventListener("click", (e) => {
+                if (e.target !== $(id)) return;
+                if (id === "animalModal") closeAnimalModal();
+                else if (id === "detailModal") closeDetail();
+                else closeConfirm();
+            });
+        });
+        document.addEventListener("keydown", (e) => {
+            if (e.key !== "Escape") return;
+            if ($("confirmModal").classList.contains("show")) closeConfirm();
+            else if ($("animalModal").classList.contains("show")) closeAnimalModal();
+            else if ($("detailModal").classList.contains("show")) closeDetail();
+        });
+
+        applyDateLimits();
+        loadAnimals();
+    </script>
+</body>
+</html>

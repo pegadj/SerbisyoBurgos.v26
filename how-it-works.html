@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>How It Works | SerbisyoBurgos</title>
-    <link rel="icon" type="image/png" href="asset/SB.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#043d2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
+    <link rel="apple-touch-icon" href="asset/icons/apple-touch-icon.png">
+    <script src="shared/pwa.js" defer></script>
+    <link rel="icon" type="image/png" href="asset/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -35,7 +43,7 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             z-index: 1000;
         }
-        .logo-nav { height: 45px; width: auto; }
+        .logo-nav { height: 60px; width: auto; }
         .nav-buttons { display: flex; gap: 15px; align-items: center; }
         .btn-nav { text-decoration: none; font-weight: 600; font-size: 0.95rem; color: var(--primary-green); padding: 8px 0; }
         .btn-residents { background: var(--primary-green); color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; }
@@ -94,7 +102,7 @@
 </head>
 <body>
     <nav class="navbar">
-        <a href="index.html"><img src="asset/SB.png" alt="SB Logo" class="logo-nav"></a>
+        <a href="index.html"><img src="asset/logo.png" alt="Barangay Logo" class="logo-nav"></a>
         <div class="nav-buttons">
             <a href="how-it-works.html" class="btn-nav">How It Works</a>
             <a href="contact-us.html" class="btn-nav">Contact Us</a>
@@ -110,7 +118,7 @@
                 <div class="step-num">1</div>
                 <div class="step-info">
                     <h3>Get Your Account</h3>
-                    <p>Visit the Barangay Hall so staff can record you and issue your Resident ID and password.</p>
+                    <p>Visit the Barangay Hall so the Barangay Secretary can record you and issue your Resident ID and password.</p>
                 </div>
             </div>
 

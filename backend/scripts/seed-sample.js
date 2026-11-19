@@ -6,7 +6,6 @@ const { createClient } = require("@supabase/supabase-js");
 async function main() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "SBadmin123";
   const staffPassword = process.env.SEED_STAFF_PASSWORD || "SBstaff123";
   const systemAdminPassword = process.env.SEED_SYSTEM_ADMIN_PASSWORD || "SBsysad123";
 
@@ -18,13 +17,8 @@ async function main() {
 
   const residents = [
     {
-      email: "admin@serbisyoburgos.com",
-      full_name: "Barangay Admin",
-      role: "admin"
-    },
-    {
       email: "staff@serbisyoburgos.com",
-      full_name: "Barangay Staff",
+      full_name: "Barangay Secretary",
       role: "staff"
     },
     {
@@ -35,7 +29,6 @@ async function main() {
   ];
 
   const credentials = [
-    { email: "admin@serbisyoburgos.com", password: adminPassword },
     { email: "staff@serbisyoburgos.com", password: staffPassword },
     { email: "systemadmin@serbisyoburgos.com", password: systemAdminPassword }
   ];
@@ -76,8 +69,7 @@ async function main() {
   }
 
   console.log("Seed complete: sample auth users + profiles inserted/updated.");
-  console.log(`Admin login: admin@serbisyoburgos.com / ${adminPassword}`);
-  console.log(`Staff login: staff@serbisyoburgos.com / ${staffPassword}`);
+  console.log(`Barangay Secretary login: staff@serbisyoburgos.com / ${staffPassword}`);
   console.log(`System admin login: systemadmin@serbisyoburgos.com / ${systemAdminPassword}`);
 }
 

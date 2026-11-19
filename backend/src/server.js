@@ -32,6 +32,7 @@ const AppointmentSlotOverride = require("./models/AppointmentSlotOverride");
 const { Appointment, APPOINTMENT_STATUSES } = require("./models/Appointment");
 const { ServiceRequest, SERVICE_REQUEST_STATUSES } = require("./models/ServiceRequest");
 const { SystemSettings, SINGLETON_ID } = require("./models/SystemSettings");
+const { AnimalRecord, ANIMAL_SPECIES, ANIMAL_SEX } = require("./models/AnimalRecord");
 
 let intentionalShutdown = false;
 
@@ -61,6 +62,11 @@ process.on("exit", (code) => {
 const app = express();
 const port = Number(process.env.PORT) || 4000;
 
+// The API runs behind a hosting proxy (Render). Trust exactly one proxy hop so req.ip is the real visitor's
+// address. Without this every visitor shares the proxy's address, so the rate limits below would count
+// everyone together (one person could lock everybody out). Set TRUST_PROXY=0 when running with no proxy.
+app.set("trust proxy", process.env.TRUST_PROXY === "0" ? false : Number(process.env.TRUST_PROXY) || 1);
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(
   cors({
@@ -73,6 +79,22 @@ app.use(
   })
 );
 app.use(express.json({ limit: "48kb" }));
+
+// Never send technical error text (database messages, file paths) to the browser. Many routes attach the
+// raw error as `detail`; log it on the server instead and strip it from the response.
+// Set EXPOSE_ERROR_DETAILS=true on a local dev machine to see it in responses while debugging.
+app.use((req, res, next) => {
+  const sendJson = res.json.bind(res);
+  res.json = (body) => {
+    if (body && typeof body === "object" && !Array.isArray(body) && "detail" in body) {
+      const { detail, ...safeBody } = body;
+      if (detail) console.error(`[api-error] ${req.method} ${req.path} -> ${res.statusCode}: ${detail}`);
+      return sendJson(process.env.EXPOSE_ERROR_DETAILS === "true" && process.env.NODE_ENV !== "production" ? body : safeBody);
+    }
+    return sendJson(body);
+  };
+  next();
+});
 
 // ---------------------------------------------------------------------------
 // Maintenance mode enforcement.
@@ -145,6 +167,69 @@ const authResidentLoginLimiter = rateLimit({
   message: { ok: false, message: "Too many login attempts. Please try again later." }
 });
 
+/**
+ * Counts only FAILED sign-ins per visitor address, so people who log in correctly never use it up.
+ * Works together with the per-account lockout below (that one stops a password being guessed from many addresses).
+ */
+const loginFailureLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, message: "Too many failed sign-in attempts. Please try again in 15 minutes." }
+});
+
+/** Wrong passwords allowed before an account is locked, and for how long. */
+const MAX_FAILED_LOGINS = 5;
+const LOGIN_LOCK_MINUTES = 15;
+/** Failed attempts older than this no longer count towards the lock. */
+const FAILED_LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
+function isLoginLocked(userDoc) {
+  return Boolean(userDoc?.lockedUntil) && new Date(userDoc.lockedUntil).getTime() > Date.now();
+}
+
+function loginLockedResponse(userDoc) {
+  const minutes = Math.max(1, Math.ceil((new Date(userDoc.lockedUntil).getTime() - Date.now()) / 60000));
+  return {
+    ok: false,
+    locked: true,
+    message: `Too many failed sign-in attempts. Please try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`
+  };
+}
+
+/** Records a wrong password. Returns true when this attempt locked the account. */
+async function registerFailedLogin(userDoc, req) {
+  try {
+    const now = Date.now();
+    const last = userDoc.lastFailedLoginAt ? new Date(userDoc.lastFailedLoginAt).getTime() : 0;
+    const previous = now - last > FAILED_LOGIN_WINDOW_MS ? 0 : Number(userDoc.failedLoginCount || 0);
+    const count = previous + 1;
+    if (count >= MAX_FAILED_LOGINS) {
+      const lockedUntil = new Date(now + LOGIN_LOCK_MINUTES * 60 * 1000);
+      await User.updateOne({ _id: userDoc._id }, { $set: { failedLoginCount: 0, lastFailedLoginAt: new Date(now), lockedUntil } });
+      userDoc.lockedUntil = lockedUntil;
+      void insertAuthAuditEvent({ action: "account_locked", email: userDoc.email, role: userDoc.role, req });
+      return true;
+    }
+    await User.updateOne({ _id: userDoc._id }, { $set: { failedLoginCount: count, lastFailedLoginAt: new Date(now) } });
+  } catch (error) {
+    console.warn("[login-lock] could not record failed sign-in:", error?.message || error);
+  }
+  return false;
+}
+
+/** A correct password (or a staff password reset) clears the counter and any lock. */
+async function clearFailedLogins(userDoc) {
+  if (!userDoc || !(Number(userDoc.failedLoginCount) > 0 || userDoc.lockedUntil)) return;
+  try {
+    await User.updateOne({ _id: userDoc._id }, { $set: { failedLoginCount: 0, lockedUntil: null } });
+  } catch (error) {
+    console.warn("[login-lock] could not clear failed sign-ins:", error?.message || error);
+  }
+}
+
 const residentChangePasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -194,7 +279,7 @@ const adminStaffCreateLimiter = rateLimit({
   max: 40,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { ok: false, message: "Too many staff creation attempts. Please try again later." }
+  message: { ok: false, message: "Too many Barangay Secretary account creation attempts. Please try again later." }
 });
 
 const faqSearchLimiter = rateLimit({
@@ -235,6 +320,7 @@ const announcementEventClients = new Set();
 
 const MAX_EMAIL_LEN = 254;
 const MAX_FULL_NAME_LEN = 120;
+const MAX_NAME_PART_LEN = 60; // first / middle / last name (matches the resident profile fields)
 const MAX_PASSWORD_LEN = 128;
 
 function normalizeEmail(value) {
@@ -287,15 +373,18 @@ function sanitizeFullNameForStorage(raw) {
 }
 
 /**
- * DB value: active | suspended | deactivated.
+ * DB value: pending | active | suspended | deactivated | rejected.
  * - active: resident may log in and use the resident portal normally.
- * - suspended | deactivated: login and resident portal APIs are blocked (see residentPortalAccountBlockMessage).
+ * - pending | rejected | suspended | deactivated: login and resident portal APIs are blocked
+ *   (see residentPortalAccountBlockMessage). New self-registered residents start as "pending"
+ *   until an administrator approves them (sets "active").
  */
 function normalizeAccountStatusFromInput(raw) {
   const s = String(raw ?? "")
     .trim()
     .toLowerCase();
-  if (s === "active" || s === "suspended" || s === "deactivated") return s;
+  if (s === "pending approval") return "pending";
+  if (s === "active" || s === "suspended" || s === "deactivated" || s === "pending" || s === "rejected") return s;
   return null;
 }
 
@@ -303,6 +392,8 @@ function mapAccountStatusToUiLabel(dbValue) {
   const s = String(dbValue ?? "active")
     .trim()
     .toLowerCase();
+  if (s === "pending") return "Pending Approval";
+  if (s === "rejected") return "Rejected";
   if (s === "suspended") return "Suspended";
   if (s === "deactivated") return "Deactivated";
   return "Active";
@@ -313,6 +404,12 @@ function residentPortalAccountBlockMessage(accountStatusRaw) {
   const s = String(accountStatusRaw ?? "active")
     .trim()
     .toLowerCase();
+  if (s === "pending") {
+    return "Your account is still pending approval by the barangay office. You will be able to log in once it has been approved.";
+  }
+  if (s === "rejected") {
+    return "Your registration was not approved. Please visit the barangay hall for assistance.";
+  }
   if (s === "suspended") return "Your account is suspended.";
   if (s === "deactivated") {
     return "Your account is deactivated. Please visit the barangay hall if you wish to activate your account.";
@@ -410,6 +507,7 @@ async function resolveProfileFromToken(req) {
     account_status: userDoc.accountStatus,
     sms_opt_out: Boolean(userDoc.smsOptOut),
     resident_id: userDoc.residentId || null,
+    must_change_password: Boolean(userDoc.mustChangePassword),
   };
 
   return { profile, authUserId: String(userDoc._id) };
@@ -445,9 +543,20 @@ function generateTemporaryPassword() {
   return crypto.randomBytes(9).toString("base64url");
 }
 
-const STAFF_PORTAL_ROLES = new Set(["admin", "staff", "system-admin"]);
+const STAFF_PORTAL_ROLES = new Set(["staff", "system-admin"]);
 
-async function requireResidentPortalUser(req, res) {
+// A resident whose password was issued or reset by barangay personnel (staff-created account,
+// password reset, admin-set password) must choose their own before using the portal. Enforced
+// here, on the server, so it cannot be skipped by going around the change-password page.
+// Only POST /resident/change-password (and the authorize check) are reachable until it is done.
+const PASSWORD_CHANGE_REQUIRED_BODY = {
+  ok: false,
+  code: "PASSWORD_CHANGE_REQUIRED",
+  mustChangePassword: true,
+  message: "For your security, please set a new password before continuing."
+};
+
+async function requireResidentPortalUser(req, res, { allowPasswordChangePending = false } = {}) {
   const { profile, authUserId, error } = await resolveProfileFromToken(req);
   if (error) {
     res.status(error.status).json({ ok: false, message: error.message });
@@ -455,6 +564,10 @@ async function requireResidentPortalUser(req, res) {
   }
   if (profile.role !== "resident") {
     res.status(403).json({ ok: false, message: "Resident portal access required." });
+    return null;
+  }
+  if (profile.must_change_password && !allowPasswordChangePending) {
+    res.status(403).json(PASSWORD_CHANGE_REQUIRED_BODY);
     return null;
   }
   const residentUserId = await ensureResidentUserRow(profile.email);
@@ -475,6 +588,10 @@ async function requireStaffOrAuthenticatedResident(req, res) {
     return { portal: "staff", profile };
   }
   if (profile.role === "resident") {
+    if (profile.must_change_password) {
+      res.status(403).json(PASSWORD_CHANGE_REQUIRED_BODY);
+      return null;
+    }
     const residentUserId = await ensureResidentUserRow(profile.email);
     if (!residentUserId) {
       res.status(500).json({ ok: false, message: "Unable to resolve resident account." });
@@ -509,6 +626,9 @@ async function validateSseAccess(req) {
     if (blockMsg) {
       return { ok: false, status: 403, message: blockMsg };
     }
+  }
+  if (userDoc.role === "resident" && userDoc.mustChangePassword) {
+    return { ok: false, status: 403, message: PASSWORD_CHANGE_REQUIRED_BODY.message };
   }
   const profile = {
     email: userDoc.email,
@@ -682,6 +802,126 @@ async function countBookedAppointmentsForSlot(slotId, dateISO) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Slot open / closed state
+//   Closed = staff closed it for that date, OR its start time has already passed (Philippine time).
+//   Full is separate: a slot can be open but out of capacity.
+// ---------------------------------------------------------------------------
+/** Minutes before a slot starts when it stops accepting bookings (0 = closes when it starts). */
+const SLOT_BOOKING_CUTOFF_MINUTES = Math.max(0, Number.parseInt(process.env.SLOT_BOOKING_CUTOFF_MINUTES || "0", 10) || 0);
+
+/** Time-range text (as saved on service requests) -> slot code. Same variants the staff page understands. */
+const SLOT_LABEL_PATTERNS = [
+  { code: "0900", patterns: ["9:00 am - 10:00 am", "09:00 am - 10:00 am"] },
+  { code: "1000", patterns: ["10:00 am - 11:00 am"] },
+  { code: "1100", patterns: ["11:00 am - 12:00 pm", "11:00 am - 12:00 nn", "11:00 am - 12:00"] },
+  { code: "0100", patterns: ["1:00 pm - 2:00 pm", "01:00 pm - 02:00 pm"] },
+  { code: "0300", patterns: ["2:00 pm - 3:00 pm", "3:00 pm - 4:00 pm", "03:00 pm - 04:00 pm"] },
+  { code: "0400", patterns: ["4:00 pm - 5:00 pm", "04:00 pm - 05:00 pm"] }
+];
+
+function slotCodeFromTimeLabel(label) {
+  const normalized = String(label || "")
+    .toLowerCase()
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/\bnn\b/g, "pm")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return null;
+  // "nn" was turned into "pm" above, so also try the original noon spelling.
+  const withNn = String(label || "").toLowerCase().replace(/[\u2013\u2014]/g, "-").replace(/\s+/g, " ").trim();
+  for (const entry of SLOT_LABEL_PATTERNS) {
+    if (entry.patterns.some((p) => normalized.includes(p) || withNn.includes(p))) return entry.code;
+  }
+  return null;
+}
+
+/** Current date (YYYY-MM-DD) and minutes since midnight in Philippine time. */
+function nowPH() {
+  const d = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  return { dateISO: d.toISOString().slice(0, 10), minutes: d.getUTCHours() * 60 + d.getUTCMinutes() };
+}
+
+/** Start of a slot in minutes since midnight. Reads the label first ("01:00 PM" = 13:00). */
+function slotStartMinutes(slot) {
+  const label = String(slot?.label || "");
+  const m = label.match(/(\d{1,2}):(\d{2})\s*(AM|PM|NN)?/i);
+  if (m) {
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ap = (m[3] || "").toUpperCase();
+    if (ap === "PM" && h !== 12) h += 12;
+    if (ap === "AM" && h === 12) h = 0;
+    if (Number.isInteger(h) && h >= 0 && h <= 23) return h * 60 + min;
+  }
+  // Codes are 12-hour HHMM without AM/PM ("0100" = 1 PM). Slots run in office hours, so 1-7 means afternoon.
+  const code = String(slot?.slotCode || "").replace(/\D/g, "").padStart(4, "0");
+  let h = parseInt(code.slice(0, 2), 10);
+  const min = parseInt(code.slice(2, 4), 10);
+  if (!Number.isInteger(h)) return null;
+  if (h >= 1 && h <= 7) h += 12;
+  return h * 60 + (Number.isInteger(min) ? min : 0);
+}
+
+/** { isClosed, reason: "time-passed" | "manual" | null } for one slot on one date. */
+function computeSlotClosure(slot, override, dateISO, now = nowPH()) {
+  if (dateISO < now.dateISO) return { isClosed: true, reason: "time-passed" };
+  if (dateISO === now.dateISO) {
+    const start = slotStartMinutes(slot);
+    if (start !== null && now.minutes >= start - SLOT_BOOKING_CUTOFF_MINUTES) {
+      return { isClosed: true, reason: "time-passed" };
+    }
+  }
+  if (override && override.isClosed === true) return { isClosed: true, reason: "manual" };
+  return { isClosed: false, reason: null };
+}
+
+function slotClosedMessage(reason) {
+  return reason === "time-passed"
+    ? "That time slot has already passed. Please choose another slot."
+    : "That time slot is closed. Please choose another slot.";
+}
+
+async function getSlotClosureForDate(slotId, dateISO) {
+  const [slot, override] = await Promise.all([
+    AppointmentSlot.findById(String(slotId)).select("label slotCode").lean(),
+    AppointmentSlotOverride.findOne({ slotId: String(slotId), overrideDate: dateISO }).select("isClosed").lean()
+  ]);
+  if (!slot) return { isClosed: true, reason: "manual" };
+  return computeSlotClosure(slot, override, dateISO);
+}
+
+/**
+ * Validates the time slot a resident picked for a service request. Request slots are saved as text,
+ * so match it to a real slot, then check it is open and not full.
+ */
+async function validateRequestTimeSlot(timeLabel, dateISO) {
+  const code = slotCodeFromTimeLabel(timeLabel);
+  const slot = code ? await AppointmentSlot.findOne({ slotCode: code, isActive: true }).lean() : null;
+  if (!slot) return { ok: false, status: 400, message: "Selected time slot is unavailable." };
+
+  const override = await AppointmentSlotOverride.findOne({ slotId: String(slot._id), overrideDate: dateISO }).lean();
+  const closure = computeSlotClosure(slot, override, dateISO);
+  if (closure.isClosed) {
+    return { ok: false, status: 409, code: "SLOT_CLOSED", message: slotClosedMessage(closure.reason) };
+  }
+
+  const overrideCap = Number(override?.capacityLimit);
+  const capacity = Number.isInteger(overrideCap) && overrideCap > 0 ? overrideCap : Number(slot.defaultCapacity || 0);
+  if (capacity > 0) {
+    // Same counting the staff slot cards use: appointments booked on this slot + requests that chose it.
+    const [appointmentCount, requestRows] = await Promise.all([
+      Appointment.countDocuments({ slotId: String(slot._id), appointmentDate: dateISO, status: { $nin: ["Rejected", "Cancelled"] } }),
+      ServiceRequest.find({ preferredDate: dateISO, status: { $nin: ["Rejected", "Cancelled"] } }).select("preferredTimeSlot").lean()
+    ]);
+    const requestCount = requestRows.filter((r) => slotCodeFromTimeLabel(r.preferredTimeSlot) === code).length;
+    if (appointmentCount + requestCount >= capacity) {
+      return { ok: false, status: 409, code: "SLOT_FULL", message: "The slot selected is already full, select another slot." };
+    }
+  }
+  return { ok: true };
+}
+
 async function requireStaffPortalUser(req, res) {
   const { profile, error } = await resolveProfileFromToken(req);
   if (error) {
@@ -715,6 +955,7 @@ function normalizeAnnouncementRow(row) {
     title: row.title,
     body: row.body,
     isActive: row.isActive,
+    archivedAt: row.archivedAt ?? null,
     createdAt: row.createdAt,
     postedByRole: row.postedByRole ?? null
   };
@@ -1171,7 +1412,7 @@ app.get("/public/system-status", async (_req, res) => {
 });
 
 // Authenticate an admin account and return auth session details.
-app.post("/auth/admin/login", async (req, res) => {
+app.post("/auth/admin/login", authResidentLoginLimiter, loginFailureLimiter, async (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
@@ -1188,12 +1429,16 @@ app.post("/auth/admin/login", async (req, res) => {
     return res.status(401).json({ ok: false, message: "Invalid email or password." });
   }
 
+  if (isLoginLocked(userDoc)) return res.status(429).json(loginLockedResponse(userDoc));
+
   const passwordOk = await verifyPassword(String(password), userDoc.passwordHash);
   if (!passwordOk) {
+    if (await registerFailedLogin(userDoc, req)) return res.status(429).json(loginLockedResponse(userDoc));
     return res.status(401).json({ ok: false, message: "Invalid email or password." });
   }
+  await clearFailedLogins(userDoc);
 
-  const allowedAdminRoles = new Set(["admin", "staff", "system-admin"]);
+  const allowedAdminRoles = new Set(["staff", "system-admin"]);
   if (!allowedAdminRoles.has(userDoc.role)) {
     return res.status(403).json({
       ok: false,
@@ -1218,9 +1463,6 @@ app.post("/auth/admin/login", async (req, res) => {
     fullName: userDoc.fullName,
     role: userDoc.role
   };
-  if (userDoc.role === "staff") {
-    userPayload.staffPermissions = normalizeStaffPermissionsFromDb(userDoc.staffPermissions);
-  }
 
   const accessToken = signAccessToken(userDoc);
   const refreshToken = signRefreshToken(userDoc);
@@ -1289,7 +1531,6 @@ app.post("/auth/admin/refresh", async (req, res) => {
 app.get("/auth/admin/authorize/:requiredRole", async (req, res) => {
   const role = String(req.params.requiredRole || "").trim();
   const roleMap = {
-    admin: ["admin"],
     staff: ["staff"],
     "system-admin": ["system-admin"]
   };
@@ -1524,6 +1765,27 @@ async function getResidentDisplayNameForStaff(residentUserId) {
   return String(userDoc.email || "").trim() || `Resident #${id}`;
 }
 
+/**
+ * Adds residentName to a list of normalized rows with ONE user query (staff lists need names;
+ * calling getResidentDisplayNameForStaff per row would be one query per row).
+ */
+async function attachResidentNamesToRows(rows) {
+  try {
+    const ids = [...new Set(rows.map((r) => r.residentUserId).filter((id) => id && mongoose.Types.ObjectId.isValid(id)))];
+    const nameById = new Map();
+    if (ids.length) {
+      const users = await User.find({ _id: { $in: ids } }).select("fullName email").lean();
+      users.forEach((u) => nameById.set(String(u._id), String(u.fullName || "").trim() || String(u.email || "").trim()));
+    }
+    return rows.map((r) => ({
+      ...r,
+      residentName: (r.residentUserId && nameById.get(String(r.residentUserId))) || "Unknown resident"
+    }));
+  } catch (_error) {
+    return rows;
+  }
+}
+
 async function normalizeRequestRowWithResident(row) {
   const base = normalizeRequestRow(row);
   const residentName = await getResidentDisplayNameForStaff(row?.residentUserId);
@@ -1605,7 +1867,7 @@ async function ensureResidentUserRow(email) {
   }
 }
 
-async function upsertResidentProfile({ email, fullName, residentSelfRegistered = false, identityVerificationFileId = null, passwordHash = null }) {
+async function upsertResidentProfile({ email, fullName, residentSelfRegistered = false, identityVerificationFileId = null, passwordHash = null, accountStatus = null, nameParts = null, contactNumber = null }) {
   const normalizedEmail = normalizeEmail(email);
   const safeFullName = sanitizeFullNameForStorage(fullName);
   if (!normalizedEmail || !safeFullName) {
@@ -1624,11 +1886,25 @@ async function upsertResidentProfile({ email, fullName, residentSelfRegistered =
   if (passwordHash) {
     upsertPayload.passwordHash = passwordHash;
   }
+  if (contactNumber) {
+    upsertPayload.contactNumber = contactNumber;
+  }
+  // Keep the name split (as the resident typed it) on the profile, so staff do not have to re-split a full name later.
+  if (nameParts && (nameParts.firstName || nameParts.lastName)) {
+    upsertPayload.residentProfile = {
+      firstName: nameParts.firstName || "",
+      middleName: nameParts.middleName || "",
+      lastName: nameParts.lastName || ""
+    };
+  }
 
   try {
+    const updateDoc = { $set: upsertPayload };
+    // $setOnInsert so this can never downgrade/overwrite the status of an account that already exists.
+    if (accountStatus) updateDoc.$setOnInsert = { accountStatus };
     const created = await User.findOneAndUpdate(
       { email: normalizedEmail },
-      { $set: upsertPayload },
+      updateDoc,
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     return { ok: true, userId: String(created._id) };
@@ -1684,7 +1960,7 @@ async function uploadResidentIdentityDocToStorage(userId, buf, mime) {
 }
 
 app.get("/public/auth-options", (_req, res) => {
-  res.json({ ok: true, selfRegistration: process.env.ALLOW_RESIDENT_SELF_REGISTRATION !== "false" });
+  res.json({ ok: true, selfRegistration: process.env.ALLOW_RESIDENT_SELF_REGISTRATION === "true" });
 });
 
 app.post(
@@ -1692,23 +1968,46 @@ app.post(
   authResidentRegisterLimiter,
   residentRegisterUploadMiddleware,
   async (req, res) => {
-    if (process.env.ALLOW_RESIDENT_SELF_REGISTRATION === "false") {
+    // Self-registration is disabled by default (barangay issues accounts). Set ALLOW_RESIDENT_SELF_REGISTRATION=true to re-enable.
+    if (process.env.ALLOW_RESIDENT_SELF_REGISTRATION !== "true") {
       return res.status(403).json({
         ok: false,
         message: "Accounts are issued by the barangay office. Please visit the office to get your Resident ID and password."
       });
     }
     const body = req.body && typeof req.body === "object" ? req.body : {};
-    const { fullName, email, password } = body;
+    const { email, password } = body;
     const normalizedEmail = normalizeEmail(email);
-    const safeFullName = sanitizeFullNameForStorage(fullName);
     const safePassword = String(password || "");
     const idFile = req.file;
 
-    if (!safeFullName || !normalizedEmail || !safePassword) {
+    // Name comes as first / middle (optional) / last. The full name is composed here, never trusted from the client.
+    const cleanNamePart = (v) => sanitizeFullNameForStorage(v).replace(/\s+/g, " ").slice(0, MAX_NAME_PART_LEN).trim();
+    const nameParts = {
+      firstName: cleanNamePart(body.firstName),
+      middleName: cleanNamePart(body.middleName),
+      lastName: cleanNamePart(body.lastName)
+    };
+    if (!/\p{L}/u.test(nameParts.firstName) || !/\p{L}/u.test(nameParts.lastName)) {
+      return res.status(400).json({ ok: false, message: "First name and last name are required." });
+    }
+    if (nameParts.middleName && !/\p{L}/u.test(nameParts.middleName)) nameParts.middleName = "";
+    const safeFullName = composeResidentFullName(nameParts);
+
+    // Philippine mobile number, kept in the local 09XXXXXXXXX form (SMS sending normalizes it again).
+    const phoneIntl = normalizePhNumber(body.contactNumber);
+    if (!phoneIntl) {
       return res.status(400).json({
         ok: false,
-        message: "fullName, email, password, and identityVerification file are required."
+        message: "Please enter a valid Philippine mobile number (for example 09171234567)."
+      });
+    }
+    const safeContactNumber = `0${phoneIntl.slice(3)}`;
+
+    if (!normalizedEmail || !safePassword) {
+      return res.status(400).json({
+        ok: false,
+        message: "Name, email, mobile number, password, and identityVerification file are required."
       });
     }
 
@@ -1785,7 +2084,11 @@ app.post(
       fullName: safeFullName,
       residentSelfRegistered: true,
       identityVerificationFileId: uploadResult.fileId,
-      passwordHash
+      passwordHash,
+      nameParts,
+      contactNumber: safeContactNumber,
+      // Self-registered accounts must be approved by barangay personnel before they can log in.
+      accountStatus: "pending"
     });
     if (!profileResult.ok) {
       // Clean up the file we just uploaded, since the account record it
@@ -1802,8 +2105,9 @@ app.post(
 
     return res.status(201).json({
       ok: true,
-      message: "Resident account created.",
+      message: "Registration submitted. Your account is pending approval by the barangay office. You will be able to log in once it has been approved.",
       stored: true,
+      pendingApproval: true,
       user: {
         email: normalizedEmail,
         fullName: safeFullName,
@@ -1814,7 +2118,7 @@ app.post(
   }
 );
 
-app.post("/auth/resident/login", authResidentLoginLimiter, async (req, res) => {
+app.post("/auth/resident/login", authResidentLoginLimiter, loginFailureLimiter, async (req, res) => {
   const body = req.body || {};
   const loginId = String(body.identifier ?? body.residentId ?? body.email ?? "").trim();
   const safePassword = String(body.password || "");
@@ -1847,10 +2151,14 @@ app.post("/auth/resident/login", authResidentLoginLimiter, async (req, res) => {
     return res.status(401).json(badCreds);
   }
 
+  if (isLoginLocked(userDoc)) return res.status(429).json(loginLockedResponse(userDoc));
+
   const passwordOk = await verifyPassword(safePassword, userDoc.passwordHash);
   if (!passwordOk) {
+    if (await registerFailedLogin(userDoc, req)) return res.status(429).json(loginLockedResponse(userDoc));
     return res.status(401).json(badCreds);
   }
+  await clearFailedLogins(userDoc);
 
   if (userDoc.role !== "resident") {
     return res.status(403).json({
@@ -1879,7 +2187,8 @@ app.post("/auth/resident/login", authResidentLoginLimiter, async (req, res) => {
       role: userDoc.role,
       residentUserId: String(userDoc._id),
       residentId: userDoc.residentId || null,
-      avatarUrl: userDoc.avatarFileId ? `/files/${userDoc.avatarFileId}` : null
+      avatarUrl: userDoc.avatarFileId ? `/files/${userDoc.avatarFileId}` : null,
+      mustChangePassword: Boolean(userDoc.mustChangePassword)
     },
     session: {
       accessToken,
@@ -1891,7 +2200,7 @@ app.post("/auth/resident/login", authResidentLoginLimiter, async (req, res) => {
 
 // Unified login: one endpoint for residents, staff, admins and system admins.
 // The account's role decides which portal the client should send the user to.
-app.post("/auth/login", authResidentLoginLimiter, async (req, res) => {
+app.post("/auth/login", authResidentLoginLimiter, loginFailureLimiter, async (req, res) => {
   const body = req.body || {};
   const loginId = String(body.identifier ?? body.residentId ?? body.email ?? "").trim();
   const safePassword = String(body.password || "");
@@ -1919,12 +2228,18 @@ app.post("/auth/login", authResidentLoginLimiter, async (req, res) => {
   const userDoc = await User.findOne(lookup).select("+passwordHash");
   if (!userDoc) return res.status(401).json(badCreds);
 
+  if (isLoginLocked(userDoc)) return res.status(429).json(loginLockedResponse(userDoc));
+
   const passwordOk = await verifyPassword(safePassword, userDoc.passwordHash);
-  if (!passwordOk) return res.status(401).json(badCreds);
+  if (!passwordOk) {
+    if (await registerFailedLogin(userDoc, req)) return res.status(429).json(loginLockedResponse(userDoc));
+    return res.status(401).json(badCreds);
+  }
+  await clearFailedLogins(userDoc);
 
   const role = userDoc.role;
   const isResident = role === "resident";
-  const isAdminPortalRole = role === "admin" || role === "staff" || role === "system-admin";
+  const isAdminPortalRole = role === "staff" || role === "system-admin";
 
   if (!isResident && !isAdminPortalRole) {
     return res.status(403).json({ ok: false, message: "This account is not allowed to sign in." });
@@ -1953,13 +2268,11 @@ app.post("/auth/login", authResidentLoginLimiter, async (req, res) => {
       role,
       residentUserId: String(userDoc._id),
       residentId: userDoc.residentId || null,
-      avatarUrl: userDoc.avatarFileId ? `/files/${userDoc.avatarFileId}` : null
+      avatarUrl: userDoc.avatarFileId ? `/files/${userDoc.avatarFileId}` : null,
+      mustChangePassword: Boolean(userDoc.mustChangePassword)
     };
   } else {
     userPayload = { email: userDoc.email, fullName: userDoc.fullName, role };
-    if (role === "staff") {
-      userPayload.staffPermissions = normalizeStaffPermissionsFromDb(userDoc.staffPermissions);
-    }
   }
 
   const accessToken = signAccessToken(userDoc);
@@ -2000,7 +2313,8 @@ app.get("/auth/resident/authorize", async (req, res) => {
       fullName: profile.full_name,
       role: profile.role,
       residentUserId,
-      avatarUrl: profile.avatar_url ?? null
+      avatarUrl: profile.avatar_url ?? null,
+      mustChangePassword: Boolean(profile.must_change_password)
     }
   });
 });
@@ -2275,8 +2589,10 @@ app.post(
  * rely on an authenticated resident session — matches single-field portal forms.
  */
 app.post("/resident/change-password", residentChangePasswordLimiter, async (req, res) => {
-  const auth = await requireResidentPortalUser(req, res);
+  // reachable even while a password change is still required (that is what this route is for)
+  const auth = await requireResidentPortalUser(req, res, { allowPasswordChangePending: true });
   if (!auth) return;
+  const mustChange = Boolean(auth.profile.must_change_password);
   const currentPassword = String(req.body?.currentPassword || "");
   const newPassword = String(req.body?.newPassword || "");
   const confirmPassword = String(req.body?.confirmPassword || "");
@@ -2293,6 +2609,11 @@ app.post("/resident/change-password", residentChangePasswordLimiter, async (req,
     return res.status(400).json({ ok: false, message: "New password and confirmation do not match." });
   }
 
+  // When the password was issued by staff, the temporary one must be entered to replace it.
+  if (mustChange && !currentPassword) {
+    return res.status(400).json({ ok: false, message: "Enter the temporary password you were given." });
+  }
+
   const userDoc = await User.findById(auth.authUserId).select("+passwordHash");
   if (!userDoc) {
     return res.status(500).json({ ok: false, message: "Unable to resolve user for password update." });
@@ -2301,11 +2622,15 @@ app.post("/resident/change-password", residentChangePasswordLimiter, async (req,
   if (currentPassword) {
     const currentOk = await verifyPassword(currentPassword, userDoc.passwordHash);
     if (!currentOk) {
-      return res.status(401).json({ ok: false, message: "Current password is incorrect." });
+      return res.status(401).json({ ok: false, message: mustChange ? "The temporary password is incorrect." : "Current password is incorrect." });
+    }
+    if (newPassword === currentPassword) {
+      return res.status(400).json({ ok: false, message: "Your new password must be different from the current one." });
     }
   }
 
   userDoc.passwordHash = await hashPassword(newPassword);
+  userDoc.mustChangePassword = false;
   // Invalidates every previously issued refresh token at once — the
   // MongoDB replacement for Supabase Auth's automatic session revocation
   // on password change.
@@ -2314,7 +2639,7 @@ app.post("/resident/change-password", residentChangePasswordLimiter, async (req,
 
   void insertAuthAuditEvent({ action: "password_change", email: userDoc.email, role: userDoc.role, req });
 
-  return res.json({ ok: true, message: "Password updated successfully." });
+  return res.json({ ok: true, message: "Password updated successfully.", mustChangePassword: false });
 });
 
 /** Services residents may request (matches admin catalog: Active and not archived). */
@@ -2470,6 +2795,8 @@ app.get("/appointment-slots", async (req, res) => {
   }
 
   const overrideMap = new Map(overrides.map((o) => [String(o.slotId), Number(o.capacityLimit)]));
+  const overrideDocBySlot = new Map(overrides.map((o) => [String(o.slotId), o]));
+  const nowInfo = nowPH();
 
   const bookedCountBySlot = new Map();
   for (const row of bookedRows) {
@@ -2485,6 +2812,8 @@ app.get("/appointment-slots", async (req, res) => {
       Number.isInteger(overrideCap) && overrideCap > 0 ? overrideCap : Number(slot.defaultCapacity || 0);
     const booked = bookedCountBySlot.get(slotId) || 0;
     const remaining = Math.max(0, capacity - booked);
+    const closure = computeSlotClosure(slot, overrideDocBySlot.get(slotId), dateISO, nowInfo);
+    const isFull = capacity > 0 ? booked >= capacity : true;
     return {
       id: slotId,
       code: slot.slotCode,
@@ -2494,7 +2823,11 @@ app.get("/appointment-slots", async (req, res) => {
       capacity,
       booked,
       remaining,
-      isFull: capacity > 0 ? booked >= capacity : true
+      isFull,
+      // Closed = staff closed it, or its time has passed. Closed slots cannot be booked.
+      isClosed: closure.isClosed,
+      closedReason: closure.reason,
+      status: closure.isClosed ? "Closed" : isFull ? "Full" : "Open"
     };
   });
 
@@ -2550,6 +2883,62 @@ app.put("/admin/appointment-slot-overrides", async (req, res) => {
   return res.json({ ok: true, slotId, date: dateISO, capacityLimit: parsedLimit });
 });
 
+/** Staff opens or closes one time slot for one date. */
+app.put("/admin/appointment-slot-status", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+
+  const { slotId, date, isClosed } = req.body || {};
+  const dateISO = parseLocalDateString(date);
+  if (!mongoose.Types.ObjectId.isValid(String(slotId || ""))) {
+    return res.status(400).json({ ok: false, message: "slotId must be a valid id." });
+  }
+  if (!dateISO) {
+    return res.status(400).json({ ok: false, message: "date (YYYY-MM-DD) is required." });
+  }
+  if (typeof isClosed !== "boolean") {
+    return res.status(400).json({ ok: false, message: "isClosed must be true or false." });
+  }
+
+  let slot;
+  try {
+    slot = await AppointmentSlot.findById(String(slotId)).select("label slotCode").lean();
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to load the slot.", detail: error.message });
+  }
+  if (!slot) return res.status(404).json({ ok: false, message: "Time slot not found." });
+
+  // A slot whose time has passed is already closed and cannot be reopened.
+  const timeClosure = computeSlotClosure(slot, null, dateISO);
+  if (timeClosure.isClosed) {
+    return res.status(409).json({ ok: false, message: "That time slot has already passed, so it stays closed." });
+  }
+
+  try {
+    const updated = await AppointmentSlotOverride.findOneAndUpdate(
+      { slotId: String(slotId), overrideDate: dateISO },
+      { $set: { isClosed } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    ).lean();
+    // Reopening a slot with no capacity change left: drop the empty override row.
+    if (!isClosed && updated && !(Number(updated.capacityLimit) > 0)) {
+      await AppointmentSlotOverride.deleteOne({ _id: updated._id });
+    }
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to update the slot.", detail: error.message });
+  }
+
+  const slotLabel = String(slot.label || slot.slotCode || "").trim();
+  void insertPortalAuditEvent({
+    action: "Updated Slots",
+    description: `${isClosed ? "Closed" : "Opened"} appointment slot ID ${slotId}${slotLabel ? ` (${slotLabel})` : ""} for ${dateISO}.`,
+    profile: auth.profile,
+    metadata: { entity: "appointment_slot_status", slotId: String(slotId), slotLabel: slotLabel || null, date: dateISO, isClosed }
+  });
+
+  return res.json({ ok: true, slotId: String(slotId), date: dateISO, isClosed });
+});
+
 app.get("/requests", async (req, res) => {
   const actor = await requireStaffOrAuthenticatedResident(req, res);
   if (!actor) return;
@@ -2575,9 +2964,10 @@ app.get("/requests", async (req, res) => {
     });
   }
 
+  const requestRows = data.map(normalizeRequestRow);
   return res.json({
     ok: true,
-    requests: data.map(normalizeRequestRow)
+    requests: actor.portal === "resident" ? requestRows : await attachResidentNamesToRows(requestRows)
   });
 });
 
@@ -2800,6 +3190,16 @@ app.post("/requests", async (req, res) => {
     });
   }
 
+  let slotCheck;
+  try {
+    slotCheck = await validateRequestTimeSlot(safeTimeSlot, safePreferredDate);
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to validate the time slot.", detail: error.message });
+  }
+  if (!slotCheck.ok) {
+    return res.status(slotCheck.status).json({ ok: false, code: slotCheck.code, message: slotCheck.message });
+  }
+
   let catalogRow;
   try {
     catalogRow = await ServiceCatalog.findOne({
@@ -2863,20 +3263,9 @@ app.post("/requests", async (req, res) => {
 
 /** Staff may open the Document Generator unless their account has that permission switched off. */
 async function requireDocumentGeneratorAccess(req, res) {
+  // The Barangay Secretary (staff) has full access; no per-page permission switches any more.
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return null;
-  if (auth.profile.role === "staff") {
-    let row = null;
-    try {
-      row = await User.findOne({ email: auth.profile.email, role: "staff" }).select("staffPermissions").lean();
-    } catch (_e) {
-      row = null;
-    }
-    if (!normalizeStaffPermissionsFromDb(row?.staffPermissions).documentGenerator) {
-      res.status(403).json({ ok: false, message: "You do not have permission to use the Document Generator." });
-      return null;
-    }
-  }
   return auth;
 }
 
@@ -2919,6 +3308,7 @@ app.get("/requests/:id/document-data", async (req, res) => {
           contactNumber: u.contactNumber || "",
           sex: rp.sex || "",
           birthDate: birth && !Number.isNaN(birth.getTime()) ? birth.toISOString().slice(0, 10) : "",
+          birthPlace: rp.birthPlace || "",
           civilStatus: rp.civilStatus || "",
           purok: rp.purok || "",
           address: rp.address || "",
@@ -2964,7 +3354,7 @@ app.delete("/requests/:id", async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       ok: false,
-      message: "Unable to delete request.",
+      message: "Unable to cancel request.",
       detail: error.message
     });
   }
@@ -2986,13 +3376,29 @@ app.delete("/requests/:id", async (req, res) => {
     }
   }
 
+  // Cancelling keeps the record (status becomes "Cancelled") instead of removing it.
+  const CANCELLABLE_REQUEST_STATUSES = new Set(["pending", "processing", "in progress", "revision requested", "approved"]);
+  if (!CANCELLABLE_REQUEST_STATUSES.has(String(existing.status || "").trim().toLowerCase())) {
+    return res.status(409).json({
+      ok: false,
+      message: `This request is already "${existing.status}" and can no longer be cancelled.`
+    });
+  }
+
+  const cancelNote = actor.portal === "resident" ? "Cancelled by the resident." : "Cancelled by barangay personnel.";
+  const nextTimeline = buildNextTimelineFromRow(existing, "Cancelled", cancelNote);
+
   let data;
   try {
-    data = await ServiceRequest.findByIdAndDelete(id).lean();
+    data = await ServiceRequest.findByIdAndUpdate(
+      id,
+      { $set: { status: "Cancelled", statusTimeline: nextTimeline } },
+      { new: true }
+    ).lean();
   } catch (error) {
     return res.status(500).json({
       ok: false,
-      message: "Unable to delete request.",
+      message: "Unable to cancel request.",
       detail: error.message
     });
   }
@@ -3004,12 +3410,12 @@ app.delete("/requests/:id", async (req, res) => {
     });
   }
 
-  const requestRow = normalizeRequestRow(data);
-  broadcastRequestEvent({ type: "deleted", request: requestRow });
+  const requestRow = await normalizeRequestRowWithResident(data);
+  broadcastRequestEvent({ type: "status-updated", request: requestRow, note: cancelNote });
 
   void insertPortalAuditEvent({
-    action: "Deleted Record",
-    description: `Deleted service request ${existing.referenceNo || id} (${String(existing.serviceType || "").trim() || "—"}). Prior status: "${String(existing.status || "").trim() || "—"}". Title: "${String(existing.title || "").trim() || "—"}". Request ID: ${id}.`,
+    action: "Updated Record",
+    description: `Cancelled service request ${existing.referenceNo || id} (${String(existing.serviceType || "").trim() || "—"}). Prior status: "${String(existing.status || "").trim() || "—"}".`,
     profile: actor.profile,
     metadata: {
       entity: "service_request",
@@ -3017,7 +3423,8 @@ app.delete("/requests/:id", async (req, res) => {
       referenceNo: existing.referenceNo,
       serviceType: existing.serviceType,
       title: existing.title,
-      status: existing.status,
+      status: "Cancelled",
+      previousStatus: existing.status,
       portal: actor.portal
     }
   });
@@ -3053,9 +3460,10 @@ app.get("/appointments", async (req, res) => {
     });
   }
 
+  const appointmentRows = data.map(normalizeAppointmentRow);
   return res.json({
     ok: true,
-    appointments: data.map(normalizeAppointmentRow)
+    appointments: actor.portal === "resident" ? appointmentRows : await attachResidentNamesToRows(appointmentRows)
   });
 });
 
@@ -3203,6 +3611,14 @@ app.post("/appointments", async (req, res) => {
     return res.status(400).json({
       ok: false,
       message: "Selected time slot is unavailable."
+    });
+  }
+  const slotClosure = await getSlotClosureForDate(parsedSlotId, safeAppointmentDate);
+  if (slotClosure.isClosed) {
+    return res.status(409).json({
+      ok: false,
+      code: "SLOT_CLOSED",
+      message: slotClosedMessage(slotClosure.reason)
     });
   }
   const bookedCount = await countBookedAppointmentsForSlot(parsedSlotId, safeAppointmentDate);
@@ -3369,7 +3785,7 @@ app.patch("/appointments/:id/status", async (req, res) => {
 
   const apAuditCat = portalAuditCategoryForAppointmentStatus(mappedStatus);
   const apPrev = String(existing.status || "").trim();
-  const apNoteLine = safeNote ? ` Staff note: ${safeNote}` : "";
+  const apNoteLine = safeNote ? ` Barangay Secretary note: ${safeNote}` : "";
   void insertPortalAuditEvent({
     action: apAuditCat,
     description: `Appointment ${existing.referenceNo || id} (${appointmentRow.timeLabel || `slot ID ${existing.slotId}`}): status "${apPrev}" → "${mappedStatus}". Date: ${String(existing.appointmentDate || "").trim() || "—"}. Purpose: "${String(existing.purpose || "").trim() || "—"}". Appointment ID: ${id}.${apNoteLine}`,
@@ -3411,7 +3827,7 @@ app.delete("/appointments/:id", async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       ok: false,
-      message: "Unable to delete appointment.",
+      message: "Unable to cancel appointment.",
       detail: error.message
     });
   }
@@ -3433,13 +3849,29 @@ app.delete("/appointments/:id", async (req, res) => {
     }
   }
 
+  // Cancelling keeps the record (status becomes "Cancelled") and frees the slot.
+  const CANCELLABLE_APPOINTMENT_STATUSES = new Set(["pending review", "processing", "confirmed"]);
+  if (!CANCELLABLE_APPOINTMENT_STATUSES.has(String(existing.status || "").trim().toLowerCase())) {
+    return res.status(409).json({
+      ok: false,
+      message: `This appointment is already "${existing.status}" and can no longer be cancelled.`
+    });
+  }
+
+  const cancelNote = actor.portal === "resident" ? "Cancelled by the resident." : "Cancelled by barangay personnel.";
+  const nextTimeline = buildNextTimelineFromRow(existing, "Cancelled", cancelNote);
+
   let data;
   try {
-    data = await Appointment.findByIdAndDelete(id).lean();
+    data = await Appointment.findByIdAndUpdate(
+      id,
+      { $set: { status: "Cancelled", statusTimeline: nextTimeline } },
+      { new: true }
+    ).lean();
   } catch (error) {
     return res.status(500).json({
       ok: false,
-      message: "Unable to delete appointment.",
+      message: "Unable to cancel appointment.",
       detail: error.message
     });
   }
@@ -3451,18 +3883,19 @@ app.delete("/appointments/:id", async (req, res) => {
     });
   }
 
-  const appointmentRow = normalizeAppointmentRow(data);
-  broadcastAppointmentEvent({ type: "deleted", appointment: appointmentRow });
+  const appointmentRow = await normalizeAppointmentRowWithResident(data);
+  broadcastAppointmentEvent({ type: "status-updated", appointment: appointmentRow, note: cancelNote });
 
   void insertPortalAuditEvent({
-    action: "Deleted Record",
-    description: `Deleted appointment ${existing.referenceNo || id}. Prior status: "${String(existing.status || "").trim() || "—"}". Date: ${String(existing.appointmentDate || "").trim() || "—"}. Purpose: "${String(existing.purpose || "").trim() || "—"}". Slot ID: ${existing.slotId ? String(existing.slotId) : "—"}. Appointment ID: ${id}.`,
+    action: "Updated Record",
+    description: `Cancelled appointment ${existing.referenceNo || id}. Prior status: "${String(existing.status || "").trim() || "—"}". Date: ${String(existing.appointmentDate || "").trim() || "—"}.`,
     profile: actor.profile,
     metadata: {
       entity: "appointment",
       appointmentId: id,
       referenceNo: existing.referenceNo,
-      status: existing.status,
+      status: "Cancelled",
+      previousStatus: existing.status,
       appointmentDate: existing.appointmentDate,
       purpose: existing.purpose,
       slotId: existing.slotId ? String(existing.slotId) : null,
@@ -3470,10 +3903,7 @@ app.delete("/appointments/:id", async (req, res) => {
     }
   });
 
-  return res.json({
-    ok: true,
-    appointment: appointmentRow
-  });
+  return res.json({ ok: true, appointment: appointmentRow });
 });
 
 // --- FAQ retrieval + Groq rewrite (resident chatbot) ---
@@ -3576,7 +4006,7 @@ app.post("/faq/chat", faqChatLimiter, async (req, res) => {
 app.get("/announcements", async (_req, res) => {
   let announcements;
   try {
-    announcements = await CommunityAnnouncement.find({ isActive: true })
+    announcements = await CommunityAnnouncement.find({ isActive: true, archivedAt: null })
       .sort({ createdAt: -1 })
       .lean();
   } catch (error) {
@@ -3597,9 +4027,9 @@ app.get("/resident/announcements", async (req, res) => {
   const auth = await requireResidentPortalUser(req, res);
   if (!auth) return;
 
-  const filter = { isActive: true };
+  const filter = { isActive: true, archivedAt: null };
   const filterRole = String(req.query?.postedByRole ?? "").trim();
-  if (filterRole === "admin") filter.postedByRole = "admin";
+  if (filterRole === "admin" || filterRole === "staff") filter.postedByRole = { $in: ["admin", "staff"] };
 
   let announcements;
   try {
@@ -3789,8 +4219,8 @@ app.post("/admin/announcements", async (req, res) => {
 app.get("/admin/announcements", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
-  if (auth.profile.role !== "admin") {
-    return res.status(403).json({ ok: false, message: "Admin role required to list announcements." });
+  if (auth.profile.role !== "staff") {
+    return res.status(403).json({ ok: false, message: "Barangay Secretary role required to list announcements." });
   }
 
   let announcements;
@@ -3810,14 +4240,14 @@ app.get("/admin/announcements", async (req, res) => {
   });
 });
 
-/** Permanently remove an announcement (admin only). */
-app.delete("/admin/announcements/:id", async (req, res) => {
+/** Archive an announcement (admin only). It is hidden from residents but kept in the records. */
+app.post("/admin/announcements/:id/archive", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
-  if (auth.profile.role !== "admin") {
+  if (auth.profile.role !== "staff") {
     return res.status(403).json({
       ok: false,
-      message: "Admin role required to delete announcements."
+      message: "Admin role required to archive announcements."
     });
   }
 
@@ -3839,22 +4269,26 @@ app.delete("/admin/announcements/:id", async (req, res) => {
   if (!existing) {
     return res.status(404).json({ ok: false, message: "Announcement not found." });
   }
+  if (existing.archivedAt) {
+    return res.status(409).json({ ok: false, message: "Announcement is already archived." });
+  }
 
   try {
-    await CommunityAnnouncement.findByIdAndDelete(id);
+    await CommunityAnnouncement.findByIdAndUpdate(id, { $set: { archivedAt: new Date(), isActive: false } });
   } catch (error) {
     return res.status(500).json({
       ok: false,
-      message: "Unable to delete announcement.",
+      message: "Unable to archive announcement.",
       detail: error.message
     });
   }
 
+  // Residents' boards drop the post the same way they did when it was deleted.
   broadcastAnnouncementEvent({ type: "deleted", id });
 
   void insertPortalAuditEvent({
-    action: "Deleted Record",
-    description: `Deleted community announcement ID ${id}. Title: "${String(existing.title || "").trim() || "—"}". Category: "${String(existing.category || "").trim() || "—"}". Was active: ${Boolean(existing.isActive)}. Original posted-by role: ${existing.postedByRole ?? "—"}.`,
+    action: "Archived Record",
+    description: `Archived community announcement ID ${id}. Title: "${String(existing.title || "").trim() || "—"}". Category: "${String(existing.category || "").trim() || "—"}".`,
     profile: auth.profile,
     metadata: {
       entity: "community_announcement",
@@ -3862,12 +4296,54 @@ app.delete("/admin/announcements/:id", async (req, res) => {
       title: existing.title,
       category: existing.category,
       postedByRole: existing.postedByRole,
-      isActive: existing.isActive,
       createdAt: existing.createdAt
     }
   });
 
-  return res.json({ ok: true, message: "Announcement deleted." });
+  return res.json({ ok: true, message: "Announcement archived." });
+});
+
+/** Restore an archived announcement (admin only). */
+app.post("/admin/announcements/:id/restore", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  if (auth.profile.role !== "staff") {
+    return res.status(403).json({ ok: false, message: "Admin role required to restore announcements." });
+  }
+
+  const id = String(req.params.id || "");
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ ok: false, message: "Invalid announcement id." });
+  }
+
+  let restored;
+  try {
+    restored = await CommunityAnnouncement.findOneAndUpdate(
+      { _id: id, archivedAt: { $ne: null } },
+      { $set: { archivedAt: null, isActive: true } },
+      { new: true }
+    ).lean();
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      message: "Unable to restore announcement.",
+      detail: error.message
+    });
+  }
+  if (!restored) {
+    return res.status(404).json({ ok: false, message: "Archived announcement not found." });
+  }
+
+  broadcastAnnouncementEvent({ type: "created", announcement: normalizeAnnouncementRow(restored) });
+
+  void insertPortalAuditEvent({
+    action: "Updated Record",
+    description: `Restored archived community announcement ID ${id}. Title: "${String(restored.title || "").trim() || "—"}".`,
+    profile: auth.profile,
+    metadata: { entity: "community_announcement", announcementId: id, title: restored.title }
+  });
+
+  return res.json({ ok: true, message: "Announcement restored." });
 });
 
 // ---- Announcement drafts (admin only) ----
@@ -3904,8 +4380,8 @@ function buildAnnouncementDraftFields(reqBody) {
 async function requireAdminForDrafts(req, res) {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return null;
-  if (auth.profile.role !== "admin") {
-    res.status(403).json({ ok: false, message: "Admin role required to manage announcement drafts." });
+  if (auth.profile.role !== "staff") {
+    res.status(403).json({ ok: false, message: "Barangay Secretary role required to manage announcement drafts." });
     return null;
   }
   return auth;
@@ -3946,7 +4422,7 @@ app.post("/admin/announcement-drafts", async (req, res) => {
     } else {
       const created = await AnnouncementDraft.create({
         ...fields,
-        createdByRole: auth.profile?.role ?? "admin",
+        createdByRole: auth.profile?.role ?? "staff",
         createdById: String(auth.profile?.id ?? auth.profile?._id ?? "") || null
       });
       saved = created.toObject();
@@ -4081,10 +4557,10 @@ function appointmentPreferredStartHour24(slot) {
 app.get("/admin/analytics/hourly-demand", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
-  if (auth.profile.role !== "admin") {
+  if (auth.profile.role !== "staff") {
     return res.status(403).json({
       ok: false,
-      message: "Admin role required to view hourly demand analytics."
+      message: "Barangay Secretary role required to view hourly demand analytics."
     });
   }
 
@@ -4264,10 +4740,10 @@ app.get("/admin/analytics/hourly-demand", async (req, res) => {
 app.get("/admin/analytics/summary", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
-  if (auth.profile.role !== "admin") {
+  if (auth.profile.role !== "staff") {
     return res.status(403).json({
       ok: false,
-      message: "Admin role required to view analytics."
+      message: "Barangay Secretary role required to view analytics."
     });
   }
 
@@ -4293,7 +4769,7 @@ app.get("/admin/analytics/summary", async (req, res) => {
 
   let activeResidents;
   try {
-    activeResidents = await User.countDocuments({ role: "resident", isActive: true });
+    activeResidents = await User.countDocuments(confirmedResidentQuery({ isActive: true }));
   } catch (error) {
     return res.status(500).json({
       ok: false,
@@ -4474,10 +4950,10 @@ app.post(
   async (req, res) => {
     const auth = await requireStaffPortalUser(req, res);
     if (!auth) return;
-    if (auth.profile.role !== "admin") {
+    if (auth.profile.role !== "staff") {
       return res.status(403).json({
         ok: false,
-        message: "Admin role required to generate decision insights."
+        message: "Barangay Secretary role required to generate decision insights."
       });
     }
 
@@ -4540,9 +5016,11 @@ function mapDirectoryProfileRow(row) {
 // Resident Profiling (staff portal): list / view / add / update / export resident records.
 // Open to admin and system-admin; staff need the "residentProfiling" permission.
 // ---------------------------------------------------------------------------
+// Allowed values follow the barangay's RBI template (RBI-Profiling.xlsx, INSTRUCTIONS sheet).
+const RESIDENT_INHABITANT = ["Non-Migrant", "Migrant", "Transient"];
 const RESIDENT_SEX = ["Male", "Female"];
-const RESIDENT_CIVIL = ["Single", "Married", "Widowed", "Separated"];
-const RESIDENT_VOTER = ["Registered", "Not Registered"];
+const RESIDENT_CIVIL = ["Single", "Married", "Widowed", "Divorced", "Separated", "Common Law/ Live-in", "Unknown", "Annulled"];
+const RESIDENT_CITIZENSHIP = ["Filipino", "Dual Citizenship", "Foreigner"];
 const RESIDENT_SELECT =
   "residentId email fullName contactNumber accountStatus residentSelfRegistered createdAt smsOptOut loginIssued residentProfile";
 const RESIDENT_SORTS = {
@@ -4553,20 +5031,9 @@ const RESIDENT_SORTS = {
 };
 
 async function requireResidentProfilingAccess(req, res) {
+  // The Barangay Secretary (staff) has full access; no per-page permission switches any more.
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return null;
-  if (auth.profile.role === "staff") {
-    let row = null;
-    try {
-      row = await User.findOne({ email: auth.profile.email, role: "staff" }).select("staffPermissions").lean();
-    } catch (_e) {
-      row = null;
-    }
-    if (!normalizeStaffPermissionsFromDb(row?.staffPermissions).residentProfiling) {
-      res.status(403).json({ ok: false, message: "You do not have permission to use Resident Profiling." });
-      return null;
-    }
-  }
   return auth;
 }
 
@@ -4587,21 +5054,42 @@ function mapResidentProfilingRow(row) {
     registeredAt: row.createdAt || null,
     smsOptOut: Boolean(row.smsOptOut),
     loginIssued: row.loginIssued !== false,
-    sex: rp.sex || "",
+    philsysId: rp.philsysId || "",
+    inhabitantType: rp.inhabitantType || "",
+    lastName: rp.lastName || "",
+    firstName: rp.firstName || "",
+    middleName: rp.middleName || "",
+    suffix: rp.suffix || "",
+    birthPlace: rp.birthPlace || "",
     birthDate: rp.birthDate || null,
+    sex: rp.sex || "",
     civilStatus: rp.civilStatus || "",
+    citizenship: rp.citizenship || "",
+    occupation: rp.occupation || "",
+    highestEducation: rp.highestEducation || "",
+    motherFirstName: rp.motherFirstName || "",
+    motherMiddleName: rp.motherMiddleName || "",
+    motherLastName: rp.motherLastName || "",
     purok: rp.purok || "",
     address: rp.address || "",
-    occupation: rp.occupation || "",
-    voterStatus: rp.voterStatus || "",
-    remarks: rp.remarks || "",
     profileUpdatedBy: rp.updatedByEmail || "",
     profileUpdatedAt: rp.updatedAt || null
   };
 }
 
+/**
+ * Resident Profiling is for CONFIRMED residents only. A self-registered account stays out of
+ * profiling while it is "pending" (awaiting approval) or "rejected"; it is linked to profiling
+ * only once an administrator approves it (accountStatus becomes "active").
+ * Records created by staff or imported from the RBI are "active" from the start.
+ */
+const UNCONFIRMED_RESIDENT_STATUSES = ["pending", "rejected"];
+function confirmedResidentQuery(extra = {}) {
+  return { role: "resident", accountStatus: { $nin: UNCONFIRMED_RESIDENT_STATUSES }, ...extra };
+}
+
 function buildResidentFilter(query) {
-  const filter = { role: "resident" };
+  const filter = confirmedResidentQuery();
   const q = String(query?.q || "").trim().slice(0, 80);
   if (q) {
     const rx = new RegExp(escapeRegexLiteral(q), "i");
@@ -4610,6 +5098,9 @@ function buildResidentFilter(query) {
       { residentId: rx },
       { email: rx },
       { contactNumber: rx },
+      { "residentProfile.lastName": rx },
+      { "residentProfile.firstName": rx },
+      { "residentProfile.philsysId": rx },
       { "residentProfile.purok": rx },
       { "residentProfile.address": rx }
     ];
@@ -4622,32 +5113,87 @@ function buildResidentFilter(query) {
   return filter;
 }
 
-/** Validates the profiling fields of a request body. Returns { error } or { value }. */
-function parseResidentProfileInput(body, actorEmail) {
-  const clean = (v, max) => String(v ?? "").trim().slice(0, max);
-  const pickEnum = (v, list) => (list.includes(v) ? v : "");
-  let birthDate = null;
-  if (body.birthDate) {
-    const d = new Date(body.birthDate);
-    if (Number.isNaN(d.getTime()) || d > new Date() || d.getFullYear() < 1900) {
-      return { error: "Birth date is not valid." };
-    }
-    birthDate = d;
-  }
-  return {
-    value: {
-      sex: pickEnum(body.sex, RESIDENT_SEX),
-      birthDate,
-      civilStatus: pickEnum(body.civilStatus, RESIDENT_CIVIL),
-      purok: clean(body.purok, 80),
-      address: clean(body.address, 250),
-      occupation: clean(body.occupation, 120),
-      voterStatus: pickEnum(body.voterStatus, RESIDENT_VOTER),
-      remarks: clean(body.remarks, 500),
-      updatedByEmail: actorEmail || "",
-      updatedAt: new Date()
-    }
+/** Case/spacing-insensitive match against an allowed list ("COMMON LAW/LIVE-IN" -> "Common Law/ Live-in"). */
+function canonResidentEnum(value, list) {
+  const key = (v) => String(v ?? "").toLowerCase().replace(/\s+/g, "");
+  const k = key(value);
+  if (!k) return "";
+  return list.find((item) => key(item) === k) || null; // null = not an allowed value
+}
+
+/** "First Middle Last Suffix" — the display name used across the rest of the portal. */
+function composeResidentFullName(p) {
+  return sanitizeFullNameForStorage([p.firstName, p.middleName, p.lastName, p.suffix].filter(Boolean).join(" "));
+}
+
+/**
+ * Validates the RBI profile fields of a request body. Returns { error } or { value }.
+ * strict=true (add / import): the template's required fields cannot be blank.
+ * strict=false (edit): only the values that are sent are checked and returned, so older
+ * records can still be saved while they are being completed.
+ */
+// Required fields from the RBI template (RBI-Profiling.xlsx, DATA tab columns B, C, D, H, I, J, K).
+// Required fields cannot be null/empty on create, import, or edit.
+const RESIDENT_REQUIRED_FIELDS = [
+  ["inhabitantType", "Inhabitant type"], ["lastName", "Last name"], ["firstName", "First name"],
+  ["birthDate", "Birthdate"], ["sex", "Sex"], ["civilStatus", "Civil status"], ["citizenship", "Citizenship"]
+];
+
+/** Labels of required RBI fields that are empty in the given profile-shaped object. */
+function missingRequiredResidentFields(profile) {
+  const p = profile && typeof profile === "object" ? profile : {};
+  return RESIDENT_REQUIRED_FIELDS.filter(([k]) => !p[k]).map(([, label]) => label);
+}
+
+function parseResidentProfileInput(body, actorEmail, { strict = false } = {}) {
+  const has = (k) => Object.prototype.hasOwnProperty.call(body, k);
+  const clean = (v, max) => String(v ?? "").trim().replace(/[\x00-\x1f\x7f<>]/g, "").slice(0, max);
+  const out = {};
+
+  const textFields = {
+    philsysId: ["PhilSys ID", 30], lastName: ["Last name", 60], firstName: ["First name", 60],
+    middleName: ["Middle name", 60], suffix: ["Suffix", 20], birthPlace: ["Birth place", 120],
+    occupation: ["Profession/Occupation", 120], highestEducation: ["Highest educational attainment", 80],
+    motherFirstName: ["Mother's first name", 60], motherMiddleName: ["Mother's middle name", 60],
+    motherLastName: ["Mother's last name", 60], purok: ["Purok", 80], address: ["Address", 250]
   };
+  for (const [k, [, max]] of Object.entries(textFields)) {
+    if (strict || has(k)) out[k] = clean(body[k], max);
+  }
+
+  const enumFields = {
+    inhabitantType: ["Inhabitant type", RESIDENT_INHABITANT],
+    sex: ["Sex", RESIDENT_SEX],
+    civilStatus: ["Civil status", RESIDENT_CIVIL],
+    citizenship: ["Citizenship", RESIDENT_CITIZENSHIP]
+  };
+  for (const [k, [label, list]] of Object.entries(enumFields)) {
+    if (!strict && !has(k)) continue;
+    const v = canonResidentEnum(body[k], list);
+    if (v === null) return { error: `${label} "${clean(body[k], 40)}" is not valid. Use: ${list.join(", ")}.` };
+    out[k] = v;
+  }
+
+  if (strict || has("birthDate")) {
+    if (body.birthDate) {
+      const d = new Date(body.birthDate);
+      if (Number.isNaN(d.getTime()) || d > new Date() || d.getFullYear() < 1900) {
+        return { error: "Birthdate is not valid (use YYYY-MM-DD)." };
+      }
+      out.birthDate = d;
+    } else {
+      out.birthDate = null;
+    }
+  }
+
+  if (strict) {
+    const missing = missingRequiredResidentFields(out);
+    if (missing.length) return { error: `Required field(s) missing: ${missing.join(", ")}.` };
+  }
+
+  out.updatedByEmail = actorEmail || "";
+  out.updatedAt = new Date();
+  return { value: out };
 }
 
 function csvCell(value) {
@@ -4694,19 +5240,22 @@ app.get("/staff/residents/export", async (req, res) => {
   const sort = RESIDENT_SORTS[String(req.query?.sort || "")] || RESIDENT_SORTS.name;
   try {
     const rows = await User.find(buildResidentFilter(req.query)).select(RESIDENT_SELECT).sort(sort).limit(5000).lean();
+    // Same 18 columns, order and wording as the barangay's RBI template (DATA sheet),
+    // so the file can be re-imported or uploaded as-is.
     const header = [
-      "Resident ID", "Full Name", "Email", "Contact Number", "Sex", "Birth Date", "Age", "Civil Status", "Purok",
-      "Address", "Occupation", "Voter Status", "Account Status", "SMS Opt-out", "Registered", "Remarks"
+      "PHILSYS ID", "INHABITANT TYPE", "LAST NAME", "FIRST NAME", "MIDDLE NAME", "SUFFIX", "BIRTH PLACE",
+      "BIRTHDATE (YYYY-MM-DD)", "SEX", "CIVIL STATUS", "CITIZENSHIP", "PROFESSION/ OCCUPATION", "CONTACT NUMBER",
+      "EMAIL ADDRESS", "HIGHEST EDUCATIONAL ATTAINMENT", "MOTHER'S FIRST NAME", "MOTHER'S MIDDLE NAME", "MOTHER'S LAST NAME"
     ];
+    const up = (v) => String(v || "").toUpperCase();
     const lines = [header.map(csvCell).join(",")];
     for (const row of rows) {
       const r = mapResidentProfilingRow(row);
       lines.push([
-        r.residentId, r.fullName, r.email, r.contactNumber, r.sex,
+        r.philsysId, up(r.inhabitantType), up(r.lastName), up(r.firstName), up(r.middleName), up(r.suffix), up(r.birthPlace),
         r.birthDate ? new Date(r.birthDate).toISOString().slice(0, 10) : "",
-        ageFromDate(r.birthDate), r.civilStatus, r.purok, r.address, r.occupation, r.voterStatus,
-        r.accountStatus, r.smsOptOut ? "Yes" : "No",
-        r.registeredAt ? new Date(r.registeredAt).toISOString().slice(0, 10) : "", r.remarks
+        up(r.sex), up(r.civilStatus), up(r.citizenship), up(r.occupation), r.contactNumber, r.email,
+        up(r.highestEducation), up(r.motherFirstName), up(r.motherMiddleName), up(r.motherLastName)
       ].map(csvCell).join(","));
     }
     void insertPortalAuditEvent({
@@ -4716,10 +5265,63 @@ app.get("/staff/residents/export", async (req, res) => {
       metadata: { entity: "resident_export", count: rows.length }
     });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="residents-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.setHeader("Content-Disposition", `attachment; filename="RBI-Profiling-${new Date().toISOString().slice(0, 10)}.csv"`);
     return res.send("\uFEFF" + lines.join("\r\n"));
   } catch (error) {
     return res.status(500).json({ ok: false, message: "Unable to export residents.", detail: error.message });
+  }
+});
+
+// Resident Profiling analytics: head-count of confirmed residents, split by sex, plus senior citizens.
+// Counts the whole barangay (not just the current page or search). Senior citizen = 60 years old or above
+// (RA 9994, Expanded Senior Citizens Act). Residents with no recorded birthdate cannot be counted as seniors.
+// NOTE: must be declared before "/staff/residents/:id".
+const SENIOR_CITIZEN_AGE = 60;
+const PH_UTC_OFFSET_MS = 8 * 60 * 60 * 1000; // birthdates are stored as a calendar day, so compare by the barangay's (PH) date
+app.get("/staff/residents/stats", async (req, res) => {
+  const auth = await requireResidentProfilingAccess(req, res);
+  if (!auth) return;
+  try {
+    const today = new Date(Date.now() + PH_UTC_OFFSET_MS);
+    // Someone born on or before this day is already 60 today.
+    const seniorCutoff = new Date(Date.UTC(today.getUTCFullYear() - SENIOR_CITIZEN_AGE, today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999));
+    const hasBirthDate = { $eq: [{ $type: "$residentProfile.birthDate" }, "date"] };
+    const isSenior = { $and: [hasBirthDate, { $lte: ["$residentProfile.birthDate", seniorCutoff] }] };
+    const isSex = (sex) => ({ $eq: ["$residentProfile.sex", sex] });
+    const count = (cond) => ({ $sum: { $cond: [cond, 1, 0] } });
+
+    const [row] = await User.aggregate([
+      { $match: confirmedResidentQuery() },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          male: count(isSex("Male")),
+          female: count(isSex("Female")),
+          seniors: count(isSenior),
+          seniorMale: count({ $and: [isSenior, isSex("Male")] }),
+          seniorFemale: count({ $and: [isSenior, isSex("Female")] }),
+          noBirthDate: count({ $not: [hasBirthDate] })
+        }
+      }
+    ]);
+    const r = row || {};
+    return res.json({
+      ok: true,
+      stats: {
+        total: r.total || 0,
+        male: r.male || 0,
+        female: r.female || 0,
+        seniors: r.seniors || 0,
+        seniorMale: r.seniorMale || 0,
+        seniorFemale: r.seniorFemale || 0,
+        noBirthDate: r.noBirthDate || 0,
+        seniorAge: SENIOR_CITIZEN_AGE,
+        asOf: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to load resident statistics.", detail: error.message });
   }
 });
 
@@ -4733,11 +5335,10 @@ app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
   if (!auth) return;
   const body = req.body && typeof req.body === "object" ? req.body : {};
 
-  const fullName = sanitizeFullNameForStorage(body.fullName);
-  if (!fullName) return res.status(400).json({ ok: false, message: "Full name is required." });
-
-  const parsed = parseResidentProfileInput(body, auth.profile.email);
+  const parsed = parseResidentProfileInput(body, auth.profile.email, { strict: true });
   if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
+  const fullName = composeResidentFullName(parsed.value);
+  if (!fullName) return res.status(400).json({ ok: false, message: "First and last name are required." });
   const contactNumber = sanitizeResidentContactNumber(body.contactNumber);
 
   const rawEmail = String(body.email || "").trim();
@@ -4795,6 +5396,8 @@ app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
           isActive: true,
           accountStatus: "active",
           residentSelfRegistered: false,
+          // staff chose/know this password, so the resident must replace it at first login
+          mustChangePassword: true,
           ...(contactNumber ? { contactNumber } : {}),
           residentProfile: parsed.value
         });
@@ -4809,7 +5412,7 @@ app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
 
     void insertPortalAuditEvent({
       action: "Updated Record",
-      description: `Staff issued resident account ${residentId} for "${fullName}".`,
+      description: `Barangay Secretary issued resident account ${residentId} for "${fullName}".`,
       profile: auth.profile,
       metadata: { entity: "resident_account", residentId }
     });
@@ -4843,14 +5446,14 @@ app.post("/staff/residents/:id/reset-password", adminStaffCreateLimiter, async (
   const password = custom || generateTemporaryPassword();
   try {
     const updated = await User.findOneAndUpdate(
-      { _id: id, role: "resident" },
-      { $set: { passwordHash: await hashPassword(password), loginIssued: true }, $inc: { tokenVersion: 1 } },
+      confirmedResidentQuery({ _id: id }),
+      { $set: { passwordHash: await hashPassword(password), loginIssued: true, mustChangePassword: true, failedLoginCount: 0, lockedUntil: null }, $inc: { tokenVersion: 1 } },
       { new: true }
     ).select("residentId email fullName").lean();
     if (!updated) return res.status(404).json({ ok: false, message: "Resident not found." });
     void insertPortalAuditEvent({
       action: "Updated Record",
-      description: `Staff reset the password of resident ${updated.residentId || updated.email}.`,
+      description: `Barangay Secretary reset the password of resident ${updated.residentId || updated.email}.`,
       profile: auth.profile,
       metadata: { entity: "resident_password_reset", residentId: updated.residentId || null }
     });
@@ -4873,8 +5476,11 @@ app.post("/staff/residents/:id/reset-password", adminStaffCreateLimiter, async (
  * Each row becomes a resident record with an auto-assigned Resident ID but NO usable password
  * (loginIssued=false). Staff issue a login later from the resident drawer.
  */
-async function findImportDuplicate({ fullName, email, birthDate, purok }) {
+async function findImportDuplicate({ fullName, email, birthDate, purok, philsysId }) {
   if (email && (await User.exists({ email }))) return "Email already registered";
+  if (philsysId && (await User.exists({ role: "resident", "residentProfile.philsysId": philsysId }))) {
+    return "PhilSys ID already registered";
+  }
   const nameRx = new RegExp("^" + escapeRegexLiteral(fullName) + "$", "i");
   if (birthDate) {
     if (await User.exists({ role: "resident", fullName: nameRx, "residentProfile.birthDate": birthDate })) {
@@ -4907,13 +5513,13 @@ app.post("/staff/residents/import", residentImportLimiter, async (req, res) => {
     for (let i = 0; i < rows.length; i += 1) {
       const raw = rows[i] && typeof rows[i] === "object" ? rows[i] : {};
       const rowNumber = Number.isInteger(raw.rowNumber) ? raw.rowNumber : i + 1;
-      const fail = (reason) => result.failed.push({ rowNumber, fullName: String(raw.fullName || "").slice(0, 120), reason });
+      const rawName = [raw.firstName, raw.lastName].map((x) => String(x || "").trim()).filter(Boolean).join(" ");
+      const fail = (reason) => result.failed.push({ rowNumber, fullName: rawName.slice(0, 120), reason });
 
-      const fullName = sanitizeFullNameForStorage(raw.fullName);
-      if (!fullName) { fail("Full name is missing"); continue; }
-
-      const parsed = parseResidentProfileInput(raw, auth.profile.email);
+      const parsed = parseResidentProfileInput(raw, auth.profile.email, { strict: true });
       if (parsed.error) { fail(parsed.error); continue; }
+      const fullName = composeResidentFullName(parsed.value);
+      if (!fullName) { fail("First and last name are required"); continue; }
 
       let email = "";
       if (String(raw.email || "").trim()) {
@@ -4923,7 +5529,7 @@ app.post("/staff/residents/import", residentImportLimiter, async (req, res) => {
       const contactNumber = sanitizeResidentContactNumber(raw.contactNumber);
 
       const dup = await findImportDuplicate({
-        fullName, email, birthDate: parsed.value.birthDate, purok: parsed.value.purok
+        fullName, email, birthDate: parsed.value.birthDate, purok: parsed.value.purok, philsysId: parsed.value.philsysId
       });
       if (dup) { result.skipped.push({ rowNumber, fullName, reason: dup }); continue; }
 
@@ -4980,7 +5586,7 @@ app.get("/staff/residents/:id", async (req, res) => {
     return res.status(400).json({ ok: false, message: "Invalid resident id." });
   }
   try {
-    const row = await User.findOne({ _id: id, role: "resident" }).select(RESIDENT_SELECT).lean();
+    const row = await User.findOne(confirmedResidentQuery({ _id: id })).select(RESIDENT_SELECT).lean();
     if (!row) return res.status(404).json({ ok: false, message: "Resident not found." });
     const [requestCount, appointmentCount] = await Promise.all([
       ServiceRequest.countDocuments({ residentUserId: id }),
@@ -5006,11 +5612,47 @@ app.patch("/staff/residents/:id", async (req, res) => {
   const parsed = parseResidentProfileInput(body, auth.profile.email);
   if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
 
-  const set = { residentProfile: parsed.value };
+  // Required RBI fields cannot be blanked or left empty. When any profile field is being saved,
+  // the resulting record (existing values + this edit) must have all required fields filled.
+  const touchesProfile = Object.keys(parsed.value).some((k) => k !== "updatedByEmail" && k !== "updatedAt");
+  if (touchesProfile) {
+    let existing;
+    try {
+      existing = await User.findOne(confirmedResidentQuery({ _id: id })).select("residentProfile").lean();
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: "Unable to save resident profile.", detail: error.message });
+    }
+    if (!existing) return res.status(404).json({ ok: false, message: "Resident not found." });
+    const missing = missingRequiredResidentFields({ ...(existing.residentProfile || {}), ...parsed.value });
+    if (missing.length) {
+      return res.status(400).json({ ok: false, message: `Required field(s) missing: ${missing.join(", ")}.` });
+    }
+  }
+
+  // Set each field individually (dotted paths) so fields not on the form (purok, address, old
+  // remarks / voter status) are never wiped by a save.
+  const set = {};
+  for (const [k, v] of Object.entries(parsed.value)) set[`residentProfile.${k}`] = v;
   if (typeof body.smsOptOut === "boolean") set.smsOptOut = body.smsOptOut;
+  if (Object.prototype.hasOwnProperty.call(body, "contactNumber")) {
+    set.contactNumber = sanitizeResidentContactNumber(body.contactNumber);
+  }
+  // Keep the display name in sync when the name parts are edited.
+  if (parsed.value.firstName !== undefined || parsed.value.lastName !== undefined) {
+    const current = await User.findOne(confirmedResidentQuery({ _id: id })).select("residentProfile").lean();
+    const rp = current?.residentProfile || {};
+    const merged = {
+      firstName: parsed.value.firstName ?? rp.firstName ?? "",
+      middleName: parsed.value.middleName ?? rp.middleName ?? "",
+      lastName: parsed.value.lastName ?? rp.lastName ?? "",
+      suffix: parsed.value.suffix ?? rp.suffix ?? ""
+    };
+    const composed = composeResidentFullName(merged);
+    if (composed && merged.firstName && merged.lastName) set.fullName = composed;
+  }
 
   try {
-    const updated = await User.findOneAndUpdate({ _id: id, role: "resident" }, { $set: set }, { new: true })
+    const updated = await User.findOneAndUpdate(confirmedResidentQuery({ _id: id }), { $set: set }, { new: true, runValidators: true })
       .select(RESIDENT_SELECT)
       .lean();
     if (!updated) return res.status(404).json({ ok: false, message: "Resident not found." });
@@ -5024,10 +5666,10 @@ app.get("/admin/profiles", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
   const actorRole = auth.profile.role;
-  if (actorRole !== "admin" && actorRole !== "system-admin") {
+  if (actorRole !== "staff" && actorRole !== "system-admin") {
     return res.status(403).json({
       ok: false,
-      message: "Barangay admin or system administrator role is required to list users."
+      message: "Barangay Secretary or system administrator role is required to list users."
     });
   }
 
@@ -5044,7 +5686,7 @@ app.get("/admin/profiles", async (req, res) => {
   const pageOffset = Number.isInteger(offsetParsed) && offsetParsed >= 0 ? offsetParsed : 0;
 
   const roleFilter =
-    actorRole === "system-admin" ? { role: { $ne: "system-admin" } } : { role: { $nin: ["admin", "system-admin"] } };
+    actorRole === "system-admin" ? { role: { $ne: "system-admin" } } : { role: "resident" };
 
   if (pageLimit > 0) {
     let total, data;
@@ -5099,10 +5741,10 @@ app.get("/admin/profiles/by-email", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
   const actorRole = auth.profile.role;
-  if (actorRole !== "admin" && actorRole !== "system-admin") {
+  if (actorRole !== "staff" && actorRole !== "system-admin") {
     return res.status(403).json({
       ok: false,
-      message: "Barangay admin or system administrator role is required to load profiles."
+      message: "Barangay Secretary or system administrator role is required to load profiles."
     });
   }
 
@@ -5127,7 +5769,7 @@ app.get("/admin/profiles/by-email", async (req, res) => {
     return res.status(404).json({ ok: false, message: "No profile found for that email." });
   }
 
-  if (actorRole === "admin" && (data.role === "admin" || data.role === "system-admin")) {
+  if (actorRole === "staff" && data.role !== "resident") {
     return res.status(403).json({ ok: false, message: "You cannot load this profile." });
   }
 
@@ -5150,10 +5792,10 @@ app.patch("/admin/profiles/update", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
   const actorRole = auth.profile.role;
-  if (actorRole !== "admin" && actorRole !== "system-admin") {
+  if (actorRole !== "staff" && actorRole !== "system-admin") {
     return res.status(403).json({
       ok: false,
-      message: "Barangay admin or system administrator role is required."
+      message: "Barangay Secretary or system administrator role is required."
     });
   }
 
@@ -5186,7 +5828,7 @@ app.patch("/admin/profiles/update", async (req, res) => {
   if (!target) {
     return res.status(404).json({ ok: false, message: "No profile found for that email." });
   }
-  if (actorRole === "admin" && (target.role === "admin" || target.role === "system-admin")) {
+  if (actorRole === "staff" && target.role !== "resident") {
     return res.status(403).json({ ok: false, message: "You cannot update this account from here." });
   }
 
@@ -5206,6 +5848,8 @@ app.patch("/admin/profiles/update", async (req, res) => {
     // Invalidate any sessions issued before this change — same reasoning
     // as the resident change-password route.
     updatePayload.$inc = { tokenVersion: 1 };
+    // an administrator chose this password: the resident must replace it at next login
+    if (target.role === "resident") updatePayload.mustChangePassword = true;
   }
 
   if (hasContact) {
@@ -5236,15 +5880,219 @@ app.patch("/admin/profiles/update", async (req, res) => {
   });
 });
 
-/** Set account status (Active / Suspended / Deactivated). Active = full resident portal access; other values block login and APIs. */
+// ---- Linking a self-registered resident to an existing RBI record (avoids duplicate residents) ----
+// A resident who is already in the Record of Barangay Inhabitants (imported/created by staff, with no
+// login e-mail yet) and then signs up on their own would otherwise exist twice. On approval, the admin
+// can link the sign-up to the existing record: the record keeps its Resident ID and RBI data and gains
+// the e-mail, password and ID photo from the sign-up; the duplicate pending account is removed.
+const NAME_NOISE_TOKENS = new Set(["jr", "sr", "ii", "iii", "iv", "de", "del", "dela", "delos", "la", "las", "los"]);
+
+function linkNameTokens(text) {
+  return String(text || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 2 && !NAME_NOISE_TOKENS.has(t));
+}
+
+function linkableRecordFilter() {
+  // RBI records that do not have a real login e-mail yet, and are not themselves sign-ups.
+  return {
+    role: "resident",
+    residentSelfRegistered: { $ne: true },
+    accountStatus: { $nin: ["pending", "rejected"] },
+    email: new RegExp(escapeRegexLiteral(PLACEHOLDER_EMAIL_DOMAIN) + "$", "i")
+  };
+}
+
+async function findLinkCandidates({ searchText, contactNumber }) {
+  const tokens = linkNameTokens(searchText);
+  if (!tokens.length) return [];
+  const digits = String(contactNumber || "").replace(/\D/g, "");
+  const phoneTail = digits.length >= 10 ? digits.slice(-10) : "";
+
+  const rows = await User.find({
+    ...linkableRecordFilter(),
+    $or: tokens.map((t) => ({ fullName: new RegExp(escapeRegexLiteral(t), "i") }))
+  })
+    .select(RESIDENT_SELECT)
+    .limit(120)
+    .lean();
+
+  const scored = rows.map((row) => {
+    const cand = new Set(linkNameTokens(row.fullName));
+    let exact = 0;
+    let partial = 0;
+    for (const t of tokens) {
+      if (cand.has(t)) exact += 1;
+      else if ([...cand].some((c) => c.startsWith(t) || t.startsWith(c))) partial += 1;
+    }
+    const phoneMatch = Boolean(phoneTail) && String(row.contactNumber || "").replace(/\D/g, "").endsWith(phoneTail);
+    const strong = tokens.length >= 2 && exact === tokens.length;
+    const score = exact * 10 + partial * 4 + (phoneMatch ? 15 : 0);
+    const rp = row.residentProfile || {};
+    return {
+      score,
+      candidate: {
+        id: String(row._id),
+        residentId: row.residentId || "",
+        fullName: row.fullName || "",
+        birthDate: rp.birthDate ? new Date(rp.birthDate).toISOString().slice(0, 10) : "",
+        sex: rp.sex || "",
+        purok: rp.purok || "",
+        address: rp.address || "",
+        contactNumber: row.contactNumber || "",
+        loginIssued: row.loginIssued !== false,
+        match: strong ? "Same name" : phoneMatch ? "Same contact number" : "Similar name"
+      }
+    };
+  });
+
+  return scored
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score || a.candidate.fullName.localeCompare(b.candidate.fullName))
+    .slice(0, 8)
+    .map((x) => x.candidate);
+}
+
+/** Possible RBI matches for a pending self-registration (optionally narrowed by a manual search `q`). */
+app.get("/admin/profiles/link-candidates", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  if (auth.profile.role !== "staff" && auth.profile.role !== "system-admin") {
+    return res.status(403).json({ ok: false, message: "Barangay Secretary or system administrator role is required." });
+  }
+  const email = normalizeEmail(req.query?.email ?? "");
+  if (!email || !isValidEmailFormat(email)) {
+    return res.status(400).json({ ok: false, message: "A valid email is required." });
+  }
+  const q = String(req.query?.q ?? "").trim().slice(0, 80);
+  try {
+    const pending = await User.findOne({ email, role: "resident", accountStatus: "pending", residentSelfRegistered: true })
+      .select("email fullName contactNumber")
+      .lean();
+    if (!pending) {
+      return res.status(404).json({ ok: false, message: "No pending self-registration found for that email." });
+    }
+    const candidates = await findLinkCandidates({
+      searchText: q || pending.fullName,
+      contactNumber: q ? "" : pending.contactNumber
+    });
+    return res.json({
+      ok: true,
+      pending: { email: pending.email, fullName: pending.fullName, contactNumber: pending.contactNumber || "" },
+      candidates
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to look for matching records.", detail: error.message });
+  }
+});
+
+/** Approve a pending self-registration by linking it to an existing RBI record instead of creating a new resident. */
+app.post("/admin/profiles/approve-link", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  if (auth.profile.role !== "staff" && auth.profile.role !== "system-admin") {
+    return res.status(403).json({ ok: false, message: "Barangay Secretary or system administrator role is required." });
+  }
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const email = normalizeEmail(body.email ?? "");
+  const recordId = String(body.residentRecordId ?? "");
+  if (!email || !isValidEmailFormat(email)) {
+    return res.status(400).json({ ok: false, message: "A valid email is required." });
+  }
+  if (!mongoose.Types.ObjectId.isValid(recordId)) {
+    return res.status(400).json({ ok: false, message: "Choose the resident record to link." });
+  }
+
+  try {
+    const pending = await User.findOne({ email, role: "resident", accountStatus: "pending", residentSelfRegistered: true })
+      .select("+passwordHash");
+    if (!pending) {
+      return res.status(404).json({ ok: false, message: "No pending self-registration found for that email." });
+    }
+    const target = await User.findOne({ ...linkableRecordFilter(), _id: recordId }).select(RESIDENT_SELECT + " avatarFileId");
+    if (!target) {
+      return res.status(409).json({
+        ok: false,
+        message: "That resident record can no longer be linked (it may already have an account e-mail). Refresh and try again."
+      });
+    }
+
+    // 1) Free the e-mail address (it is unique) by parking the pending account under a throwaway address.
+    const parked = await User.updateOne(
+      { _id: pending._id, accountStatus: "pending" },
+      { $set: { email: `merged-${pending._id}${PLACEHOLDER_EMAIL_DOMAIN}` } }
+    );
+    if (!parked.matchedCount) {
+      return res.status(409).json({ ok: false, message: "This registration was already reviewed. Refresh and try again." });
+    }
+
+    // 2) Move the sign-up's login onto the RBI record; undo step 1 if that fails.
+    const setFields = {
+      email,
+      passwordHash: pending.passwordHash,
+      loginIssued: true,
+      mustChangePassword: false, // they chose this password themselves
+      residentSelfRegistered: true,
+      accountStatus: "active",
+      isActive: true
+    };
+    if (pending.identityVerificationFileId) setFields.identityVerificationFileId = pending.identityVerificationFileId;
+    if (pending.avatarFileId && !target.avatarFileId) setFields.avatarFileId = pending.avatarFileId;
+    if (!target.contactNumber && pending.contactNumber) setFields.contactNumber = pending.contactNumber;
+
+    let linked = null;
+    try {
+      linked = await User.findOneAndUpdate(
+        { _id: target._id, email: target.email },
+        { $set: setFields, $inc: { tokenVersion: 1 } },
+        { new: true }
+      ).select("residentId email fullName").lean();
+    } catch (error) {
+      await User.updateOne({ _id: pending._id }, { $set: { email } });
+      throw error;
+    }
+    if (!linked) {
+      await User.updateOne({ _id: pending._id }, { $set: { email } });
+      return res.status(409).json({ ok: false, message: "That resident record was changed by someone else. Refresh and try again." });
+    }
+
+    // 3) The sign-up's data now lives on the RBI record, so the duplicate goes away
+    //    (its ID photo was moved, so the file itself is kept).
+    try {
+      await User.deleteOne({ _id: pending._id });
+    } catch (error) {
+      await User.updateOne({ _id: pending._id }, { $set: { accountStatus: "rejected" } }); // never leave a usable duplicate
+      console.warn("[approve-link] could not delete merged pending account:", error?.message || error);
+    }
+
+    void insertAuthAuditEvent({ action: "account_approved", email, role: "resident", req });
+    void insertPortalAuditEvent({
+      action: "Updated Record",
+      description: `Approved the self-registration of ${email} and linked it to RBI record ${linked.residentId || ""} (${linked.fullName}).`,
+      profile: auth.profile,
+      metadata: { entity: "resident_account_link", residentId: linked.residentId || null }
+    });
+
+    return res.json({
+      ok: true,
+      resident: { residentId: linked.residentId || "", fullName: linked.fullName, email: linked.email }
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to link the registration.", detail: error.message });
+  }
+});
+
+/** Set account status (Pending Approval / Active / Suspended / Deactivated / Rejected). Active = full resident portal access; other values block login and APIs. Moving a pending account to Active approves it; to Rejected declines it. */
 app.patch("/admin/profiles/account-status", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
   const actorRole = auth.profile.role;
-  if (actorRole !== "admin" && actorRole !== "system-admin") {
+  if (actorRole !== "staff" && actorRole !== "system-admin") {
     return res.status(403).json({
       ok: false,
-      message: "Barangay admin or system administrator role is required."
+      message: "Barangay Secretary or system administrator role is required."
     });
   }
 
@@ -5257,7 +6105,7 @@ app.patch("/admin/profiles/account-status", async (req, res) => {
   if (!nextStatus) {
     return res.status(400).json({
       ok: false,
-      message: "accountStatus must be Active, Suspended, or Deactivated."
+      message: "accountStatus must be Pending Approval, Active, Suspended, Deactivated, or Rejected."
     });
   }
 
@@ -5267,7 +6115,7 @@ app.patch("/admin/profiles/account-status", async (req, res) => {
 
   let target;
   try {
-    target = await User.findOne({ email: targetEmail }).select("email role").lean();
+    target = await User.findOne({ email: targetEmail }).select("email role accountStatus").lean();
   } catch (error) {
     return res.status(500).json({
       ok: false,
@@ -5278,8 +6126,8 @@ app.patch("/admin/profiles/account-status", async (req, res) => {
   if (!target) {
     return res.status(404).json({ ok: false, message: "No profile found for that email." });
   }
-  if (target.role === "admin" || target.role === "system-admin") {
-    return res.status(403).json({ ok: false, message: "Administrator account status cannot be changed from this action." });
+  if (target.role === "system-admin" || (actorRole === "staff" && target.role !== "resident")) {
+    return res.status(403).json({ ok: false, message: "This account's status cannot be changed from this action." });
   }
 
   let updated;
@@ -5299,6 +6147,13 @@ app.patch("/admin/profiles/account-status", async (req, res) => {
     });
   }
 
+  // Audit trail for registration review decisions (pending -> active / rejected).
+  if (target.accountStatus === "pending" && nextStatus === "active") {
+    void insertAuthAuditEvent({ action: "account_approved", email: targetEmail, role: target.role, req });
+  } else if (target.accountStatus === "pending" && nextStatus === "rejected") {
+    void insertAuthAuditEvent({ action: "account_rejected", email: targetEmail, role: target.role, req });
+  }
+
   return res.json({
     ok: true,
     email: updated?.email || targetEmail,
@@ -5306,14 +6161,14 @@ app.patch("/admin/profiles/account-status", async (req, res) => {
   });
 });
 
-/** Barangay admin creates a staff account (email/password + page permissions) in MongoDB. */
+/** System administrator creates the Barangay Secretary (staff) account in MongoDB. */
 app.post("/admin/staff", adminStaffCreateLimiter, async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
-  if (auth.profile.role !== "admin") {
+  if (auth.profile.role !== "system-admin") {
     return res.status(403).json({
       ok: false,
-      message: "Only barangay administrators can create staff accounts."
+      message: "Only system administrators can create Barangay Secretary accounts."
     });
   }
 
@@ -5322,7 +6177,7 @@ app.post("/admin/staff", adminStaffCreateLimiter, async (req, res) => {
   const normalizedEmail = normalizeEmail(email);
   const safeFullName = sanitizeFullNameForStorage(fullName);
   const safePassword = String(password || "");
-  const perms = normalizeStaffPermissionsFromBody(body.permissions ?? body);
+  const perms = defaultStaffPermissionsAllTrue();
 
   if (!safeFullName || !normalizedEmail || !safePassword) {
     return res.status(400).json({
@@ -5397,14 +6252,14 @@ app.post("/admin/staff", adminStaffCreateLimiter, async (req, res) => {
     }
     return res.status(500).json({
       ok: false,
-      message: "Unable to create staff account.",
+      message: "Unable to create Barangay Secretary account.",
       detail: error.message
     });
   }
 
   void insertPortalAuditEvent({
     action: "Updated Record",
-    description: `Created staff account for ${normalizedEmail}. Name: "${safeFullName}". Permissions JSON keys: ${Object.keys(perms || {}).join(", ") || "—"}.`,
+    description: `Created Barangay Secretary account for ${normalizedEmail}. Name: "${safeFullName}". Permissions JSON keys: ${Object.keys(perms || {}).join(", ") || "—"}.`,
     profile: auth.profile,
     metadata: {
       entity: "staff_account",
@@ -5416,80 +6271,13 @@ app.post("/admin/staff", adminStaffCreateLimiter, async (req, res) => {
 
   return res.status(201).json({
     ok: true,
-    message: "Staff account created.",
+    message: "Barangay Secretary account created.",
     user: {
       email: normalizedEmail,
       fullName: safeFullName,
       role: "staff",
       staffPermissions: perms
     }
-  });
-});
-
-/** Update saved page permissions for an existing staff profile (admin only). */
-app.patch("/admin/staff/permissions", async (req, res) => {
-  const auth = await requireStaffPortalUser(req, res);
-  if (!auth) return;
-  if (auth.profile.role !== "admin") {
-    return res.status(403).json({
-      ok: false,
-      message: "Only barangay administrators can update staff permissions."
-    });
-  }
-
-  const normalizedEmail = normalizeEmail(req.body?.email ?? "");
-  if (!normalizedEmail || !isValidEmailFormat(normalizedEmail)) {
-    return res.status(400).json({
-      ok: false,
-      message: "A valid staff email is required."
-    });
-  }
-
-  const perms = normalizeStaffPermissionsFromBody(req.body?.permissions ?? req.body);
-
-  let profile;
-  try {
-    profile = await User.findOne({ email: normalizedEmail }).select("email role").lean();
-  } catch (error) {
-    return res.status(500).json({
-      ok: false,
-      message: "Unable to load profile.",
-      detail: error.message
-    });
-  }
-
-  if (!profile || profile.role !== "staff") {
-    return res.status(404).json({
-      ok: false,
-      message: "No staff account found for that email."
-    });
-  }
-
-  try {
-    await User.updateOne({ email: normalizedEmail, role: "staff" }, { $set: { staffPermissions: perms } });
-  } catch (error) {
-    return res.status(500).json({
-      ok: false,
-      message: "Unable to update staff permissions.",
-      detail: error.message
-    });
-  }
-
-  void insertPortalAuditEvent({
-    action: "Updated Record",
-    description: `Updated staff page permissions for ${normalizedEmail}. Permission keys: ${Object.keys(perms || {}).join(", ") || "—"}.`,
-    profile: auth.profile,
-    metadata: {
-      entity: "staff_permissions",
-      staffEmail: normalizedEmail,
-      staffPermissions: perms
-    }
-  });
-
-  return res.json({
-    ok: true,
-    message: "Staff permissions updated.",
-    staffPermissions: perms
   });
 });
 
@@ -5504,8 +6292,8 @@ app.post("/admin/profiles/delete", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
   const actorRole = auth.profile.role;
-  if (actorRole !== "admin" && actorRole !== "system-admin") {
-    return res.status(403).json({ ok: false, message: "Barangay admin or system administrator role is required." });
+  if (actorRole !== "staff" && actorRole !== "system-admin") {
+    return res.status(403).json({ ok: false, message: "Barangay Secretary or system administrator role is required." });
   }
 
   const email = normalizeEmail(req.body?.email ?? "");
@@ -5539,8 +6327,8 @@ app.post("/admin/profiles/delete", async (req, res) => {
     });
   }
 
-  if (actorRole === "admin" && profile.role === "admin") {
-    return res.status(403).json({ ok: false, message: "Deleting admin accounts is not allowed." });
+  if (actorRole === "staff" && profile.role !== "resident") {
+    return res.status(403).json({ ok: false, message: "The Barangay Secretary can only delete resident accounts." });
   }
 
   if (profile.role === "resident") {
@@ -5622,8 +6410,8 @@ function currentMonthYearLabel() {
 app.get("/admin/service-dashboard/summary", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
-  if (auth.profile.role !== "admin") {
-    return res.status(403).json({ ok: false, message: "Admin role required to view this summary." });
+  if (auth.profile.role !== "staff") {
+    return res.status(403).json({ ok: false, message: "Barangay Secretary role required to view this summary." });
   }
 
   const { monthStartIso, monthEndIso } = getLocalCalendarMonthStartEndIso();
@@ -5635,7 +6423,7 @@ app.get("/admin/service-dashboard/summary", async (req, res) => {
       await Promise.all([
         ServiceCatalog.countDocuments({ archivedAt: null }),
         User.countDocuments({ role: "staff" }),
-        User.countDocuments({ role: "resident" }),
+        User.countDocuments(confirmedResidentQuery()),
         // Use preferredDate (always present); appointments below use createdAt for month-of-booking instead.
         ServiceRequest.countDocuments({
           preferredDate: { $gte: monthStartDate, $lte: monthEndDate }
@@ -5870,11 +6658,10 @@ app.get("/system-admin/dashboard-stats", async (req, res) => {
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
 
-  let admins, staff, residents, serviceRequestsTotal, appointmentsTotal, latestAuditEvent, auditEventsLast7Days;
+  let staff, residents, serviceRequestsTotal, appointmentsTotal, latestAuditEvent, auditEventsLast7Days;
   try {
-    [admins, staff, residents, serviceRequestsTotal, appointmentsTotal, latestAuditEvent, auditEventsLast7Days] =
+    [staff, residents, serviceRequestsTotal, appointmentsTotal, latestAuditEvent, auditEventsLast7Days] =
       await Promise.all([
-        User.countDocuments({ role: "admin" }),
         User.countDocuments({ role: "staff" }),
         User.countDocuments({ role: "resident" }),
         ServiceRequest.countDocuments({}),
@@ -5890,7 +6677,7 @@ app.get("/system-admin/dashboard-stats", async (req, res) => {
     });
   }
 
-  const portalUserTotal = admins + staff + residents;
+  const portalUserTotal = staff + residents;
   const environment = await getPortalEnvironmentFromDb();
   const lastAuditAt = latestAuditEvent?.createdAt ? String(latestAuditEvent.createdAt) : null;
 
@@ -5898,7 +6685,6 @@ app.get("/system-admin/dashboard-stats", async (req, res) => {
     ok: true,
     portalUsers: {
       total: portalUserTotal,
-      admins,
       staff,
       residents
     },
@@ -6242,7 +7028,9 @@ app.get("/resident/appointment-purpose-types", async (req, res) => {
 const AUTH_AUDIT_ACTION_LABELS = {
   login: "User Login",
   register: "User Registered",
-  password_change: "Password Changed"
+  password_change: "Password Changed",
+  account_approved: "Account Approved",
+  account_rejected: "Account Rejected"
 };
 
 function authAuditActionLabel(action) {
@@ -6398,11 +7186,11 @@ function formatPortalAuditDisplayDescription(action, metadata, storedDescription
   }
 
   if (entity === "staff_account" && m.staffEmail) {
-    return `Staff account created: ${String(m.staffEmail).trim()} (${String(m.fullName || "—").trim()}).`.slice(0, 2000);
+    return `Barangay Secretary account created: ${String(m.staffEmail).trim()} (${String(m.fullName || "—").trim()}).`.slice(0, 2000);
   }
 
   if (entity === "staff_permissions" && m.staffEmail) {
-    return `Staff permissions updated for ${String(m.staffEmail).trim()}.`.slice(0, 2000);
+    return `Barangay Secretary permissions updated for ${String(m.staffEmail).trim()}.`.slice(0, 2000);
   }
 
   if (entity === "profile" && m.deletedEmail) {
@@ -6882,6 +7670,524 @@ app.get("/system-admin/backup/export", async (req, res) => {
 });
 
 // Start the API server on the configured port (explicit http.Server for error + diagnostics).
+// ---------------------------------------------------------------------------
+// Animal Vaccine Tracker (staff portal): animals, owners and vaccination history.
+// Open to every staff-portal role (staff, admin, system-admin).
+// Records are archived, not deleted.
+// ---------------------------------------------------------------------------
+const ANIMAL_DUE_SOON_DAYS = 30;
+
+/** Today's date (YYYY-MM-DD) in Philippine time. */
+function todayPH() {
+  return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function addDaysISO(iso, days) {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Status comes from the latest dose of each vaccine that has a booster date:
+ * Overdue (past due) > Due Soon (within 30 days) > Up to Date. No doses = Not Vaccinated.
+ */
+function computeAnimalVaccineStatus(vaccinations, today = todayPH()) {
+  const list = Array.isArray(vaccinations) ? vaccinations : [];
+  if (!list.length) return { status: "Not Vaccinated", nextDueDate: null, lastVaccinatedOn: null };
+
+  const latestByVaccine = new Map();
+  let lastVaccinatedOn = null;
+  for (const v of list) {
+    if (!lastVaccinatedOn || String(v.dateGiven) > lastVaccinatedOn) lastVaccinatedOn = String(v.dateGiven);
+    const key = String(v.vaccine || "").trim().toLowerCase();
+    const cur = latestByVaccine.get(key);
+    if (!cur || String(v.dateGiven) >= String(cur.dateGiven)) latestByVaccine.set(key, v);
+  }
+
+  const soonLimit = addDaysISO(today, ANIMAL_DUE_SOON_DAYS);
+  let status = "Up to Date";
+  let nextDueDate = null;
+  for (const v of latestByVaccine.values()) {
+    if (!v.nextDueDate) continue;
+    if (!nextDueDate || v.nextDueDate < nextDueDate) nextDueDate = v.nextDueDate;
+    if (v.nextDueDate < today) status = "Overdue";
+    else if (v.nextDueDate <= soonLimit && status !== "Overdue") status = "Due Soon";
+  }
+  return { status, nextDueDate, lastVaccinatedOn };
+}
+
+function normalizeAnimalRow(row, today = todayPH()) {
+  const vaccinations = (Array.isArray(row.vaccinations) ? row.vaccinations : [])
+    .map((v) => ({
+      id: String(v._id),
+      vaccine: v.vaccine || "",
+      dateGiven: v.dateGiven || "",
+      nextDueDate: v.nextDueDate || null,
+      batchNo: v.batchNo || "",
+      administeredBy: v.administeredBy || "",
+      remarks: v.remarks || ""
+    }))
+    .sort((a, b) => String(b.dateGiven).localeCompare(String(a.dateGiven)));
+  const computed = computeAnimalVaccineStatus(vaccinations, today);
+  return {
+    id: String(row._id),
+    animalCode: row.animalCode,
+    ownerUserId: row.ownerUserId ? String(row.ownerUserId) : null,
+    ownerResidentId: row.ownerResidentId || "",
+    ownerName: row.ownerName || "",
+    ownerContact: row.ownerContact || "",
+    ownerAddress: row.ownerAddress || "",
+    name: row.name || "",
+    species: row.species,
+    speciesOther: row.speciesOther || "",
+    breed: row.breed || "",
+    color: row.color || "",
+    sex: row.sex || "Unknown",
+    birthDate: row.birthDate || null,
+    vaccinations,
+    status: computed.status,
+    nextDueDate: computed.nextDueDate,
+    lastVaccinatedOn: computed.lastVaccinatedOn,
+    archivedAt: row.archivedAt || null,
+    createdAt: row.createdAt
+  };
+}
+
+/** Validates an optional YYYY-MM-DD field. Returns { value } (null when empty) or { error }. */
+function parseOptionalIsoDate(raw, label) {
+  const s = String(raw ?? "").trim();
+  if (!s) return { value: null };
+  const d = parseLocalDateString(s);
+  if (!d) return { error: `${label} must be a valid date.` };
+  return { value: d };
+}
+
+async function parseAnimalBody(body, { partial = false } = {}) {
+  const b = body && typeof body === "object" ? body : {};
+  const out = {};
+  const has = (k) => Object.prototype.hasOwnProperty.call(b, k);
+
+  if (!partial || has("ownerName")) {
+    const v = sanitizePlainTextField(b.ownerName, 120);
+    if (!v) return { error: "Owner name is required." };
+    out.ownerName = v;
+  }
+  if (!partial || has("name")) {
+    const v = sanitizePlainTextField(b.name, 80);
+    if (!v) return { error: "Animal name is required." };
+    out.name = v;
+  }
+  if (!partial || has("species")) {
+    const v = String(b.species || "").trim();
+    if (!ANIMAL_SPECIES.includes(v)) return { error: "Species must be Dog, Cat or Other." };
+    out.species = v;
+  }
+  if (!partial || has("speciesOther") || out.species) {
+    const v = sanitizePlainTextField(b.speciesOther, 60);
+    if (out.species === "Other" && !v) return { error: "Please say what kind of animal it is." };
+    if (out.species) out.speciesOther = out.species === "Other" ? v : "";
+    else if (has("speciesOther")) out.speciesOther = v;
+  }
+  if (has("ownerContact")) out.ownerContact = sanitizePlainTextField(b.ownerContact, 30);
+  if (has("ownerAddress")) out.ownerAddress = sanitizePlainTextField(b.ownerAddress, 250);
+  if (has("breed")) out.breed = sanitizePlainTextField(b.breed, 80);
+  if (has("color")) out.color = sanitizePlainTextField(b.color, 60);
+  if (has("sex")) {
+    const v = String(b.sex || "Unknown").trim();
+    if (!ANIMAL_SEX.includes(v)) return { error: "Sex must be Male, Female or Unknown." };
+    out.sex = v;
+  }
+  if (has("birthDate")) {
+    const parsed = parseOptionalIsoDate(b.birthDate, "Birth date");
+    if (parsed.error) return { error: parsed.error };
+    if (parsed.value && parsed.value > todayPH()) return { error: "Birth date cannot be in the future." };
+    out.birthDate = parsed.value;
+  }
+
+  // Owner link to a confirmed resident (optional).
+  if (has("ownerUserId")) {
+    const idStr = String(b.ownerUserId || "").trim();
+    if (!idStr) {
+      out.ownerUserId = null;
+      out.ownerResidentId = "";
+    } else {
+      if (!mongoose.Types.ObjectId.isValid(idStr)) return { error: "Invalid resident selected as owner." };
+      let owner = null;
+      try {
+        owner = await User.findOne(confirmedResidentQuery({ _id: idStr })).select("residentId").lean();
+      } catch (_e) {
+        owner = null;
+      }
+      if (!owner) return { error: "The selected resident was not found." };
+      out.ownerUserId = owner._id;
+      out.ownerResidentId = owner.residentId || "";
+    }
+  }
+  return { value: out };
+}
+
+function parseVaccinationBody(body) {
+  const b = body && typeof body === "object" ? body : {};
+  const vaccine = sanitizePlainTextField(b.vaccine, 80);
+  if (!vaccine) return { error: "Vaccine name is required." };
+  const given = parseOptionalIsoDate(b.dateGiven, "Date given");
+  if (given.error) return { error: given.error };
+  if (!given.value) return { error: "Date given is required." };
+  if (given.value > todayPH()) return { error: "Date given cannot be in the future." };
+  const due = parseOptionalIsoDate(b.nextDueDate, "Next due date");
+  if (due.error) return { error: due.error };
+  if (due.value && due.value < given.value) return { error: "Next due date cannot be before the date given." };
+  return {
+    value: {
+      vaccine,
+      dateGiven: given.value,
+      nextDueDate: due.value,
+      batchNo: sanitizePlainTextField(b.batchNo, 60),
+      administeredBy: sanitizePlainTextField(b.administeredBy, 120),
+      remarks: sanitizePlainTextField(b.remarks, 300)
+    }
+  };
+}
+
+async function generateAnimalCode() {
+  for (let i = 0; i < 8; i += 1) {
+    const code = `ANM-${Math.floor(1000 + Math.random() * 9000)}`;
+    // eslint-disable-next-line no-await-in-loop
+    if (!(await AnimalRecord.exists({ animalCode: code }))) return code;
+  }
+  return `ANM-${Date.now().toString().slice(-7)}`;
+}
+
+function animalAuditDescription(verb, animal) {
+  return `${verb} animal record ${animal.animalCode} (${animal.name}, ${animal.species}) owned by ${animal.ownerName}.`;
+}
+
+// Owner lookup for the "Add animal" form (confirmed residents only, minimal fields).
+app.get("/staff/animals/owners", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const q = String(req.query?.q || "").trim().slice(0, 80);
+  if (q.length < 2) return res.json({ ok: true, owners: [] });
+  const rx = new RegExp(escapeRegexLiteral(q), "i");
+  try {
+    const rows = await User.find(
+      confirmedResidentQuery({ $or: [{ fullName: rx }, { residentId: rx }, { contactNumber: rx }] })
+    )
+      .select("residentId fullName contactNumber residentProfile.address residentProfile.purok")
+      .sort({ fullName: 1 })
+      .limit(8)
+      .lean();
+    return res.json({
+      ok: true,
+      owners: rows.map((r) => ({
+        id: String(r._id),
+        residentId: r.residentId || "",
+        fullName: r.fullName || "",
+        contactNumber: r.contactNumber || "",
+        address: [r.residentProfile?.purok, r.residentProfile?.address].filter(Boolean).join(", ")
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to search residents.", detail: error.message });
+  }
+});
+
+// NOTE: must be declared before "/staff/animals/:id".
+app.get("/staff/animals/export", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  try {
+    const includeArchived = String(req.query?.archived || "") === "1";
+    const rows = await AnimalRecord.find(includeArchived ? { archivedAt: { $ne: null } } : { archivedAt: null })
+      .sort({ ownerName: 1, name: 1 })
+      .limit(5000)
+      .lean();
+    const today = todayPH();
+    const header = [
+      "ANIMAL CODE", "ANIMAL NAME", "SPECIES", "BREED", "COLOR", "SEX", "BIRTHDATE", "OWNER", "OWNER CONTACT",
+      "OWNER ADDRESS", "STATUS", "LAST VACCINATED", "NEXT DUE", "VACCINATION HISTORY"
+    ];
+    const lines = [header.map(csvCell).join(",")];
+    for (const row of rows) {
+      const a = normalizeAnimalRow(row, today);
+      const history = a.vaccinations.map((v) => `${v.vaccine} (${v.dateGiven}${v.nextDueDate ? `, due ${v.nextDueDate}` : ""})`).join("; ");
+      lines.push([
+        a.animalCode, a.name, a.species === "Other" ? a.speciesOther || "Other" : a.species, a.breed, a.color, a.sex,
+        a.birthDate || "", a.ownerName, a.ownerContact, a.ownerAddress, a.status, a.lastVaccinatedOn || "",
+        a.nextDueDate || "", history
+      ].map(csvCell).join(","));
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="Animal-Vaccine-Tracker-${today}.csv"`);
+    void insertPortalAuditEvent({
+      action: "Data Export",
+      description: `Exported ${rows.length} animal vaccination record(s) to CSV.`,
+      profile: auth.profile,
+      metadata: { entity: "animal_record", count: rows.length }
+    });
+    return res.send(`\uFEFF${lines.join("\r\n")}\r\n`);
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to export animal records.", detail: error.message });
+  }
+});
+
+app.get("/staff/animals", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const archived = String(req.query?.archived || "") === "1";
+  try {
+    const rows = await AnimalRecord.find(archived ? { archivedAt: { $ne: null } } : { archivedAt: null })
+      .sort({ createdAt: -1 })
+      .limit(2000)
+      .lean();
+    const today = todayPH();
+    const animals = rows.map((r) => normalizeAnimalRow(r, today));
+    const stats = { total: animals.length, upToDate: 0, dueSoon: 0, overdue: 0, notVaccinated: 0 };
+    for (const a of animals) {
+      if (a.status === "Up to Date") stats.upToDate += 1;
+      else if (a.status === "Due Soon") stats.dueSoon += 1;
+      else if (a.status === "Overdue") stats.overdue += 1;
+      else stats.notVaccinated += 1;
+    }
+    return res.json({ ok: true, animals, stats, today });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to load animal records.", detail: error.message });
+  }
+});
+
+app.post("/staff/animals", adminStaffCreateLimiter, async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+
+  const parsed = await parseAnimalBody(req.body);
+  if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
+
+  // Optional first vaccination, so staff can register and vaccinate in one step.
+  let firstDose = null;
+  const rawDose = req.body?.vaccination;
+  if (rawDose && typeof rawDose === "object" && String(rawDose.vaccine || "").trim()) {
+    const dose = parseVaccinationBody(rawDose);
+    if (dose.error) return res.status(400).json({ ok: false, message: dose.error });
+    firstDose = { ...dose.value, recordedByEmail: auth.profile.email || "" };
+  }
+
+  try {
+    const created = await AnimalRecord.create({
+      ...parsed.value,
+      animalCode: await generateAnimalCode(),
+      vaccinations: firstDose ? [firstDose] : [],
+      createdByEmail: auth.profile.email || ""
+    });
+    const animal = normalizeAnimalRow(created.toObject());
+    void insertPortalAuditEvent({
+      action: "Updated Record",
+      description: animalAuditDescription("Added", animal),
+      profile: auth.profile,
+      metadata: { entity: "animal_record", animalId: animal.id, animalCode: animal.animalCode }
+    });
+    return res.status(201).json({ ok: true, animal });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to save the animal record.", detail: error.message });
+  }
+});
+
+app.get("/staff/animals/:id", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
+  try {
+    const row = await AnimalRecord.findById(id).lean();
+    if (!row) return res.status(404).json({ ok: false, message: "Animal record not found." });
+    return res.json({ ok: true, animal: normalizeAnimalRow(row) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to load the animal record.", detail: error.message });
+  }
+});
+
+app.patch("/staff/animals/:id", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
+
+  const parsed = await parseAnimalBody(req.body, { partial: true });
+  if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
+  if (!Object.keys(parsed.value).length) return res.status(400).json({ ok: false, message: "Nothing to update." });
+
+  try {
+    const row = await AnimalRecord.findOneAndUpdate({ _id: id, archivedAt: null }, { $set: parsed.value }, { new: true }).lean();
+    if (!row) return res.status(404).json({ ok: false, message: "Animal record not found (or archived)." });
+    const animal = normalizeAnimalRow(row);
+    void insertPortalAuditEvent({
+      action: "Updated Record",
+      description: animalAuditDescription("Updated", animal),
+      profile: auth.profile,
+      metadata: { entity: "animal_record", animalId: animal.id, animalCode: animal.animalCode }
+    });
+    return res.json({ ok: true, animal });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to update the animal record.", detail: error.message });
+  }
+});
+
+app.post("/staff/animals/:id/vaccinations", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
+
+  const dose = parseVaccinationBody(req.body);
+  if (dose.error) return res.status(400).json({ ok: false, message: dose.error });
+
+  try {
+    const row = await AnimalRecord.findOneAndUpdate(
+      { _id: id, archivedAt: null },
+      { $push: { vaccinations: { ...dose.value, recordedByEmail: auth.profile.email || "" } } },
+      { new: true }
+    ).lean();
+    if (!row) return res.status(404).json({ ok: false, message: "Animal record not found (or archived)." });
+    const animal = normalizeAnimalRow(row);
+    void insertPortalAuditEvent({
+      action: "Updated Record",
+      description: `Recorded ${dose.value.vaccine} vaccination (${dose.value.dateGiven}) for ${animal.animalCode} (${animal.name}).`,
+      profile: auth.profile,
+      metadata: { entity: "animal_record", animalId: animal.id, animalCode: animal.animalCode, vaccine: dose.value.vaccine }
+    });
+    return res.status(201).json({ ok: true, animal });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to save the vaccination.", detail: error.message });
+  }
+});
+
+app.patch("/staff/animals/:id/vaccinations/:vid", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  const vid = String(req.params.vid || "");
+  if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(vid)) {
+    return res.status(400).json({ ok: false, message: "Invalid id." });
+  }
+  const dose = parseVaccinationBody(req.body);
+  if (dose.error) return res.status(400).json({ ok: false, message: dose.error });
+
+  try {
+    const row = await AnimalRecord.findOneAndUpdate(
+      { _id: id, archivedAt: null, "vaccinations._id": vid },
+      {
+        $set: {
+          "vaccinations.$.vaccine": dose.value.vaccine,
+          "vaccinations.$.dateGiven": dose.value.dateGiven,
+          "vaccinations.$.nextDueDate": dose.value.nextDueDate,
+          "vaccinations.$.batchNo": dose.value.batchNo,
+          "vaccinations.$.administeredBy": dose.value.administeredBy,
+          "vaccinations.$.remarks": dose.value.remarks
+        }
+      },
+      { new: true }
+    ).lean();
+    if (!row) return res.status(404).json({ ok: false, message: "Vaccination record not found." });
+    const animal = normalizeAnimalRow(row);
+    void insertPortalAuditEvent({
+      action: "Updated Record",
+      description: `Corrected ${dose.value.vaccine} vaccination entry for ${animal.animalCode} (${animal.name}).`,
+      profile: auth.profile,
+      metadata: { entity: "animal_record", animalId: animal.id, animalCode: animal.animalCode, vaccinationId: vid }
+    });
+    return res.json({ ok: true, animal });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to update the vaccination.", detail: error.message });
+  }
+});
+
+app.delete("/staff/animals/:id/vaccinations/:vid", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  const vid = String(req.params.vid || "");
+  if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(vid)) {
+    return res.status(400).json({ ok: false, message: "Invalid id." });
+  }
+  try {
+    const before = await AnimalRecord.findOne({ _id: id, archivedAt: null, "vaccinations._id": vid }).lean();
+    if (!before) return res.status(404).json({ ok: false, message: "Vaccination record not found." });
+    const removed = (before.vaccinations || []).find((v) => String(v._id) === vid);
+    const row = await AnimalRecord.findByIdAndUpdate(id, { $pull: { vaccinations: { _id: vid } } }, { new: true }).lean();
+    const animal = normalizeAnimalRow(row);
+    void insertPortalAuditEvent({
+      action: "Deleted Record",
+      description: `Removed ${removed?.vaccine || "a"} vaccination entry (${removed?.dateGiven || "—"}) from ${animal.animalCode} (${animal.name}).`,
+      profile: auth.profile,
+      metadata: { entity: "animal_record", animalId: animal.id, animalCode: animal.animalCode, vaccinationId: vid }
+    });
+    return res.json({ ok: true, animal });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to remove the vaccination.", detail: error.message });
+  }
+});
+
+app.post("/staff/animals/:id/archive", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
+  try {
+    const row = await AnimalRecord.findOneAndUpdate({ _id: id, archivedAt: null }, { $set: { archivedAt: new Date() } }, { new: true }).lean();
+    if (!row) return res.status(404).json({ ok: false, message: "Animal record not found or already archived." });
+    const animal = normalizeAnimalRow(row);
+    void insertPortalAuditEvent({
+      action: "Archived Record",
+      description: animalAuditDescription("Archived", animal),
+      profile: auth.profile,
+      metadata: { entity: "animal_record", animalId: animal.id, animalCode: animal.animalCode }
+    });
+    return res.json({ ok: true, animal });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to archive the animal record.", detail: error.message });
+  }
+});
+
+app.post("/staff/animals/:id/restore", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
+  try {
+    const row = await AnimalRecord.findOneAndUpdate({ _id: id, archivedAt: { $ne: null } }, { $set: { archivedAt: null } }, { new: true }).lean();
+    if (!row) return res.status(404).json({ ok: false, message: "Archived animal record not found." });
+    const animal = normalizeAnimalRow(row);
+    void insertPortalAuditEvent({
+      action: "Updated Record",
+      description: animalAuditDescription("Restored", animal),
+      profile: auth.profile,
+      metadata: { entity: "animal_record", animalId: animal.id, animalCode: animal.animalCode }
+    });
+    return res.json({ ok: true, animal });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to restore the animal record.", detail: error.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Last-resort handlers: always answer with short JSON, never an HTML error page or a stack trace.
+// ---------------------------------------------------------------------------
+app.use((req, res) => {
+  res.status(404).json({ ok: false, message: "Not found." });
+});
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const status = Number(err?.status || err?.statusCode) || 500;
+  if (status >= 500) console.error(`[api-error] ${req.method} ${req.path}:`, err?.stack || err);
+  if (res.headersSent) return next(err);
+  let message = "Something went wrong. Please try again.";
+  if (status === 400) message = "The request could not be understood.";
+  else if (status === 413) message = "The request is too large.";
+  else if (status === 429) message = "Too many requests. Please try again later.";
+  res.status(status >= 400 && status < 600 ? status : 500).json({ ok: false, message });
+});
+
 const server = http.createServer(app);
 
 server.on("error", (err) => {

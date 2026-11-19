@@ -11,13 +11,11 @@
   var fallbackLogin = "../login.html";
   var loginRoute =
     (routes.staff && routes.staff.login) ||
-    (routes.admin && routes.admin.login) ||
     (routes.systemAdmin && routes.systemAdmin.login) ||
     fallbackLogin;
 
   var roleHomes = {
     staff: (routes.staff && routes.staff.dashboard) || "../staff/staff-dashboard.html",
-    admin: (routes.admin && routes.admin.dashboard) || "../admin/service-mngmt.html",
     "system-admin": (routes.systemAdmin && routes.systemAdmin.dashboard) || "../system-admin/sysad-dashboard.html"
   };
 

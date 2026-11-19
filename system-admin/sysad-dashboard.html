@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Admin Dashboard | SerbisyoBurgos</title>
-    <link rel="icon" type="image/png" href="../asset/SB.png">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#043d2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
+    <link rel="apple-touch-icon" href="../asset/icons/apple-touch-icon.png">
+    <script src="../shared/pwa.js" defer></script>
+    <link rel="icon" type="image/png" href="../asset/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
@@ -296,6 +304,7 @@
 <body>
 
     <script src="../shared/sidebar.js" data-portal="system-admin"></script>
+    <script src="../shared/user-badge.js"></script>
 
     <main>
         <div class="top-bar">
@@ -303,13 +312,7 @@
                 <h1 style="color: var(--brand-dark); font-weight: 800; font-size: 1.75rem;">System Admin Dashboard</h1>
                 <p style="color: var(--text-muted); font-size: 0.9rem;">Manage and maintain system security, performance, and data integrity.</p>
             </div>
-            <div class="user-profile">
-                <div class="user-avatar">SA</div>
-                <div style="line-height: 1.2;">
-                    <p style="font-weight: 700; font-size: 0.85rem;">System Admin</p>
-                    <p style="font-size: 0.75rem; color: var(--text-muted);">IT Personnel</p>
-                </div>
-            </div>
+            <user-badge></user-badge>
         </div>
         
         <!-- SYSTEM OVERVIEW ROW -->
@@ -453,8 +456,7 @@
         function roleUiLabel(role) {
             const r = String(role || "").trim().toLowerCase();
             if (r === "resident") return "Resident";
-            if (r === "staff") return "Staff";
-            if (r === "admin") return "Admin";
+            if (r === "staff") return "Barangay Secretary";
             if (r === "system-admin") return "System Admin";
             return r ? String(role) : "User";
         }
@@ -463,7 +465,6 @@
             const r = String(role || "").trim().toLowerCase();
             if (r === "resident") return "background:#f0fdf4;color:#166534;";
             if (r === "staff") return "background:#fff7ed;color:#c2410c;";
-            if (r === "admin") return "background:#e0f2fe;color:#0369a1;";
             if (r === "system-admin") return "background:#faf5ff;color:#7e22ce;";
             return "background:#f1f5f9;color:#475569;";
         }
@@ -480,23 +481,8 @@
             if (r === "resident") {
                 return "<small>Resident portal</small>";
             }
-            if (r === "admin") return "<small>Administration, catalog, users, announcements</small>";
             if (r !== "staff") return "<small>—</small>";
-            const sp = p.staffPermissions;
-            if (!sp || typeof sp !== "object") {
-                return "<small>Staff portal (default access)</small>";
-            }
-            const pairs = [
-                ["dashboard", "Dashboard"],
-                ["appointmentScheduling", "Scheduling"],
-                ["requestProcessing", "Requests"],
-                ["documentGenerator", "Documents"]
-            ];
-            const allowed = pairs.filter(([key]) => sp[key]).map(([, label]) => label);
-            if (!allowed.length) {
-                return '<small style="color:#94a3b8;">No page access</small>';
-            }
-            return "<small>" + escapeHtml(allowed.join(", ")) + "</small>";
+            return "<small>Full barangay access</small>";
         }
 
         /** Icon-only action button; the label shows on hover and is the accessible name. */
@@ -543,8 +529,8 @@
                             : statusKey === "deactivated"
                               ? '<span class="badge badge-red">Deactivated</span>'
                               : '<span class="badge badge-green">Active</span>';
-                    // Barangay admin accounts can't be suspended from here (server rule); they can still be removed.
-                    const canToggle = role !== "admin" && role !== "system-admin";
+                    // System administrator accounts can't be suspended from here (server rule).
+                    const canToggle = role !== "system-admin";
                     const toggleBtn = !canToggle
                         ? ""
                         : statusKey === "active"
@@ -592,14 +578,12 @@
                 }
                 const p = json.portalUsers || {};
                 const total = Number(p.total) || 0;
-                const admins = Number(p.admins) || 0;
                 const staff = Number(p.staff) || 0;
                 const residents = Number(p.residents) || 0;
                 if ($("statPortalTotal")) $("statPortalTotal").textContent = String(total);
                 if ($("statPortalBreakdown")) {
                     $("statPortalBreakdown").textContent = [
-                        `${admins} admin${admins === 1 ? "" : "s"}`,
-                        `${staff} staff`,
+                        `${staff} barangay secretar${staff === 1 ? "y" : "ies"}`,
                         `${residents} resident${residents === 1 ? "" : "s"}`
                     ].join(" · ");
                 }

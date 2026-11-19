@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User & Role Management | SerbisyoBurgos</title>
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#043d2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
+    <link rel="apple-touch-icon" href="../asset/icons/apple-touch-icon.png">
+    <script src="../shared/pwa.js" defer></script>
     <link rel="icon" type="image/png" href="../asset/SB.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
@@ -678,7 +686,7 @@
 
         const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
-        /** Same key as resident-login.html — emails registered through the resident portal. */
+        /** Same key as login.html — emails registered through the resident portal. */
         const RESIDENT_PORTAL_SELF_REG_EMAILS_KEY = "SB_RESIDENT_PORTAL_SELF_REG_EMAILS";
         let targetUserRow = null;
 

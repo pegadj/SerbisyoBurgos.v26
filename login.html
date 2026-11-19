@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Log In | SerbisyoBurgos</title>
-    <link rel="icon" type="image/png" href="asset/SB.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#043d2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
+    <link rel="apple-touch-icon" href="asset/icons/apple-touch-icon.png">
+    <script src="shared/pwa.js" defer></script>
+    <link rel="icon" type="image/png" href="asset/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
     <style>
@@ -60,7 +68,7 @@
         }
 
         .logo {
-            height: 50px;
+            height: 90px;
             margin-bottom: 1rem;
         }
 
@@ -517,7 +525,7 @@
         Back
     </a>
 
-    <img src="asset/SB.png" alt="SerbisyoBurgos Logo" class="logo">
+    <img src="asset/logo.png" alt="Barangay Logo" class="logo">
     
     <div id="login-form">
         <h2>Hello!</h2>
@@ -543,7 +551,7 @@
             </span>
         </button>
         <p id="resident-login-error" style="margin-top:0.9rem; color:#b91c1c; font-size:0.85rem; min-height:1.1rem; text-align:left;"></p>
-        <p class="footer-text">No account yet? Please visit the Barangay Hall &mdash; staff will issue your Resident ID and password.</p>
+        <p class="footer-text">No account yet? Please visit the Barangay Hall &mdash; the Barangay Secretary will issue your Resident ID and password.</p>
     </div>
 
     <div id="register-form" class="hidden">
@@ -883,7 +891,6 @@
     const ROLE_DESTINATIONS = {
         resident: () => RESIDENT_ROUTES.dashboard,
         staff: () => (window.APP_ROUTES?.staff?.dashboard || "staff/staff-dashboard.html"),
-        admin: () => (window.APP_ROUTES?.admin?.dashboard || "admin/service-mngmt.html"),
         "system-admin": () => (window.APP_ROUTES?.systemAdmin?.dashboard || "system-admin/sysad-dashboard.html")
     };
 
@@ -1076,7 +1083,7 @@
                         errorEl.innerText =
                             "The API at " +
                             API_BASE_URL +
-                            " is an older build: it expects JSON, but this page sends your ID as a file (multipart). Redeploy the latest backend to Render (or point API_BASE_URL in resident-login.html to a server running the current code).";
+                            " is an older build: it expects JSON, but this page sends your ID as a file (multipart). Redeploy the latest backend to Render (or point API_BASE_URL in login.html to a server running the current code).";
                     } else {
                         errorEl.innerText = raw || "Registration failed. Please try again.";
                     }

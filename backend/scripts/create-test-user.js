@@ -9,10 +9,12 @@
  * Usage:
  *   node scripts/create-test-user.js <email> <password> <role>
  *
- * role is one of: resident | staff | admin | system-admin
+ * role is one of: resident | staff | system-admin
+ *   (staff = Barangay Secretary, who now has full barangay-side access)
  *
  * Examples:
- *   node scripts/create-test-user.js admin@test.com Passw0rd123! system-admin
+ *   node scripts/create-test-user.js sysadmin@test.com Passw0rd123! system-admin
+ *   node scripts/create-test-user.js secretary@test.com Passw0rd123! staff
  *   node scripts/create-test-user.js juan@test.com Passw0rd123! resident
  */
 
@@ -45,7 +47,7 @@ async function main() {
   const normalizedEmail = email.trim().toLowerCase();
   const passwordHash = await hashPassword(password);
 
-  const isStaffLike = role === 'staff' || role === 'admin' || role === 'system-admin';
+  const isStaffLike = role === 'staff' || role === 'system-admin';
 
   const user = await User.findOneAndUpdate(
     { email: normalizedEmail },
@@ -58,10 +60,10 @@ async function main() {
         authProvider: 'local',
         isActive: true,
         accountStatus: 'active',
-        // Staff/admin/system-admin get full permissions by default, matching
-        // defaultStaffPermissionsAllTrue() in server.js for new staff accounts.
+        // Staff (Barangay Secretary) and system-admin get full permissions by default. The per-page
+        // switches are legacy and no longer enforced, but kept so the document stays consistent.
         staffPermissions: isStaffLike
-          ? { dashboard: true, appointmentScheduling: true, requestProcessing: true, documentGenerator: true }
+          ? { dashboard: true, appointmentScheduling: true, requestProcessing: true, documentGenerator: true, residentProfiling: true }
           : undefined,
       },
     },

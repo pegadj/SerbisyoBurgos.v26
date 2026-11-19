@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SerbisyoBurgos | Official Web Portal</title>
-    <link rel="icon" type="image/png" href="asset/SB.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#043d2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
+    <link rel="apple-touch-icon" href="asset/icons/apple-touch-icon.png">
+    <script src="shared/pwa.js" defer></script>
+    <link rel="icon" type="image/png" href="asset/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     
     <style>
@@ -48,7 +56,7 @@
             box-shadow: 0 4px 20px rgba(4,61,46,0.12);
         }
 
-        .logo-nav { height: 45px; width: auto; display: block; }
+        .logo-nav { height: 60px; width: auto; display: block; }
 
         .nav-buttons { display: flex; gap: 15px; align-items: center; }
 
@@ -370,7 +378,7 @@
     <!-- STICKY NAVBAR -->
     <nav class="navbar" id="navbar">
         <a href="#home">
-            <img src="asset/SB.png" alt="SB Logo" class="logo-nav">
+            <img src="asset/logo.png" alt="Barangay Logo" class="logo-nav">
         </a>
         <div class="nav-buttons">
             <a href="#how-it-works" class="btn-nav" onclick="navScroll('how-it-works'); return false;">How It Works</a>
@@ -429,7 +437,7 @@
                     <div class="step-num">1</div>
                     <div class="step-info">
                         <h3>Get Your Account</h3>
-                        <p>Visit the Barangay Hall so staff can record you and issue your Resident ID and password.</p>
+                        <p>Visit the Barangay Hall so the Barangay Secretary can record you and issue your Resident ID and password.</p>
                     </div>
                 </div>
 
@@ -570,7 +578,7 @@
                 if (!banner) return;
                 banner.style.display = "block";
                 banner.textContent =
-                    "The portal is in maintenance mode. You can still open this page and sign in; resident and staff services are paused until a system administrator restores production.";
+                    "The portal is in maintenance mode. You can still open this page and sign in; resident and Barangay Secretary services are paused until a system administrator restores production.";
             } catch (_e) { /* ignore */ }
         })();
     </script>

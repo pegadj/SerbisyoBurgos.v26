@@ -21,7 +21,6 @@
     const pathname = String(globalScope.location?.pathname || "").replace(/\\/g, "/").toLowerCase();
     if (
       pathname.includes("/resident/") ||
-      pathname.includes("/admin/") ||
       pathname.includes("/staff/") ||
       pathname.includes("/system-admin/")
     ) {
