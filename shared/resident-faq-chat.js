@@ -1,13 +1,13 @@
 /**
- * Wires the resident floating FAQ chat to POST /faq/chat (Groq + FAQ DB).
+ * Wires the resident floating FAQ chat to POST /faq/chat (Gemini AI + FAQ DB).
  * Expects #chatToggle, #chatWindow, #chatBody, #chatInput, .chat-footer button.
- * API base: script[data-api-base] or https://serbisyoburgos-ver-26.onrender.com
+ * API base: script[data-api-base], window.API_BASE_URL (set by routes.js)
  */
 (function residentFaqChatInit(global) {
   const doc = global.document;
   const scriptEl = doc.querySelector('script[src*="resident-faq-chat.js"]');
   const rawBase =
-    (scriptEl && scriptEl.getAttribute("data-api-base")) || global.__SB_API_BASE__ || "https://serbisyoburgos-ver-26.onrender.com";
+    (scriptEl && scriptEl.getAttribute("data-api-base")) || global.__SB_API_BASE__ || global.API_BASE_URL || "";
   const apiBase = String(rawBase || "").replace(/\/$/, "");
 
   function qs(id) {
@@ -20,6 +20,7 @@
     s.id = "resident-faq-chat-styles";
     s.textContent = `
       .faq-chat-reply { white-space: pre-wrap; word-break: break-word; }
+      .faq-chat-tl { margin-top: 0.9em; font-style: italic; }
       .faq-chat-inline-link {
         color: #16a34a;
         font-weight: 600;
@@ -50,6 +51,7 @@
       const latestBody = qs("chatBody");
       if (!latestBody || latestBody.dataset.faqChatReady !== "1") return;
       if (latestBody.dataset.faqChatSecondWelcome === "1") return;
+      if (latestBody.querySelector(".msg-user")) return; // already chatting: do not interrupt
       latestBody.dataset.faqChatSecondWelcome = "1";
 
       const w2 = doc.createElement("div");
@@ -105,7 +107,8 @@
   }
 
   const GREETING_OR_SMALL_CHAT_REPLY =
-    "Hello there! Tell me how I can help with barangay services—for example office hours, what you can request, fees, how to track or cancel a request, or viewing your Request History.";
+    "Hello there! Tell me how I can help with barangay services, for example office hours, what you can request, fees, how to track or cancel a request, or viewing your Request History.\n\n[TL]" +
+    "Kumusta po! Sabihin ninyo kung paano ako makakatulong tungkol sa mga serbisyo ng barangay, tulad ng oras ng opisina, mga puwedeng i-request, bayarin, kung paano i-track o i-cancel ang request, o tingnan ang Request History.";
 
   function appendAssistantAnswer(text) {
     const body = qs("chatBody");
@@ -113,7 +116,7 @@
     el.className = "msg msg-ai faq-chat-reply";
     const main = doc.createElement("div");
     main.className = "faq-chat-reply";
-    main.innerHTML = linkifyResidentNavPhrases(text);
+    main.innerHTML = renderReplyHtml(text);
     el.appendChild(main);
     body.appendChild(el);
     scrollChatToBottom();
@@ -186,13 +189,28 @@
     return out;
   }
 
+  /**
+   * Bilingual replies come as "English\n\n[TL]Tagalog". Show the Tagalog part after a blank line, in italics.
+   * Replies without the marker (normal single-language answers) are shown unchanged.
+   */
+  function renderReplyHtml(text) {
+    const raw = String(text || "");
+    const marker = "\n\n[TL]";
+    const idx = raw.indexOf(marker);
+    if (idx === -1) return linkifyResidentNavPhrases(raw);
+    const first = raw.slice(0, idx).trim();
+    const second = raw.slice(idx + marker.length).trim();
+    if (!second) return linkifyResidentNavPhrases(first);
+    return linkifyResidentNavPhrases(first) + '<div class="faq-chat-tl">' + linkifyResidentNavPhrases(second) + "</div>";
+  }
+
   function finalizeAssistant(el, text) {
     el.removeAttribute("data-role");
     el.classList.remove("faq-chat-err");
     el.innerHTML = "";
     const main = doc.createElement("div");
     main.className = "faq-chat-reply";
-    main.innerHTML = linkifyResidentNavPhrases(text || "");
+    main.innerHTML = renderReplyHtml(text || "");
     el.appendChild(main);
     scrollChatToBottom();
   }
@@ -204,6 +222,50 @@
       message ||
       "Couldn't reach the server. Make sure the backend API is running and try again.";
     scrollChatToBottom();
+  }
+
+  // Last few turns, so follow-ups like "how much?" make sense. Kept in memory only (cleared on page change).
+  const chatHistory = [];
+  function rememberTurn(role, content) {
+    chatHistory.push({ role, content: String(content || "").slice(0, 500) });
+    while (chatHistory.length > 6) chatHistory.shift();
+  }
+
+  const REQUEST_TIMEOUT_MS = 60000; // a sleeping server can take ~30-50 s to wake up
+  function wait(ms) {
+    return new Promise((resolve) => global.setTimeout(resolve, ms));
+  }
+
+  /** POST /faq/chat with a timeout; retries once if the server is waking up or the network blinked. */
+  async function postChat(text) {
+    const body = JSON.stringify({ message: text, limit: 3, history: chatHistory.slice() });
+    let lastErr = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const ctrl = new AbortController();
+      const timer = global.setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const res = await fetch(`${apiBase}/faq/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          signal: ctrl.signal
+        });
+        if ([502, 503, 504].includes(res.status) && attempt === 0) {
+          lastErr = new Error("HTTP " + res.status);
+          await wait(2500);
+          continue;
+        }
+        const payload = await res.json().catch(() => ({}));
+        return { res, payload };
+      } catch (err) {
+        if (err && err.name === "AbortError") throw new Error("TIMEOUT");
+        lastErr = err;
+        if (attempt === 0) { await wait(2500); continue; }
+      } finally {
+        global.clearTimeout(timer);
+      }
+    }
+    throw lastErr || new Error("NETWORK");
   }
 
   async function sendMessage() {
@@ -228,12 +290,7 @@
     if (sendBtn) sendBtn.disabled = true;
 
     try {
-      const res = await fetch(`${apiBase}/faq/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, limit: 3 })
-      });
-      const payload = await res.json().catch(() => ({}));
+      const { res, payload } = await postChat(text);
       if (!res.ok) {
         throw new Error(payload.message || `HTTP ${res.status}`);
       }
@@ -245,11 +302,14 @@
         throw new Error("Empty reply from server.");
       }
       finalizeAssistant(pending, replyText);
+      rememberTurn("user", text);
+      rememberTurn("assistant", replyText);
     } catch (err) {
       let msg = err?.message ? String(err.message) : "";
       if (msg === "Empty reply from server.") msg = "The server returned an empty reply.";
       else if (msg === "Invalid response.") msg = "The server returned an invalid response.";
-      else if (/^HTTP \d/.test(msg)) msg = "Could not connect properly to the server. Please try again.";
+      else if (msg === "TIMEOUT") msg = "The assistant is taking too long to answer. The server may be waking up, so please try again in a moment.";
+      else if (/^HTTP \d/.test(msg) || (err && err.name === "TypeError")) msg = "Could not connect properly to the server. Please try again.";
       showAssistantError(pending, msg);
     } finally {
       input.disabled = false;

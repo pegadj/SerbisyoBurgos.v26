@@ -71,7 +71,7 @@
       if (globalScope.SB_MAINTENANCE?.fetchPortalEnvironment) {
         env = await globalScope.SB_MAINTENANCE.fetchPortalEnvironment();
       } else {
-        const response = await globalScope.fetch("https://serbisyoburgos-ver-26.onrender.com/public/system-status");
+        const response = await globalScope.fetch(String(globalScope.API_BASE_URL || "").replace(/\/$/, "") + "/public/system-status");
         const json = await response.json().catch(() => ({}));
         if (json?.environment === "maintenance") env = "maintenance";
       }

@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com https://images.unsplash.com http://localhost:4000 http://127.0.0.1:4000; connect-src 'self' https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com http://localhost:4000 http://127.0.0.1:4000; media-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User & Role Management | SerbisyoBurgos</title>
     <link rel="manifest" href="../manifest.webmanifest">
@@ -616,12 +617,13 @@
 
     </main>
     <script src="../shared/routes.js"></script>
+    <script src="../shared/live-refresh.js"></script>
     <script src="../shared/maintenance-check.js"></script>
     <script src="../shared/admin-access.js"></script>
     <script>
         (async function() { const auth = await window.SB_ADMIN_ACCESS?.requireRole("staff"); if (!auth) return; })();
 
-        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "";
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
         /** Same key as login.html — emails registered through the resident portal. */
         const RESIDENT_PORTAL_SELF_REG_EMAILS_KEY = "SB_RESIDENT_PORTAL_SELF_REG_EMAILS";
@@ -719,11 +721,14 @@
 
 
 
-        async function loadUsersTable() {
+        async function loadUsersTable(opts) {
+            const silent = !!(opts && opts.silent === true); // background refresh: no "Loading…", no error flash
             const tbody = document.getElementById("usersTableBody");
             if (!tbody) return;
-            tbody.innerHTML =
-                '<tr><td colspan="5" style="color: var(--text-muted); font-size: 0.9rem;">Loading users…</td></tr>';
+            if (!silent) {
+                tbody.innerHTML =
+                    '<tr><td colspan="5" style="color: var(--text-muted); font-size: 0.9rem;">Loading users…</td></tr>';
+            }
             try {
                 const res = await adminFetch("/admin/profiles");
                 const json = await res.json().catch(() => ({}));
@@ -767,11 +772,15 @@
                 syncResidentPortalRowMarkers();
                 applyResidentPortalTableCells();
             } catch (err) {
+                if (silent) return; // background refresh: keep what is on screen
                 tbody.innerHTML = `<tr><td colspan="5" style="color:#b91c1c;font-size:0.9rem;">${escapeHtml(
                     err?.message || "Unable to load users."
                 )}</td></tr>`;
             }
         }
+
+        // Keep this list current while the page stays open (pauses when hidden or while the person is busy).
+        if (window.SB_LIVE) SB_LIVE.watch(() => loadUsersTable({ silent: true }), { every: 60000 });
         const appDialogModal = document.getElementById("appDialogModal");
         const appDialogTitle = document.getElementById("appDialogTitle");
         const appDialogMessage = document.getElementById("appDialogMessage");

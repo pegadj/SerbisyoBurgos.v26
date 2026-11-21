@@ -61,10 +61,21 @@
   globalScope.APP_ROUTES = ROUTES;
   globalScope.APP_NAV = { logout };
 
+  // ONE place for the backend address. Every page and script reads window.API_BASE_URL (set below).
+  // To point this browser at another server (e.g. testing), run in the console:
+  //   localStorage.setItem("sb_api_base", "http://localhost:4000")   (remove with localStorage.removeItem("sb_api_base"))
+  const PRODUCTION_API_BASE_URL = "https://serbisyoburgos-ver-26.onrender.com";
+
   function inferApiBaseUrl() {
     try {
+      const saved = (globalScope.localStorage && globalScope.localStorage.getItem("sb_api_base")) || "";
+      if (/^https?:\/\//i.test(saved.trim())) return saved.trim().replace(/\/$/, "");
+    } catch (_e) {
+      /* storage blocked: ignore */
+    }
+    try {
       const href = globalScope.location?.href;
-      if (!href || href.startsWith("file:")) return "https://serbisyoburgos-ver-26.onrender.com";
+      if (!href || href.startsWith("file:")) return PRODUCTION_API_BASE_URL;
       const u = new URL(href);
       // localhost / 127.0.0.1 / private IPs = local dev, use :4000
       const isLocal =
@@ -79,11 +90,12 @@
       /* ignore */
     }
     // Any other host (Vercel, Render, custom domain) → use the real backend
-    return "https://serbisyoburgos-ver-26.onrender.com";
+    return PRODUCTION_API_BASE_URL;
   }
 
   const existingApi = typeof globalScope.API_BASE_URL === "string" ? globalScope.API_BASE_URL.trim() : "";
   if (!existingApi) {
     globalScope.API_BASE_URL = inferApiBaseUrl();
   }
+  globalScope.SB_CONFIG = { API_BASE_URL: String(globalScope.API_BASE_URL).replace(/\/$/, "") };
 })(window);

@@ -17,6 +17,21 @@ const systemSettingsSchema = new Schema({
     default: 'production',
     enum: ['production', 'maintenance'],
   },
+  // Barangay details shown on the public pages and printed on documents.
+  // Defaults match what used to be typed into the pages, so nothing changes until an admin edits them.
+  siteInfo: {
+    barangayName: { type: String, trim: true, maxlength: 80, default: 'Burgos' },
+    municipality: { type: String, trim: true, maxlength: 80, default: 'San Marcelino' },
+    province: { type: String, trim: true, maxlength: 80, default: 'Zambales' },
+    contactNumber: { type: String, trim: true, maxlength: 40, default: '09489454674' },
+    officeHours: { type: String, trim: true, maxlength: 120, default: 'Mon-Fri 9AM - 5PM' },
+    address: {
+      type: String, trim: true, maxlength: 250,
+      default: '353 National Highway, Barangay Burgos, Covered Court, San Marcelino, Zambales',
+    },
+    signatoryName: { type: String, trim: true, maxlength: 120, default: 'HON. LILIBETH C. BALLON' },
+    signatoryTitle: { type: String, trim: true, maxlength: 120, default: 'Acting Punong Barangay' },
+  },
 }, {
   timestamps: { createdAt: false, updatedAt: 'updatedAt' },
 });

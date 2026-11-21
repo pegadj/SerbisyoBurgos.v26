@@ -67,8 +67,8 @@ const FAQ_DEFAULTS = [
   {
     category: 'service_request',
     question: 'How do I cancel the request I made?',
-    answer: 'Click the specific request in your "Recent Service Requests" or go to the "Service Requests" dashboard. You will see the "Actions" column. If the status is still Pending or Request for Revisions, you will see a delete option in the "Actions" column. If the request has another status, you must contact the staff directly.',
-    keywords: ['cancel', 'delete', 'remove', 'actions', 'pending', 'request for revisions'],
+    answer: 'Click the specific request in your "Recent Service Requests" or go to the "Service Requests" dashboard. You will see the "Actions" column. If the status is still Pending or Revision Requested, you will see a delete option in the "Actions" column. If the request has another status, you must contact the staff directly.',
+    keywords: ['cancel', 'delete', 'remove', 'actions', 'pending', 'revision requested'],
     sortOrder: 5,
   },
   {

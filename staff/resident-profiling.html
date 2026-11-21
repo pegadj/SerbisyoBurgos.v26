@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com https://images.unsplash.com http://localhost:4000 http://127.0.0.1:4000; connect-src 'self' https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com http://localhost:4000 http://127.0.0.1:4000; media-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resident Profiling | SerbisyoBurgos</title>
     <link rel="manifest" href="../manifest.webmanifest">
@@ -480,10 +481,11 @@
     </div>
 
     <script src="../shared/routes.js"></script>
+    <script src="../shared/live-refresh.js"></script>
     <script src="../shared/maintenance-check.js"></script>
     <script src="../shared/place-autocomplete.js"></script>
     <script>
-        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "";
         const STAFF_ROUTES = window.APP_ROUTES?.staff || { login: "../login.html", dashboard: "staff-dashboard.html" };
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "index.html" };
         document.querySelectorAll('a[href="staff-dashboard.html"]').forEach((a) => { a.href = STAFF_ROUTES.dashboard; });
@@ -596,11 +598,13 @@
             $("anSeniorNote").textContent = notes.join(" ");
             $("analytics").classList.remove("is-error"); $("anError").hidden = true;
         }
-        async function loadStats() {
+        async function loadStats(opts) {
+            const silent = !!(opts && opts.silent === true); // background refresh: no "Loading…", no error flash
             try {
                 const { stats } = await api("/staff/residents/stats");
                 renderStats(stats);
             } catch (e) {
+                if (silent) return; // background refresh: keep what is on screen
                 ["anTotal", "anMale", "anFemale", "anSenior", "anSeniorMale", "anSeniorFemale"].forEach((id) => { $(id).textContent = "—"; });
                 ["anMalePct", "anFemalePct", "anSeniorPct", "anGenderNote", "anSeniorNote"].forEach((id) => { $(id).textContent = ""; });
                 setSplitBar("anBarM", "anBarF", 0, 0); setSplitBar("anSBarM", "anSBarF", 0, 0);
@@ -609,10 +613,13 @@
             }
         }
 
-        async function loadResidents() {
+        async function loadResidents(opts) {
+            const silent = !!(opts && opts.silent === true); // background refresh: no "Loading…", no error flash
             const qs = filterParams();
             qs.set("limit", PAGE); qs.set("offset", offset);
-            $("residentRows").innerHTML = '<tr><td colspan="6" class="empty">Loading residents…</td></tr>';
+            if (!silent) {
+                $("residentRows").innerHTML = '<tr><td colspan="6" class="empty">Loading residents…</td></tr>';
+            }
             try {
                 const data = await api(`/staff/residents?${qs}`);
                 total = data.total;
@@ -628,9 +635,13 @@
                 $("prevBtn").disabled = offset === 0;
                 $("nextBtn").disabled = offset + PAGE >= total;
             } catch (e) {
+                if (silent) return; // background refresh: keep what is on screen
                 $("residentRows").innerHTML = `<tr><td colspan="6" class="empty">${esc(e.message)}</td></tr>`;
             }
         }
+
+        // Keep this list current while the page stays open (pauses when hidden or while the person is busy).
+        if (window.SB_LIVE) SB_LIVE.watch(() => Promise.all([loadResidents({ silent: true }), loadStats({ silent: true })]), { every: 60000 });
         function reloadFromStart() { clearTimeout(timer); timer = setTimeout(() => { offset = 0; loadResidents(); }, 300); }
         ["searchInput"].forEach((id) => $(id).addEventListener("input", reloadFromStart));
         $("profiledFilter").addEventListener("change", () => { offset = 0; loadResidents(); });

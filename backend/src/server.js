@@ -24,9 +24,16 @@ const { ServiceCatalog } = require("./models/ServiceCatalog");
 const CommunityAnnouncement = require("./models/CommunityAnnouncement");
 const AnnouncementDraft = require("./models/AnnouncementDraft");
 const { FaqEntry } = require("./models/FaqEntry");
+const {
+  askChatbot,
+  isAiConfigured,
+  OFF_TOPIC_REPLY,
+  NOT_COVERED_REPLY
+} = require("./services/chatbot");
 const AppointmentPurposeCatalog = require("./models/AppointmentPurposeCatalog");
 const PortalAuditEvent = require("./models/PortalAuditEvent");
 const { AuthAuditEvent } = require("./models/AuthAuditEvent");
+const { PasswordResetCode } = require("./models/PasswordResetCode");
 const AppointmentSlot = require("./models/AppointmentSlot");
 const AppointmentSlotOverride = require("./models/AppointmentSlotOverride");
 const { Appointment, APPOINTMENT_STATUSES } = require("./models/Appointment");
@@ -67,6 +74,21 @@ const port = Number(process.env.PORT) || 4000;
 // everyone together (one person could lock everybody out). Set TRUST_PROXY=0 when running with no proxy.
 app.set("trust proxy", process.env.TRUST_PROXY === "0" ? false : Number(process.env.TRUST_PROXY) || 1);
 
+// Content-Security-Policy for the API. The API only returns JSON, CSV and file downloads (never web pages),
+// so it can be locked down completely: if one of these responses were ever opened as a page, nothing in it
+// could run, load anything, or be framed by another site. /files/:id is skipped because it streams the
+// images and PDFs the portal displays from another origin.
+// The portal's own HTML pages are static files on a different host; their policy is the <meta> tag in each page.
+const apiContentSecurityPolicy = helmet.contentSecurityPolicy({
+  useDefaults: false,
+  directives: {
+    defaultSrc: ["'none'"],
+    frameAncestors: ["'none'"],
+    baseUri: ["'none'"],
+    formAction: ["'none'"]
+  }
+});
+app.use((req, res, next) => (req.path.startsWith("/files/") ? next() : apiContentSecurityPolicy(req, res, next)));
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(
   cors({
@@ -236,6 +258,22 @@ const residentChangePasswordLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { ok: false, message: "Too many password change attempts. Please try again later." }
+});
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, message: "Too many requests. Please try again in a few minutes or visit the barangay hall." }
+});
+
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, message: "Too many attempts. Please try again in a few minutes or visit the barangay hall." }
 });
 
 const residentAvatarUploadLimiter = rateLimit({
@@ -654,7 +692,12 @@ const FAQ_SEARCH_TOP_LIMIT_DEFAULT = 3;
 const FAQ_SEARCH_TOP_LIMIT_MAX = 8;
 const FAQ_CHAT_CONTEXT_MAX = 5;
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_CHAT_DEFAULT_MODEL = "llama-3.3-70b-versatile";
+// llama-3.3-70b-versatile was shut down by Groq on 2026-08-16. Override with GROQ_MODEL in .env if Groq changes again.
+const GROQ_CHAT_DEFAULT_MODEL = "openai/gpt-oss-120b";
+// gpt-oss models "reason" before answering; keep that short so replies are fast and fit inside max_tokens.
+function groqReasoningParams(model) {
+  return /gpt-oss/i.test(String(model || "")) ? { reasoning_effort: "low" } : {};
+}
 const MAX_GROQ_REPLY_CHARS = 4000;
 const FAQ_SEARCH_TOKEN_STOPWORDS = new Set([
   "a",
@@ -1016,6 +1059,64 @@ async function savePortalEnvironmentToDb(environment) {
   }
 }
 
+// ---- Barangay site info (contact details + document signatory), stored in system_settings.siteInfo ----
+const SITE_INFO_DEFAULTS = Object.freeze({
+  barangayName: "Burgos",
+  municipality: "San Marcelino",
+  province: "Zambales",
+  contactNumber: "09489454674",
+  officeHours: "Mon-Fri 9AM - 5PM",
+  address: "353 National Highway, Barangay Burgos, Covered Court, San Marcelino, Zambales",
+  signatoryName: "HON. LILIBETH C. BALLON",
+  signatoryTitle: "Acting Punong Barangay"
+});
+const SITE_INFO_LIMITS = Object.freeze({
+  barangayName: 80, municipality: 80, province: 80, contactNumber: 40, officeHours: 120, address: 250, signatoryName: 120, signatoryTitle: 120
+});
+
+/** Keeps only known text fields, trims them and caps their length. Empty values fall back to the default. */
+function cleanSiteInfo(input, { useDefaults = true } = {}) {
+  const out = {};
+  for (const key of Object.keys(SITE_INFO_DEFAULTS)) {
+    const raw = input && input[key];
+    if (raw === undefined || raw === null) {
+      if (useDefaults) out[key] = SITE_INFO_DEFAULTS[key];
+      continue;
+    }
+    const value = String(raw).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, SITE_INFO_LIMITS[key]);
+    if (value) out[key] = value;
+    else if (useDefaults) out[key] = SITE_INFO_DEFAULTS[key];
+  }
+  return out;
+}
+
+async function getSiteInfoFromDb() {
+  try {
+    const doc = await SystemSettings.findById(SINGLETON_ID).lean();
+    return cleanSiteInfo(doc && doc.siteInfo);
+  } catch (error) {
+    console.error("[system_settings] site info read:", error.message);
+    return { ...SITE_INFO_DEFAULTS };
+  }
+}
+
+async function saveSiteInfoToDb(input) {
+  const clean = cleanSiteInfo(input, { useDefaults: false });
+  const update = {};
+  for (const [key, value] of Object.entries(clean)) update["siteInfo." + key] = value;
+  if (!Object.keys(update).length) return { ok: false, status: 400, detail: "No valid fields to save." };
+  try {
+    await SystemSettings.findByIdAndUpdate(
+      SINGLETON_ID,
+      { $set: update },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
+    return { ok: true, siteInfo: await getSiteInfoFromDb() };
+  } catch (error) {
+    return { ok: false, status: 500, detail: error.message };
+  }
+}
+
 /** URL-safe code for appointment purpose (stored in appointments.purpose). */
 function slugifyAppointmentPurposeCode(raw) {
   let s = String(raw || "")
@@ -1151,88 +1252,64 @@ function sanitizeChatReply(raw) {
   return s.replace(/[<>]/g, "");
 }
 
-async function rewriteFaqWithGroq(userQuestion, matches) {
-  const apiKey = String(process.env.GROQ_API_KEY || "").trim();
-  if (!apiKey) {
-    return { ok: false, reason: "no_api_key" };
-  }
-
-  const model = String(process.env.GROQ_MODEL || "").trim() || GROQ_CHAT_DEFAULT_MODEL;
-  const excerpts = buildFaqContextBlock(matches);
-
-  const systemPrompt = [
-    "You are a Philippine barangay resident assistant answering questions using ONLY the FAQ excerpts provided by the user message.",
-    "Understand the user's question whether it is in English, Tagalog, Taglish, or mixed—then reply in CLEAR, EASY-TO-READ English suited for non-technical residents.",
-    "Rewrite faithfully: simplify wording and sentence length, prefer short bullets when helpful, but do NOT remove required steps, conditions, statuses, dashboard names, or fees that appear in the excerpts.",
-    "Keep these exact phrases when referring to portals (capitalization as in excerpts): \"Service Requests\", \"Recent Service Requests\", and \"Request History\"—these may become clickable links in the app.",
-    "Do not invent requirements, deadlines, contacts, URLs, offices, amounts, fees, portal names, or processes that are not in the excerpts.",
-    "If excerpts do not cover part of the question, say clearly in simple English what is unknown and advise visiting/contacting the barangay.",
-    "Do not prefix answers like \"FAQ 1\". No markdown/HTML."
-  ].join("\n");
-
-  const userPayload = [
-    "Do this:",
-    "1) Read the RESIDENT QUESTION below (English/Tagalog/Taglish acceptable). Understand intent.",
-    "2) Decide which excerpt(s) apply.",
-    "3) Answer in SIMPLE English using ONLY excerpt facts.",
-    "",
-    `RESIDENT QUESTION:\n${userQuestion}`,
-    "",
-    `OFFICIAL FAQ EXCERPTS:\n${excerpts}`
-  ].join("\n");
-
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 45000);
-
+/** Live, admin-editable facts the chatbot may use (cached for a minute so every message does not hit the database). */
+let chatFactsCache = { at: 0, text: "" };
+async function buildChatFactsBlock() {
+  const now = Date.now();
+  if (chatFactsCache.text && now - chatFactsCache.at < 60000) return chatFactsCache.text;
+  const lines = [];
   try {
-    const res = await fetch(GROQ_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPayload }
-        ],
-        temperature: 0.2,
-        max_tokens: 700
-      }),
-      signal: ac.signal
-    });
-
-    const rawText = await res.text();
-    let json;
-    try {
-      json = JSON.parse(rawText);
-    } catch {
-      return { ok: false, reason: "bad_response", status: res.status, detail: rawText.slice(0, 400) };
-    }
-
-    if (!res.ok) {
-      const msg = json?.error?.message || rawText.slice(0, 400);
-      return { ok: false, reason: "groq_http", status: res.status, detail: msg };
-    }
-
-    const text = sanitizeChatReply(json?.choices?.[0]?.message?.content);
-    if (!text) {
-      return { ok: false, reason: "empty_content" };
-    }
-
-    return { ok: true, text, model };
-  } catch (err) {
-    if (err?.name === "AbortError") {
-      return { ok: false, reason: "timeout" };
-    }
-    return { ok: false, reason: "network", detail: String(err?.message || err).slice(0, 400) };
-  } finally {
-    clearTimeout(timer);
+    const info = await getSiteInfoFromDb();
+    lines.push(`Barangay: ${info.barangayName}, ${info.municipality}, ${info.province}`);
+    lines.push(`Office hours: ${info.officeHours}`);
+    lines.push(`Contact number: ${info.contactNumber}`);
+    lines.push(`Office address: ${info.address}`);
+  } catch (_e) {
+    /* settings unavailable: skip */
   }
+  try {
+    const services = await ServiceCatalog.find({ archivedAt: null, status: "Active" })
+      .sort({ serviceName: 1 })
+      .limit(40)
+      .lean();
+    if (services.length) {
+      lines.push("Services residents can request online under \"Service Requests\":");
+      for (const s of services) {
+        lines.push(
+          `- ${s.serviceName}: required documents: ${String(s.requiredDocuments || "").trim() || "none listed"}; processing time: ${String(s.processingTime || "").trim() || "not stated"}`
+        );
+      }
+    }
+  } catch (_e) {
+    /* catalog unavailable: skip */
+  }
+  try {
+    const purposes = await AppointmentPurposeCatalog.find({ archivedAt: null }).sort({ sortOrder: 1 }).limit(30).lean();
+    if (purposes.length) {
+      lines.push("Appointment purposes residents can book: " + purposes.map((p) => p.label).join("; "));
+    }
+  } catch (_e) {
+    /* purposes unavailable: skip */
+  }
+  const text = lines.join("\n");
+  chatFactsCache = { at: now, text };
+  return text;
 }
 
-/** Strip optional ```json fences from model output. */
+/** Last few chat turns sent by the browser. Treated as untrusted text, never as instructions. */
+function sanitizeChatHistory(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const item of raw.slice(-6)) {
+    const role = item && item.role === "assistant" ? "assistant" : item && item.role === "user" ? "user" : "";
+    const content = sanitizePlainTextField(item && item.content, 500);
+    if (role && content) out.push({ role, content });
+  }
+  return out;
+}
+
+// The resident chatbot (Gemini, with Groq as backup) lives in ./services/chatbot.js
+
 function extractJsonValueFromGroqText(raw) {
   let s = String(raw || "").trim();
   const m = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -1316,7 +1393,8 @@ async function summarizeAuditDescriptionsWithGroq(logs) {
             { role: "user", content: userContent }
           ],
           temperature: 0.1,
-          max_tokens: 4096
+          max_tokens: 4096,
+          ...groqReasoningParams(model)
         }),
         signal: ac.signal
       });
@@ -1376,12 +1454,14 @@ app.get("/health", async (_req, res) => {
     String(process.env.JWT_ACCESS_SECRET || "").trim() && String(process.env.JWT_REFRESH_SECRET || "").trim()
   );
   const groqConfigured = Boolean(String(process.env.GROQ_API_KEY || "").trim());
+  const geminiConfigured = Boolean(String(process.env.GEMINI_API_KEY || "").trim());
 
   res.json({
     ok: true,
     service: "backend",
     mongoConfigured: hasMongoConfig,
     jwtConfigured: hasJwtConfig,
+    geminiConfigured,
     groqConfigured
   });
 });
@@ -1409,6 +1489,13 @@ app.get("/public/system-status", async (_req, res) => {
   } catch (_err) {
     return res.json({ ok: true, environment: "production" });
   }
+});
+
+// Public barangay details (contact info, office hours, address, signatory) for the landing/contact pages and documents.
+app.get("/public/site-info", async (_req, res) => {
+  const siteInfo = await getSiteInfoFromDb();
+  res.set("Cache-Control", "public, max-age=60");
+  return res.json({ ok: true, siteInfo });
 });
 
 // Authenticate an admin account and return auth session details.
@@ -2287,6 +2374,141 @@ app.post("/auth/login", authResidentLoginLimiter, loginFailureLimiter, async (re
     user: userPayload,
     session: { accessToken, refreshToken, expiresAt }
   });
+});
+
+// --- Resident "Forgot password" (SMS code) ---------------------------------------------------------------
+// Residents are issued accounts by the barangay and often have no real email, so the reset code is texted to the
+// mobile number the barangay has on file. Residents only; staff and system admins are reset by a system administrator.
+// Responses never reveal whether an account exists. Codes: 6 digits, 10 minutes, 5 wrong guesses, stored hashed.
+const RESET_CODE_TTL_MS = 10 * 60 * 1000;
+const RESET_CODE_MAX_ATTEMPTS = 5;
+const RESET_CODE_COOLDOWN_MS = 60 * 1000;
+const RESET_CODE_MAX_PER_HOUR = 3;
+
+function hashResetCode(userId, code) {
+  const key = String(process.env.JWT_REFRESH_SECRET || process.env.JWT_ACCESS_SECRET || "sb-reset");
+  return crypto.createHmac("sha256", key).update(`${String(userId)}:${String(code)}`).digest("hex");
+}
+
+function safeEqualHex(a, b) {
+  const ba = Buffer.from(String(a), "hex");
+  const bb = Buffer.from(String(b), "hex");
+  return ba.length === bb.length && ba.length > 0 && crypto.timingSafeEqual(ba, bb);
+}
+
+async function findResidentForPasswordReset(identifierRaw) {
+  const loginId = String(identifierRaw || "").trim();
+  if (!loginId || loginId.length > 254) return null;
+  let lookup;
+  if (loginId.includes("@")) {
+    const e = normalizeEmail(loginId);
+    if (!isValidEmailFormat(e)) return null;
+    lookup = { email: e };
+  } else {
+    const rid = normalizeResidentId(loginId);
+    if (!rid) return null;
+    lookup = { residentId: rid };
+  }
+  const user = await User.findOne(lookup).select("+passwordHash");
+  if (!user || user.role !== "resident") return null;
+  if (residentPortalAccountBlockMessage(user.accountStatus)) return null;
+  if (user.loginIssued === false) return null; // staff have not issued a login for this record yet
+  return user;
+}
+
+app.post("/auth/resident/forgot-password", forgotPasswordLimiter, async (req, res) => {
+  if (!isSmsConfigured()) {
+    return res.status(503).json({
+      ok: false,
+      message: "Password reset by text message is not available right now. Please visit the barangay hall and the Barangay Secretary will reset your password."
+    });
+  }
+  const generic = {
+    ok: true,
+    message: "If your account has a mobile number registered with the barangay, we sent a 6-digit code to it. The code is valid for 10 minutes."
+  };
+  try {
+    const user = await findResidentForPasswordReset(req.body?.identifier);
+    const phone = user ? normalizePhNumber(user.contactNumber) : null;
+    if (!user || !phone) return res.json(generic);
+
+    const now = Date.now();
+    const recent = await PasswordResetCode.find({ userId: user._id, createdAt: { $gt: new Date(now - 60 * 60 * 1000) } })
+      .sort({ createdAt: -1 })
+      .lean();
+    if (recent.length >= RESET_CODE_MAX_PER_HOUR) return res.json(generic);
+    if (recent[0] && now - new Date(recent[0].createdAt).getTime() < RESET_CODE_COOLDOWN_MS) return res.json(generic);
+
+    const code = String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+    await PasswordResetCode.deleteMany({ userId: user._id });
+    await PasswordResetCode.create({
+      userId: user._id,
+      codeHash: hashResetCode(user._id, code),
+      expiresAt: new Date(now + RESET_CODE_TTL_MS),
+      requestIp: req.ip || null
+    });
+    void insertAuthAuditEvent({ action: "password_reset_requested", email: user.email, role: user.role, req });
+    // Not awaited, so the response time is the same whether or not an account exists.
+    void sendSmsBatch([phone], `SerbisyoBurgos: Your password reset code is ${code}. It expires in 10 minutes. Never share this code with anyone.`)
+      .then((r) => { if (r.failed) console.warn("[forgot-password] SMS failed:", (r.errors || []).join("; ")); });
+    return res.json(generic);
+  } catch (err) {
+    console.warn("[forgot-password] error:", err?.message || err);
+    return res.json(generic);
+  }
+});
+
+app.post("/auth/resident/reset-password", resetPasswordLimiter, async (req, res) => {
+  const body = req.body || {};
+  const code = String(body.code || "").trim();
+  const newPassword = String(body.newPassword || "");
+  const confirmPassword = String(body.confirmPassword || "");
+  const invalid = { ok: false, message: "That code is incorrect or has expired. Please check it or request a new code." };
+
+  if (!/^\d{6}$/.test(code)) return res.status(400).json(invalid);
+  if (newPassword.length < 8) return res.status(400).json({ ok: false, message: "New password must be at least 8 characters." });
+  if (newPassword.length > MAX_PASSWORD_LEN) return res.status(400).json({ ok: false, message: "New password is too long." });
+  if (confirmPassword && newPassword !== confirmPassword) {
+    return res.status(400).json({ ok: false, message: "New password and confirmation do not match." });
+  }
+
+  try {
+    const user = await findResidentForPasswordReset(body.identifier);
+    if (!user) return res.status(400).json(invalid);
+
+    const record = await PasswordResetCode.findOne({ userId: user._id }).sort({ createdAt: -1 });
+    if (!record || record.expiresAt.getTime() < Date.now()) return res.status(400).json(invalid);
+    if (record.attempts >= RESET_CODE_MAX_ATTEMPTS) {
+      await PasswordResetCode.deleteMany({ userId: user._id });
+      return res.status(400).json({ ok: false, message: "Too many wrong codes. Please request a new code." });
+    }
+    if (!safeEqualHex(record.codeHash, hashResetCode(user._id, code))) {
+      record.attempts += 1;
+      await record.save();
+      return res.status(400).json(invalid);
+    }
+    if (await verifyPassword(newPassword, user.passwordHash)) {
+      return res.status(400).json({ ok: false, message: "Your new password must be different from your current one." });
+    }
+
+    user.passwordHash = await hashPassword(newPassword);
+    user.mustChangePassword = false;
+    user.failedLoginCount = 0;
+    user.lockedUntil = null;
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // signs the resident out everywhere
+    await user.save();
+    await PasswordResetCode.deleteMany({ userId: user._id });
+    void insertAuthAuditEvent({ action: "password_reset", email: user.email, role: user.role, req });
+
+    const phone = normalizePhNumber(user.contactNumber);
+    if (phone) {
+      void sendSmsBatch([phone], "SerbisyoBurgos: Your password was changed. If this was not you, please contact the barangay hall right away.");
+    }
+    return res.json({ ok: true, message: "Your password has been changed. You can now log in." });
+  } catch (err) {
+    console.warn("[reset-password] error:", err?.message || err);
+    return res.status(500).json({ ok: false, message: "Something went wrong. Please try again." });
+  }
 });
 
 app.get("/auth/resident/authorize", async (req, res) => {
@@ -3906,7 +4128,7 @@ app.delete("/appointments/:id", async (req, res) => {
   return res.json({ ok: true, appointment: appointmentRow });
 });
 
-// --- FAQ retrieval + Groq rewrite (resident chatbot) ---
+// --- FAQ retrieval + AI answer (resident chatbot: Gemini, Groq backup) ---
 
 app.post("/faq/search", faqSearchLimiter, async (req, res) => {
   const rawQuery = req.body?.query ?? req.body?.message ?? "";
@@ -3953,7 +4175,15 @@ app.post("/faq/chat", faqChatLimiter, async (req, res) => {
   }
   limit = Math.min(limit, FAQ_CHAT_CONTEXT_MAX);
 
-  const retrieved = await retrieveFaqMatchesInternal(query, limit);
+  const history = sanitizeChatHistory(req.body?.history);
+  // A very short follow-up ("how much?") is matched together with the resident's previous question.
+  const lastResidentTurn = [...history].reverse().find((h) => h.role === "user");
+  const retrievalQuery =
+    lastResidentTurn && tokenizeForFaqSearch(normalizeFaqSearchText(query)).length < 4
+      ? `${lastResidentTurn.content} ${query}`.slice(0, MAX_FAQ_SEARCH_QUERY_LEN)
+      : query;
+
+  const retrieved = await retrieveFaqMatchesInternal(retrievalQuery, limit);
   if (!retrieved.ok) {
     return res.status(500).json({
       ok: false,
@@ -3962,40 +4192,65 @@ app.post("/faq/chat", faqChatLimiter, async (req, res) => {
     });
   }
 
-  const noMatchMessage =
-    "I don't have the right answer to your question. Visit the barangay hall during office hours or contact the barangay for accurate information.";
+  // Give the model every active FAQ (best keyword matches first). Keyword search is English-heavy, so a Tagalog
+  // question may match nothing; the model can still read the whole short FAQ list and answer from it.
+  const startedAt = Date.now();
+  const loadAllFaqs = async () => {
+    if (!isAiConfigured()) return retrieved.matches;
+    try {
+      const allRows = await FaqEntry.find({ isActive: true }).sort({ sortOrder: 1 }).limit(30).lean();
+      const seen = new Set(retrieved.matches.map((m) => m.id));
+      const rest = allRows.filter((row) => !seen.has(String(row._id))).map((row) => normalizeFaqMatch(row, 0, []));
+      return [...retrieved.matches, ...rest];
+    } catch (_e) {
+      return retrieved.matches; // keep keyword matches only
+    }
+  };
+  // Run the two database lookups at the same time instead of one after the other.
+  const [contextMatches, facts] = await Promise.all([loadAllFaqs(), buildChatFactsBlock()]);
 
+  const sources = retrieved.matches.map((m) => ({ id: m.id, question: m.question, category: m.category }));
+  const dbMs = Date.now() - startedAt;
+  const ai = await askChatbot({ question: query, matches: contextMatches, facts, history });
+  console.log(`[faq/chat] db=${dbMs}ms ai=${Date.now() - startedAt - dbMs}ms ${ai.ok ? `${ai.provider}/${ai.model || ""}${ai.cached ? " (cached)" : ""} intent=${ai.intent}` : `failed: ${ai.reason}`}`);
+
+  if (ai.ok) {
+    // Off-topic and "not covered" replies are fixed messages, never model-written text.
+    if (ai.intent === "off_topic") {
+      return res.json({ ok: true, reply: OFF_TOPIC_REPLY, mode: "off_topic", language: ai.language, provider: ai.provider, sources: [] });
+    }
+    if (ai.intent === "not_covered") {
+      return res.json({ ok: true, reply: NOT_COVERED_REPLY, mode: "no_match", language: ai.language, provider: ai.provider, confidence: retrieved.confidence, sources: [] });
+    }
+    return res.json({
+      ok: true,
+      reply: sanitizeChatReply(ai.reply),
+      mode: ai.intent === "greeting" ? "greeting" : "ai",
+      language: ai.language,
+      provider: ai.provider,
+      model: ai.model,
+      cached: Boolean(ai.cached),
+      confidence: retrieved.confidence,
+      sources: ai.intent === "greeting" ? [] : sources
+    });
+  }
+
+  // No AI available (no key, quota used up, or outage): fall back to the stored FAQ answer word for word, if one matched.
   if (!retrieved.matches.length) {
     return res.json({
       ok: true,
-      reply: noMatchMessage,
+      reply: NOT_COVERED_REPLY,
       mode: "no_match",
+      aiUnavailable: ai.reason,
       confidence: retrieved.confidence,
       sources: []
     });
   }
-
-  const groq = await rewriteFaqWithGroq(query, retrieved.matches);
-  const sources = retrieved.matches.map((m) => ({ id: m.id, question: m.question, category: m.category }));
-
-  if (groq.ok) {
-    return res.json({
-      ok: true,
-      reply: groq.text,
-      mode: "groq",
-      model: groq.model,
-      confidence: retrieved.confidence,
-      sources
-    });
-  }
-
-  const topAnswer = retrieved.matches[0].answer;
-  const fallbackReply = sanitizeChatReply(topAnswer);
   return res.json({
     ok: true,
-    reply: fallbackReply,
+    reply: sanitizeChatReply(retrieved.matches[0].answer),
     mode: "verbatim_fallback",
-    groqUnavailable: groq.reason,
+    aiUnavailable: ai.reason,
     confidence: retrieved.confidence,
     sources
   });
@@ -4903,7 +5158,7 @@ function buildBarangayDecisionInsightFallback(summary, hourlyDemand) {
 
 async function groqBarangayDecisionInsight(context) {
   const apiKey = process.env.GROQ_API_KEY;
-  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  const model = process.env.GROQ_MODEL || GROQ_CHAT_DEFAULT_MODEL;
   if (!apiKey) return null;
 
   const system = `You are an experienced advisor helping a Philippine BARANGAY (local government unit) front office deliver citizen services: clearances, certificates, appointments for pickup, and similar desk work.
@@ -4929,7 +5184,8 @@ Write exactly ONE paragraph in clear English (100–220 words) with practical re
         { role: "user", content: userMsg }
       ],
       temperature: 0.35,
-      max_tokens: 500
+      max_tokens: 1200,
+      ...groqReasoningParams(model)
     })
   });
 
@@ -6730,6 +6986,32 @@ app.put("/system-admin/system-environment", async (req, res) => {
   return res.json({ ok: true, environment: result.environment });
 });
 
+app.get("/system-admin/site-info", async (req, res) => {
+  const auth = await requireSystemAdminUser(req, res);
+  if (!auth) return;
+  return res.json({ ok: true, siteInfo: await getSiteInfoFromDb(), defaults: SITE_INFO_DEFAULTS });
+});
+
+app.put("/system-admin/site-info", async (req, res) => {
+  const auth = await requireSystemAdminUser(req, res);
+  if (!auth) return;
+  const result = await saveSiteInfoToDb(req.body || {});
+  if (!result.ok) {
+    return res.status(result.status || 500).json({
+      ok: false,
+      message: "Unable to update barangay information.",
+      detail: result.detail
+    });
+  }
+  void insertPortalAuditEvent({
+    action: "Updated Record",
+    description: "Barangay information (contact details / signatory) updated.",
+    profile: auth.profile,
+    metadata: { entity: "system_settings", field: "siteInfo", source: "system-admin" }
+  });
+  return res.json({ ok: true, siteInfo: result.siteInfo });
+});
+
 app.get("/system-admin/service-request-types", async (req, res) => {
   const auth = await requireSystemAdminUser(req, res);
   if (!auth) return;
@@ -7029,6 +7311,8 @@ const AUTH_AUDIT_ACTION_LABELS = {
   login: "User Login",
   register: "User Registered",
   password_change: "Password Changed",
+  password_reset_requested: "Password Reset Code Requested",
+  password_reset: "Password Reset (SMS Code)",
   account_approved: "Account Approved",
   account_rejected: "Account Rejected"
 };

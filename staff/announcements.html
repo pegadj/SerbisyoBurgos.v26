@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com https://images.unsplash.com http://localhost:4000 http://127.0.0.1:4000; connect-src 'self' https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com http://localhost:4000 http://127.0.0.1:4000; media-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Announcements | SerbisyoBurgos</title>
     <link rel="manifest" href="../manifest.webmanifest">
@@ -12,7 +13,7 @@
     <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
     <link rel="apple-touch-icon" href="../asset/icons/apple-touch-icon.png">
     <script src="../shared/pwa.js" defer></script>
-    <link rel="icon" type="image/png" href="../asset/logo.png">
+    <link rel="icon" type="image/png" href="../asset/SB.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
@@ -500,8 +501,7 @@
 </head>
 <body>
 
-    <script src="../shared/sidebar.js" data-portal="staff"></script>
-    <script src="../shared/user-badge.js"></script>
+    <script src="../shared/sidebar.js" data-portal="admin"></script>
 
 <main>
         <div class="top-bar">
@@ -510,7 +510,13 @@
                 <p style="color: var(--text-muted); font-size: 0.9rem;">Broadcast news and advisories to the residents.</p>
             </div>
 
-            <user-badge></user-badge>
+            <div class="user-profile">
+                <div class="user-avatar">AD</div>
+                <div style="line-height: 1.2;">
+                    <p style="font-weight: 700; font-size: 0.85rem;">Administrator</p>
+                    <p style="font-size: 0.75rem; color: var(--text-muted);">Kagawad/Secretary</p>
+                </div>
+            </div>
         </div>
 
         <div style="display: flex; width: 100%; justify-content: flex-end; gap: 12px; flex-wrap: wrap;">
@@ -718,7 +724,7 @@
     <div id="logoutModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
         <div class="modal-card">
             <h2 class="modal-title" id="logoutModalTitle">Confirm Logout</h2>
-            <p class="modal-text">Are you sure you want to logout?</p>
+            <p class="modal-text">Are you sure you want to logout from the admin portal?</p>
             <div class="modal-actions">
                 <button type="button" class="modal-btn modal-btn-cancel" id="logoutCancelBtn">Cancel</button>
                 <button type="button" class="modal-btn modal-btn-confirm" id="logoutConfirmBtn">Logout</button>
@@ -730,7 +736,7 @@
     <script src="../shared/maintenance-check.js"></script>
     <script src="../shared/admin-access.js"></script>
     <script>
-        (async function() { const auth = await window.SB_ADMIN_ACCESS?.requireRole("staff"); if (!auth) return; })();
+        (async function() { const auth = await window.SB_ADMIN_ACCESS?.requireRole("admin"); if (!auth) return; })();
 
         const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
@@ -860,8 +866,8 @@
 
         function formatPostedByRole(role) {
             const r = String(role || "").trim().toLowerCase();
-            // Posts made before the Admin and Staff roles were merged are stored as "admin".
-            if (r === "admin" || r === "staff") return "Barangay Secretary";
+            if (r === "admin") return "Admin";
+            if (r === "staff") return "Staff";
             if (r === "system-admin") return "System Admin";
             return r ? role : "—";
         }
@@ -944,7 +950,7 @@
                         const tag = getCategoryTagStyle(category);
                         const posted = formatPostedByRole(a.postedByRole);
                         const when = formatAnnouncementDate(a.createdAt);
-                        return `<tr data-announcement-id="${id}">
+                        return `<tr data-announcement-id="${escapeAttr(id)}">
                             <td><span class="tag-badge" style="background:${tag.background};color:${tag.color};">${escapeHtml(
                                 category
                             )}</span></td>
@@ -957,7 +963,7 @@
                                 </button>
                                 ${a.archivedAt
                                     ? `<button type="button" class="btn-view" data-tooltip="Restore announcement" aria-label="Restore announcement" data-announcement-restore data-announcement-id="${escapeAttr(id)}">Restore</button>`
-                                    : `<button type="button" class="btn-delete" data-tooltip="Archive announcement" aria-label="Archive announcement" data-announcement-delete data-announcement-id="${id}" data-announcement-title="${escapeAttr(title)}">
+                                    : `<button type="button" class="btn-delete" data-tooltip="Archive announcement" aria-label="Archive announcement" data-announcement-delete data-announcement-id="${escapeAttr(id)}" data-announcement-title="${escapeAttr(title)}">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
                                 </button>`}
                             </td>

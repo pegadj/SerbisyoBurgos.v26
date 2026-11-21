@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com https://images.unsplash.com http://localhost:4000 http://127.0.0.1:4000; connect-src 'self' https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com http://localhost:4000 http://127.0.0.1:4000; media-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Service Requests | SerbisyoBurgos</title>
     <link rel="manifest" href="../manifest.webmanifest">
@@ -712,7 +713,7 @@
     <script src="../shared/resident-sidebar-profile.js"></script>
     <script src="../shared/resident-profile-modal.js"></script>
     <script>
-        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "";
         const RESIDENT_CONTEXT_KEY = 'residentContext';
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "landing.html" };
         const RESIDENT_ROUTES = window.APP_ROUTES?.resident || {};
@@ -1200,6 +1201,12 @@ async function populateResidentNameField() {
             return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         }
 
+        // For ids placed inside an inline onclick="fn('...')": keep only characters an id can contain.
+        // HTML-escaping alone is not enough there, because the browser decodes it before the JavaScript runs.
+        function safeDomId(value) {
+            return String(value ?? "").replace(/[^A-Za-z0-9_-]/g, "");
+        }
+
         function escapeHtmlText(value) {
             return String(value ?? "")
                 .replace(/&/g, "&amp;")
@@ -1413,18 +1420,18 @@ function isCancellableRequest(status) {
                         : [];
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><b>#${req.referenceNo}</b></td>
+                    <td><b>#${escapeHtmlText(req.referenceNo)}</b></td>
                     <td>
-                        <div>${req.title || req.serviceType}</div>
+                        <div>${escapeHtmlText(req.title || req.serviceType)}</div>
                         ${supportingDocNames.length
-                            ? supportingDocNames.map((name) => `<div style="font-size:0.78rem; color:#166534; margin-top:4px;">📎 ${name}</div>`).join('')
+                            ? supportingDocNames.map((name) => `<div style="font-size:0.78rem; color:#166534; margin-top:4px;">📎 ${escapeHtmlText(name)}</div>`).join('')
                             : ''}
                     </td>
                     <td>${formatDate(req.createdAt || req.preferredDate)}</td>
                     <td>${buildRequestStatusCellHtml(req)}</td>
                     <td style="text-align: right;">
-                        <button class="btn-action" onclick="openViewRequestModal('${req.id}')">View</button>
-                        <button class="btn-delete" ${isCancellableRequest(req.status) ? '' : 'disabled style="opacity:0.35;cursor:not-allowed;"'} onclick="openDeleteModal('${req.id}')" title="${isCancellableRequest(req.status) ? 'Cancel Request' : 'This request can no longer be cancelled'}">
+                        <button class="btn-action" onclick="openViewRequestModal('${safeDomId(req.id)}')">View</button>
+                        <button class="btn-delete" ${isCancellableRequest(req.status) ? '' : 'disabled style="opacity:0.35;cursor:not-allowed;"'} onclick="openDeleteModal('${safeDomId(req.id)}')" title="${isCancellableRequest(req.status) ? 'Cancel Request' : 'This request can no longer be cancelled'}">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                         </button>
                     </td>

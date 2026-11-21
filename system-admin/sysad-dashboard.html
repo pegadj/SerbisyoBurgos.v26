@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com https://images.unsplash.com http://localhost:4000 http://127.0.0.1:4000; connect-src 'self' https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com http://localhost:4000 http://127.0.0.1:4000; media-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Admin Dashboard | SerbisyoBurgos</title>
     <link rel="manifest" href="../manifest.webmanifest">
@@ -392,10 +393,11 @@
     </div>
 
     <script src="../shared/routes.js"></script>
+    <script src="../shared/live-refresh.js"></script>
     <script src="../shared/maintenance-check.js"></script>
     <script src="../shared/admin-access.js"></script>
     <script>
-        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "";
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
         const logoutModal = document.getElementById("logoutModal");
         const logoutCancelBtn = document.getElementById("logoutCancelBtn");
@@ -566,12 +568,14 @@
             return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
         }
 
-        async function loadDashboardStats() {
+        async function loadDashboardStats(opts) {
+            const silent = !!(opts && opts.silent === true); // background refresh: no "Loading…", no error flash
             const $ = (id) => document.getElementById(id);
             try {
                 const res = await adminFetch("/system-admin/dashboard-stats");
                 const json = await res.json().catch(() => ({}));
                 if (!res.ok || !json?.ok) {
+                    if (silent) return; // background refresh: keep what is on screen
                     const msg = json?.message || "Unable to load stats.";
                     if ($("statPortalBreakdown")) $("statPortalBreakdown").textContent = msg;
                     return;
@@ -605,6 +609,7 @@
                 if ($("statAuditWeek")) $("statAuditWeek").textContent = Number.isFinite(n) ? String(n) : "0";
                 if ($("statAuditWeekSub")) $("statAuditWeekSub").textContent = "Portal audit events (last 7 days)";
             } catch (_e) {
+                if (silent) return; // background refresh: keep what is on screen
                 if ($("statPortalBreakdown")) $("statPortalBreakdown").textContent = "Could not reach the server.";
             }
         }
@@ -659,15 +664,20 @@
             }
         }
 
-        async function loadRbacUserTable() {
+        async function loadRbacUserTable(opts) {
+            const silent = !!(opts && opts.silent === true); // background refresh: no "Loading…", no error flash
             const tbody = document.getElementById("rbacUsersTableBody");
             const summary = document.getElementById("rbacPageSummary");
             const pag = document.getElementById("rbacPagination");
             if (!tbody) return;
-            tbody.innerHTML =
-                '<tr><td colspan="7" style="padding:1.5rem;color:var(--text-muted);">Loading users…</td></tr>';
-            if (summary) summary.textContent = "";
-            if (pag) pag.innerHTML = "";
+            if (!silent) {
+                tbody.innerHTML =
+                    '<tr><td colspan="7" style="padding:1.5rem;color:var(--text-muted);">Loading users…</td></tr>';
+            }
+            if (!silent) {
+                if (summary) summary.textContent = "";
+                if (pag) pag.innerHTML = "";
+            }
             try {
                 const offset = (rbacCurrentPage - 1) * RBAC_PAGE_SIZE;
                 const res = await adminFetch(
@@ -675,6 +685,7 @@
                 );
                 const json = await res.json().catch(() => ({}));
                 if (!res.ok || !json?.ok || !Array.isArray(json.profiles)) {
+                    if (silent) return; // background refresh: keep what is on screen
                     tbody.innerHTML = `<tr><td colspan="7" style="padding:1.5rem;color:#b91c1c;">${escapeHtml(
                         json?.message || "Unable to load users."
                     )}</td></tr>`;
@@ -692,10 +703,16 @@
                 renderRbacTable(json.profiles);
                 renderRbacPagination(total);
             } catch (_e) {
-                tbody.innerHTML =
-                    '<tr><td colspan="7" style="padding:1.5rem;color:#b91c1c;">Could not reach the server.</td></tr>';
+                if (silent) return; // background refresh: keep what is on screen
+                if (!silent) {
+                    tbody.innerHTML =
+                        '<tr><td colspan="7" style="padding:1.5rem;color:#b91c1c;">Could not reach the server.</td></tr>';
+                }
             }
         }
+
+        // Keep this list current while the page stays open (pauses when hidden or while the person is busy).
+        if (window.SB_LIVE) SB_LIVE.watch(() => Promise.all([loadDashboardStats({ silent: true }), loadRbacUserTable({ silent: true })]), { every: 60000 });
 
         let deleteConfirmModal = null;
         let pendingDeleteEmail = null;

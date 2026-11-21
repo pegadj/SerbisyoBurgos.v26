@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com https://images.unsplash.com http://localhost:4000 http://127.0.0.1:4000; connect-src 'self' https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com http://localhost:4000 http://127.0.0.1:4000; media-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Log In | SerbisyoBurgos</title>
     <link rel="manifest" href="manifest.webmanifest">
@@ -423,6 +424,12 @@
         }
 
         .hidden { display: none; }
+        .forgot-link-row { text-align: right; margin: -0.4rem 0 1rem 0; }
+        .forgot-link { background: none; border: none; padding: 0; color: var(--brand-green); font-weight: 700; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
+        .forgot-link:hover:not(:disabled) { text-decoration: underline; }
+        .forgot-link:disabled { color: var(--text-gray); cursor: default; font-weight: 500; }
+        .forgot-msg { margin-top: 0.9rem; font-size: 0.85rem; min-height: 1.1rem; text-align: left; color: #b91c1c; }
+        .forgot-help { margin-top: 1.2rem; font-size: 0.8rem; line-height: 1.5; color: var(--text-gray); text-align: left; }
 
         /* Password Strength Meter */
         .pw-strength-wrap {
@@ -544,6 +551,10 @@
             </span>
         </div>
 
+        <div class="forgot-link-row">
+            <button type="button" class="forgot-link" onclick="showForgotPassword()">Forgot password?</button>
+        </div>
+
         <button type="button" class="btn-submit" id="resident-login-submit" onclick="handleLogin()">
             <span class="btn-submit-inner">
                 <span class="btn-spinner" aria-hidden="true"></span>
@@ -552,6 +563,58 @@
         </button>
         <p id="resident-login-error" style="margin-top:0.9rem; color:#b91c1c; font-size:0.85rem; min-height:1.1rem; text-align:left;"></p>
         <p class="footer-text">No account yet? Please visit the Barangay Hall &mdash; the Barangay Secretary will issue your Resident ID and password.</p>
+    </div>
+
+    <div id="forgot-form" class="hidden">
+        <h2>Forgot password?</h2>
+        <p class="subtitle" id="forgot-subtitle">Enter your Resident ID or email. We will text a 6-digit code to the mobile number the barangay has on file for you.</p>
+
+        <div id="forgot-step-1">
+            <div class="input-group">
+                <label>Email or Resident ID</label>
+                <input type="text" id="forgot-identifier" placeholder="Email or Resident ID (e.g. SB-00001)" maxlength="254" autocomplete="username">
+            </div>
+            <button type="button" class="btn-submit" id="forgot-send-btn" onclick="sendResetCode()">
+                <span class="btn-submit-inner">
+                    <span class="btn-spinner" aria-hidden="true"></span>
+                    <span class="btn-submit-text">Send code</span>
+                </span>
+            </button>
+        </div>
+
+        <div id="forgot-step-2" class="hidden">
+            <div class="input-group">
+                <label>6-digit code</label>
+                <input type="text" id="forgot-code" placeholder="123456" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code">
+            </div>
+            <div class="input-group">
+                <label>New password</label>
+                <input type="password" id="forgot-new-pass" placeholder="At least 8 characters" maxlength="128" autocomplete="new-password">
+                <span class="password-toggle" onclick="togglePassword('forgot-new-pass', this)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                </span>
+            </div>
+            <div class="input-group">
+                <label>Confirm new password</label>
+                <input type="password" id="forgot-confirm-pass" placeholder="Type it again" maxlength="128" autocomplete="new-password">
+                <span class="password-toggle" onclick="togglePassword('forgot-confirm-pass', this)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                </span>
+            </div>
+            <button type="button" class="btn-submit" id="forgot-reset-btn" onclick="submitPasswordReset()">
+                <span class="btn-submit-inner">
+                    <span class="btn-spinner" aria-hidden="true"></span>
+                    <span class="btn-submit-text">Change password</span>
+                </span>
+            </button>
+            <p class="footer-text" style="margin-top:1rem;">
+                Didn't get the code? <button type="button" class="forgot-link" id="forgot-resend-btn" onclick="sendResetCode(true)">Send again</button>
+            </p>
+        </div>
+
+        <p id="forgot-msg" class="forgot-msg" role="status" aria-live="polite"></p>
+        <p class="forgot-help">No mobile number on file, or still no code? Please visit the Barangay Hall. The Barangay Secretary can reset your password and give you a temporary one.</p>
+        <p class="footer-text" style="margin-top:1rem;"><span onclick="backToLoginFromForgot()">Back to log in</span></p>
     </div>
 
     <div id="register-form" class="hidden">
@@ -679,7 +742,7 @@
 <script src="shared/maintenance-check.js"></script>
 <script>
     /** Registration sends multipart (ID file); the API must run the matching backend revision (e.g. redeploy Render after git push). */
-    const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
+    const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "";
     const RESIDENT_CONTEXT_KEY = "residentContext";
     /** Emails self-registered via this page; admin User & Roles uses this to show status-only management. */
     const RESIDENT_PORTAL_SELF_REG_EMAILS_KEY = "SB_RESIDENT_PORTAL_SELF_REG_EMAILS";
@@ -1119,6 +1182,130 @@
         updateRegisterSubmitState();
     }
 
+    // ---- Forgot password (SMS code) ----
+    let forgotResendTimer = null;
+
+    function setForgotMessage(text, isOk) {
+        const el = document.getElementById("forgot-msg");
+        if (!el) return;
+        el.style.color = isOk ? "#15803d" : "#b91c1c";
+        el.textContent = text || "";
+    }
+
+    function setForgotButtonLoading(btnId, isLoading, idleText, loadingText) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        const label = btn.querySelector(".btn-submit-text");
+        btn.classList.toggle("is-loading", isLoading);
+        btn.disabled = isLoading;
+        btn.setAttribute("aria-busy", isLoading ? "true" : "false");
+        if (label) label.textContent = isLoading ? loadingText : idleText;
+    }
+
+    function startResendCountdown(seconds) {
+        const btn = document.getElementById("forgot-resend-btn");
+        if (!btn) return;
+        if (forgotResendTimer) clearInterval(forgotResendTimer);
+        let left = seconds;
+        btn.disabled = true;
+        btn.textContent = "Send again in " + left + "s";
+        forgotResendTimer = setInterval(function () {
+            left -= 1;
+            if (left <= 0) {
+                clearInterval(forgotResendTimer);
+                forgotResendTimer = null;
+                btn.disabled = false;
+                btn.textContent = "Send again";
+            } else {
+                btn.textContent = "Send again in " + left + "s";
+            }
+        }, 1000);
+    }
+
+    function showForgotPassword() {
+        const idInput = document.getElementById("forgot-identifier");
+        const loginId = document.getElementById("resident-login-email");
+        document.getElementById("login-form").classList.add("hidden");
+        document.getElementById("forgot-form").classList.remove("hidden");
+        document.getElementById("forgot-step-1").classList.remove("hidden");
+        document.getElementById("forgot-step-2").classList.add("hidden");
+        if (idInput && loginId && !idInput.value) idInput.value = loginId.value.trim();
+        setForgotMessage("", true);
+        if (idInput) idInput.focus();
+    }
+
+    function backToLoginFromForgot() {
+        if (forgotResendTimer) { clearInterval(forgotResendTimer); forgotResendTimer = null; }
+        document.getElementById("forgot-form").classList.add("hidden");
+        document.getElementById("login-form").classList.remove("hidden");
+        ["forgot-code", "forgot-new-pass", "forgot-confirm-pass"].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.value = "";
+        });
+        setForgotMessage("", true);
+    }
+
+    async function sendResetCode(isResend) {
+        const identifier = (document.getElementById("forgot-identifier").value || "").trim();
+        if (!identifier) {
+            setForgotMessage("Please enter your Resident ID or email.", false);
+            return;
+        }
+        setForgotMessage("", true);
+        setForgotButtonLoading("forgot-send-btn", true, "Send code", "Sending…");
+        try {
+            const { response, result } = await postJson("/auth/resident/forgot-password", { identifier: identifier });
+            if (response.ok && result.ok) {
+                document.getElementById("forgot-step-1").classList.add("hidden");
+                document.getElementById("forgot-step-2").classList.remove("hidden");
+                document.getElementById("forgot-code").focus();
+                startResendCountdown(60);
+                setForgotMessage(result.message || "We sent you a 6-digit code.", true);
+            } else {
+                setForgotMessage(result.message || "Could not send the code. Please try again.", false);
+            }
+        } catch (_err) {
+            setForgotMessage("Could not reach the server. Please check your connection and try again.", false);
+        } finally {
+            setForgotButtonLoading("forgot-send-btn", false, "Send code", "Sending…");
+        }
+    }
+
+    async function submitPasswordReset() {
+        const identifier = (document.getElementById("forgot-identifier").value || "").trim();
+        const code = (document.getElementById("forgot-code").value || "").trim();
+        const newPassword = document.getElementById("forgot-new-pass").value || "";
+        const confirmPassword = document.getElementById("forgot-confirm-pass").value || "";
+        if (!/^\d{6}$/.test(code)) { setForgotMessage("Enter the 6-digit code from the text message.", false); return; }
+        if (newPassword.length < 8) { setForgotMessage("Your new password must be at least 8 characters.", false); return; }
+        if (newPassword !== confirmPassword) { setForgotMessage("The two passwords do not match.", false); return; }
+        setForgotMessage("", true);
+        setForgotButtonLoading("forgot-reset-btn", true, "Change password", "Changing…");
+        try {
+            const { response, result } = await postJson("/auth/resident/reset-password", {
+                identifier: identifier, code: code, newPassword: newPassword, confirmPassword: confirmPassword
+            });
+            if (response.ok && result.ok) {
+                backToLoginFromForgot();
+                const loginId = document.getElementById("resident-login-email");
+                const loginPass = document.getElementById("resident-login-pass");
+                if (loginId) loginId.value = identifier;
+                if (loginPass) loginPass.value = "";
+                const loginError = document.getElementById("resident-login-error");
+                if (loginError) {
+                    loginError.style.color = "#15803d";
+                    loginError.innerText = result.message || "Your password has been changed. You can now log in.";
+                }
+            } else {
+                setForgotMessage(result.message || "Could not change the password. Please try again.", false);
+            }
+        } catch (_err) {
+            setForgotMessage("Could not reach the server. Please check your connection and try again.", false);
+        } finally {
+            setForgotButtonLoading("forgot-reset-btn", false, "Change password", "Changing…");
+        }
+    }
+
     function toggleForm() {
         const registerForm = document.getElementById("register-form");
         const registerWasVisible = registerForm && !registerForm.classList.contains("hidden");
@@ -1158,12 +1345,21 @@
         }
     }
 
-    document.getElementById("resident-login-pass")?.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
+    // Pressing Enter submits the form that is showing. Ignored while a request is already running.
+    function onEnter(inputId, action, buttonId) {
+        document.getElementById(inputId)?.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
             event.preventDefault();
-            handleResidentLogin();
-        }
-    });
+            if (buttonId && document.getElementById(buttonId)?.disabled) return;
+            action();
+        });
+    }
+    onEnter("resident-login-email", handleLogin, "resident-login-submit");
+    onEnter("resident-login-pass", handleLogin, "resident-login-submit");
+    onEnter("forgot-identifier", () => sendResetCode(), "forgot-send-btn");
+    onEnter("forgot-code", () => submitPasswordReset(), "forgot-reset-btn");
+    onEnter("forgot-new-pass", () => submitPasswordReset(), "forgot-reset-btn");
+    onEnter("forgot-confirm-pass", () => submitPasswordReset(), "forgot-reset-btn");
     document.getElementById("resident-register-confirm")?.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
             event.preventDefault();

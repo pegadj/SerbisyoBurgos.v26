@@ -7,7 +7,7 @@ const { Schema } = mongoose;
 // That table doesn't exist in MongoDB — Auth itself is gone — so this
 // collection is written to explicitly at each real auth event (login,
 // registration, password change) instead of being populated automatically.
-const AUTH_AUDIT_ACTIONS = ['login', 'register', 'password_change', 'account_approved', 'account_rejected'];
+const AUTH_AUDIT_ACTIONS = ['login', 'register', 'password_change', 'password_reset_requested', 'password_reset', 'account_approved', 'account_rejected'];
 
 const authAuditEventSchema = new Schema({
   action: { type: String, required: true, enum: AUTH_AUDIT_ACTIONS },

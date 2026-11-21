@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com https://images.unsplash.com http://localhost:4000 http://127.0.0.1:4000; connect-src 'self' https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com http://localhost:4000 http://127.0.0.1:4000; media-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Configuration | SerbisyoBurgos</title>
     <link rel="manifest" href="../manifest.webmanifest">
@@ -362,6 +363,49 @@
             </div>
         </div>
 
+        <div class="card" id="siteInfoCard">
+            <h3>Barangay Information</h3>
+            <p style="font-size:0.85rem;color:var(--text-muted);margin:-0.75rem 0 1.25rem;">Shown on the public landing and contact pages, and used on certificates (place of issue, resident address and signatory). The letterhead picture on certificates is a fixed image. Changes apply right away.</p>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="siteBarangayName">Barangay Name</label>
+                    <input type="text" id="siteBarangayName" maxlength="80" autocomplete="off" placeholder="e.g. Burgos (without &quot;Barangay&quot;)">
+                </div>
+                <div class="form-group">
+                    <label for="siteMunicipality">Municipality / City</label>
+                    <input type="text" id="siteMunicipality" maxlength="80" autocomplete="off" placeholder="e.g. San Marcelino">
+                </div>
+                <div class="form-group">
+                    <label for="siteProvince">Province</label>
+                    <input type="text" id="siteProvince" maxlength="80" autocomplete="off" placeholder="e.g. Zambales">
+                </div>
+                <div class="form-group">
+                    <label for="siteContactNumber">Contact Number</label>
+                    <input type="text" id="siteContactNumber" maxlength="40" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="siteOfficeHours">Office Hours</label>
+                    <input type="text" id="siteOfficeHours" maxlength="120" autocomplete="off" placeholder="e.g. Mon-Fri 9AM - 5PM">
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="siteAddress">Office Address</label>
+                    <input type="text" id="siteAddress" maxlength="250" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="siteSignatoryName">Certificate Signatory</label>
+                    <input type="text" id="siteSignatoryName" maxlength="120" autocomplete="off" placeholder="e.g. HON. JUAN D. CRUZ">
+                </div>
+                <div class="form-group">
+                    <label for="siteSignatoryTitle">Signatory Title</label>
+                    <input type="text" id="siteSignatoryTitle" maxlength="120" autocomplete="off" placeholder="e.g. Punong Barangay">
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+                <button type="button" class="btn-save" id="siteInfoSave">Save changes</button>
+                <p id="siteInfoMessage" role="status" aria-live="polite" style="margin:0;font-size:0.9rem;"></p>
+            </div>
+        </div>
+
         <div class="config-container">
             <!-- Sidebar Selection -->
             <div class="config-sidebar">
@@ -440,7 +484,7 @@
     <script src="../shared/maintenance-check.js"></script>
     <script src="../shared/admin-access.js"></script>
     <script>
-        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "";
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
         const logoutModal = document.getElementById("logoutModal");
         const logoutCancelBtn = document.getElementById("logoutCancelBtn");
@@ -909,6 +953,64 @@
                     return;
                 }
                 closeDeleteConfirmModal();
+            });
+        });
+        // ---- Barangay Information (contact details + document signatory) ----
+        document.addEventListener("DOMContentLoaded", function () {
+            const fields = {
+                barangayName: document.getElementById("siteBarangayName"),
+                municipality: document.getElementById("siteMunicipality"),
+                province: document.getElementById("siteProvince"),
+                contactNumber: document.getElementById("siteContactNumber"),
+                officeHours: document.getElementById("siteOfficeHours"),
+                address: document.getElementById("siteAddress"),
+                signatoryName: document.getElementById("siteSignatoryName"),
+                signatoryTitle: document.getElementById("siteSignatoryTitle")
+            };
+            const saveBtn = document.getElementById("siteInfoSave");
+            const msg = document.getElementById("siteInfoMessage");
+            if (!saveBtn || !msg) return;
+
+            function say(text, isError) {
+                msg.style.color = isError ? "#b91c1c" : "#15803d";
+                msg.textContent = text || "";
+                if (text) setTimeout(() => { if (msg.textContent === text) msg.textContent = ""; }, 6000);
+            }
+            function fill(info) {
+                Object.keys(fields).forEach((k) => { if (fields[k]) fields[k].value = (info && info[k]) || ""; });
+            }
+
+            (async function load() {
+                try {
+                    const res = await adminFetch("/system-admin/site-info");
+                    const json = await res.json().catch(() => ({}));
+                    if (res.ok && json.ok) fill(json.siteInfo);
+                    else say(json.message || "Could not load barangay information.", true);
+                } catch (_e) {
+                    say("Could not reach the server to load barangay information.", true);
+                }
+            })();
+
+            saveBtn.addEventListener("click", async function () {
+                const body = {};
+                Object.keys(fields).forEach((k) => { body[k] = (fields[k].value || "").trim(); });
+                const empty = Object.keys(body).filter((k) => !body[k]);
+                if (empty.length) { say("Please fill in every field.", true); return; }
+                saveBtn.disabled = true;
+                try {
+                    const res = await adminFetch("/system-admin/site-info", { method: "PUT", body: JSON.stringify(body) });
+                    const json = await res.json().catch(() => ({}));
+                    if (res.ok && json.ok) {
+                        fill(json.siteInfo);
+                        say("Barangay information saved.", false);
+                    } else {
+                        say(json.message || "Could not save barangay information.", true);
+                    }
+                } catch (_e) {
+                    say("Could not reach the server. Nothing was saved.", true);
+                } finally {
+                    saveBtn.disabled = false;
+                }
             });
         });
     </script>

@@ -15,7 +15,7 @@
  *
  * To release a new version of the app shell, change VERSION below.
  */
-const VERSION = "v2";
+const VERSION = "v6";
 const STATIC_CACHE = "sb-static-" + VERSION; // precached files, scripts, images
 const PAGES_CACHE = "sb-pages-" + VERSION;   // pages the user has opened
 const FONT_CACHE = "sb-fonts-" + VERSION;    // Google Fonts
@@ -39,6 +39,9 @@ const PRECACHE = [
   "shared/pwa.js",
   "shared/routes.js",
   "shared/sidebar.js",
+  "shared/user-badge.js",
+  "shared/site-info.js",
+  "shared/live-refresh.js",
   "shared/maintenance-check.js",
   "shared/admin-access.js",
   "shared/staff-page-guard.js",
