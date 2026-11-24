@@ -600,10 +600,10 @@
                     <div id="advSmsBox" style="margin-top:0.75rem;font-size:0.85rem;color:#475569;">
                         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
                             <input type="checkbox" id="advSendSms" checked style="margin-top:3px;">
-                            <span>Also send as SMS to residents<br><small id="advSmsCount" style="color:#64748b;">Checking recipients…</small></span>
+                            <span>Also send as SMS to heads of families<br><small id="advSmsCount" style="color:#64748b;">Checking recipients…</small></span>
                         </label>
                         <div id="advSmsAudience" style="margin:0.5rem 0 0 26px;">
-                            <label style="margin-right:16px;cursor:pointer;"><input type="radio" name="advAudience" value="all" checked> All residents</label>
+                            <label style="margin-right:16px;cursor:pointer;"><input type="radio" name="advAudience" value="all" checked> All heads of families</label>
                             <label id="advAudiencePurokOpt" style="cursor:pointer;"><input type="radio" name="advAudience" value="puroks"> Specific puroks</label>
                             <div id="advPurokList" style="display:none;flex-wrap:wrap;gap:6px 16px;margin-top:8px;"></div>
                             <small id="advSmsHint" style="display:block;color:#94a3b8;margin-top:6px;"></small>
@@ -1381,7 +1381,7 @@ const tag = document.getElementById("previewTag");
                 if (okText) {
                     const base = "Your advisory was posted successfully and is now visible on the resident bulletin board.";
                     okText.textContent = result.sms?.requested
-                        ? (result.sms.queued > 0 ? `${base} SMS is being sent to ${result.sms.queued} resident(s).` : `${base} ${result.sms.message || "No SMS was sent (no valid numbers)."}`)
+                        ? (result.sms.queued > 0 ? `${base} SMS is being sent to ${result.sms.queued} head(s) of family.` : `${base} ${result.sms.message || "No SMS was sent (no valid numbers)."}`)
                         : base;
                 }
                 openPublishSuccessModal();
@@ -1448,8 +1448,11 @@ const tag = document.getElementById("previewTag");
                 }
                 const extra = [];
                 if (d.optedOut) extra.push(`${d.optedOut} opted out`);
+                if (d.notHead) extra.push(`${d.notHead} other resident(s) not included because they are not marked as head of the family`);
                 if (smsAudienceIsPuroks() && d.noPurok) extra.push(`${d.noPurok} with no purok are only reached by "All residents"`);
-                smsLabel.textContent = `Will text ${d.recipients} resident(s)` + (extra.length ? ` (${extra.join("; ")})` : "") + ".";
+                smsLabel.textContent = d.recipients
+                    ? `Will text ${d.recipients} head(s) of family` + (extra.length ? ` (${extra.join("; ")})` : "") + "."
+                    : "No heads of family to text yet. Mark them in Resident Profiling (Head of the family)." + (extra.length ? ` (${extra.join("; ")})` : "");
             } catch (_e) { smsLabel.textContent = "Could not check recipients."; }
         }
         smsBox?.addEventListener("change", refreshSmsCount);

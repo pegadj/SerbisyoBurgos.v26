@@ -353,6 +353,7 @@
             .preview-panel { overflow-x: auto; }
         }
     </style>
+    <script src="../shared/text-format.js"></script>
 </head>
 <body>
 
@@ -471,7 +472,7 @@
                 </div>
 
                 <div id="missingNotice" role="alert"></div>
-                <button class="btn-generate" id="btnPrint" type="button" onclick="printDocument()" disabled>
+                <button class="btn-generate" id="btnPrint" type="button" onclick="printDocument()">
                     🖨️ Print Document
                 </button>
                 <p class="field-hint print-hint" style="text-align:center;">All fields marked <span class="req">*</span> must be filled before printing. Prints on Letter (8.5 × 11 in).</p>
@@ -707,6 +708,7 @@ const MONTHS = ["January","February","March","April","May","June","July","August
 
         // Show/hide form fields and preview based on document type
         function updateFormFields() {
+            printAttempted = false;   // new form: start clean, nothing red until Print is clicked
             const isClearance = $("docType").value === "Barangay Clearance";
             $("clearanceFields").style.display = isClearance ? "block" : "none";
             $("indigencyFields").style.display = isClearance ? "none" : "block";
@@ -727,34 +729,78 @@ const MONTHS = ["January","February","March","April","May","June","July","August
             return list.concat(common);
         }
 
-        function getMissingFields() {
-            const all = ["resName","resAddress","resDateOfBirth","resPlaceProv","resPlaceCity","resCivilStatus","resGender","docPurpose","orNumber",
-                         "resNameIndigency","resSurname","docPurposeIndigency","issueDate","signatoryName","signatoryTitle"];
-            all.forEach((id) => $(id)?.classList.remove("invalid"));
-            const missing = requiredFields().filter(([id]) => !($(id)?.value || "").trim());
-            missing.forEach(([id]) => $(id)?.classList.add("invalid"));
-            return missing.map(([, label]) => label);
+        // Fields stay neutral (only the * shows they are required) until Print is clicked with something missing.
+        let printAttempted = false;
+        const ALL_REQUIRED_IDS = ["resName","resAddress","resDateOfBirth","resPlaceProv","resPlaceCity","resCivilStatus","resGender","docPurpose","orNumber",
+                                  "resNameIndigency","resSurname","docPurposeIndigency","issueDate","signatoryName","signatoryTitle"];
+
+        function getMissing() {
+            return requiredFields().filter(([id]) => !($(id)?.value || "").trim());
         }
 
         function refreshPrintState() {
-            const missing = getMissingFields();
-            const btn = $("btnPrint"), box = $("missingNotice");
-            if (btn) btn.disabled = missing.length > 0;
-            document.body.classList.toggle("print-blocked", missing.length > 0);   // also blocks Ctrl+P
-            if (box) {
-                if (missing.length) {
+            const missing = getMissing();
+            const box = $("missingNotice");
+            document.body.classList.toggle("print-blocked", missing.length > 0);   // also blocks Ctrl+P (no visual change on screen)
+
+            ALL_REQUIRED_IDS.forEach((id) => $(id)?.classList.remove("invalid"));
+            if (printAttempted && missing.length) {
+                missing.forEach(([id]) => $(id)?.classList.add("invalid"));
+                if (box) {
                     box.style.display = "block";
-                    box.innerHTML = `<strong>Complete these fields before printing:</strong><br>${missing.map(escHtml).join(", ")}`;
-                } else {
-                    box.style.display = "none";
-                    box.innerHTML = "";
+                    box.innerHTML = `<strong>Complete these fields before printing:</strong><br>${missing.map(([, l]) => escHtml(l)).join(", ")}`;
                 }
+            } else if (box) {
+                box.style.display = "none";
+                box.innerHTML = "";
             }
             return missing;
         }
 
-        function printDocument() {
-            if (refreshPrintState().length) return;   // guard: never print an incomplete document
+        // The request this document is being generated for (set when opened from Request Processing).
+        let linkedRequest = null;   // { id, referenceNo, status }
+
+        // Generating the document is what starts the work, so a Pending request moves to Processing by itself.
+        // The Secretary still marks it "Ready for Pickup" by hand once the document is actually finished.
+        async function markLinkedRequestProcessing() {
+            if (!linkedRequest || linkedRequest.status !== "Pending") return;
+            let token = "";
+            try { token = JSON.parse(sessionStorage.getItem("adminAuth") || "{}")?.session?.accessToken || ""; } catch (_e) { /* ignore */ }
+            if (!token) return;
+            const ref = escHtml(linkedRequest.referenceNo || "The request");
+            try {
+                const ctrl = new AbortController();
+                const timer = setTimeout(() => ctrl.abort(), 8000);
+                const res = await fetch(`${API_BASE_URL}/requests/${encodeURIComponent(linkedRequest.id)}/status`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ status: "Processing" }),
+                    signal: ctrl.signal
+                });
+                clearTimeout(timer);
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data?.ok) throw new Error(data?.message || "Status was not updated.");
+                linkedRequest.status = "Processing";
+                showPrefillNotice("ok", `<strong>${ref}</strong> is now <strong>Processing</strong>. Mark it <strong>Ready for Pickup</strong> in Request Processing when the document is done.`);
+            } catch (err) {
+                // Never stop the printout because of this; the Secretary can still change the status by hand.
+                showPrefillNotice("warn", `<strong>${ref}</strong> could not be moved to Processing automatically (${escHtml(err.message || "network problem")}). Please update its status in Request Processing.`);
+            }
+        }
+
+        async function printDocument() {
+            printAttempted = true;
+            const missing = refreshPrintState();
+            if (missing.length) {   // never print an incomplete document; now show what is missing
+                const first = $(missing[0][0]);
+                if (first) { first.scrollIntoView({ block: "center", behavior: "smooth" }); first.focus({ preventScroll: true }); }
+                return;
+            }
+            printAttempted = false;
+            const btn = $("btnPrint");
+            if (btn) btn.disabled = true;   // no double clicks while the status updates
+            try { await markLinkedRequestProcessing(); }
+            finally { if (btn) btn.disabled = false; }
             window.print();
         }
 
@@ -875,6 +921,7 @@ const MONTHS = ["January","February","March","April","May","June","July","August
             const isClearance = $("docType").value === "Barangay Clearance";
             const r = data.resident;
             const req = data.request || {};
+            linkedRequest = { id: req.id || requestId, referenceNo: req.referenceNo || "", status: req.status || "" };
             const missing = [];
 
             if (req.purpose) {

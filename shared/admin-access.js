@@ -155,6 +155,11 @@
 
     var user = auth.user;
     if (!user || user.role !== requiredRole) {
+      // Say why in the browser console (F12), so an unexpected redirect can be explained at a glance.
+      try {
+        console.warn("[SB access] " + globalScope.location.pathname + " needs the \"" + requiredRole + "\" role, but this login is \"" +
+          (user && user.role) + "\". Redirecting to " + (roleHomes[user && user.role] || loginRoute) + ".");
+      } catch (_e) { /* console not available */ }
       redirectToHome(user && user.role);
       return null;
     }

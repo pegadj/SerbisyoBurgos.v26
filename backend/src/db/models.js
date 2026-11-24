@@ -55,7 +55,7 @@ const User = defineModel({
         philsysId: L(30), inhabitantType: S, lastName: L(60), firstName: L(60), middleName: L(60), suffix: L(20), birthPlace: L(120),
         birthDate: dateObj, sex: S, civilStatus: S, citizenship: S, occupation: L(120), highestEducation: L(80),
         motherFirstName: L(60), motherMiddleName: L(60), motherLastName: L(60), purok: L(80), address: L(250), voterStatus: S,
-        remarks: L(500), updatedByEmail: S, updatedAt: 'ts',
+        remarks: L(500), householdNo: L(40), isHouseholdHead: 'bool', updatedByEmail: S, updatedAt: 'ts',
       },
     },
   },

@@ -294,6 +294,7 @@
         .chip { background:#f1f5f9; border-radius:999px; padding:.15rem .6rem; font-size:.75rem; }
         @media (max-width:700px){ .grid2{grid-template-columns:1fr;} main{margin-left:0;padding:1rem;} aside{display:none;} }
     </style>
+    <script src="../shared/text-format.js"></script>
 </head>
 <body>
     <script src="../shared/sidebar.js" data-portal="staff"></script>
@@ -368,8 +369,8 @@
         <div class="card">
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Resident</th><th>Inhabitant type</th><th>Contact</th><th>Sex</th><th>Age</th><th>Status</th></tr></thead>
-                    <tbody id="residentRows"><tr><td colspan="6" class="empty">Loading residents…</td></tr></tbody>
+                    <thead><tr><th>Resident ID</th><th>First name</th><th>Last name</th><th>PhilSys ID</th><th>Sex</th><th>Age</th><th>Contact</th></tr></thead>
+                    <tbody id="residentRows"><tr><td colspan="7" class="empty">Loading residents…</td></tr></tbody>
                 </table>
             </div>
             <div class="pager">
@@ -389,6 +390,7 @@
                 <div class="stat"><b id="statAppts">0</b>Appointments</div>
             </div>
             <div class="grid2" id="drawerGrid"></div>
+            <label class="check"><input type="checkbox" id="fHead"><span><strong>Head of the family</strong>: the one person in this Household No. who receives barangay announcement SMS (one text per household). Needs a Household No.; only one head is allowed per household.</span></label>
             <label class="check"><input type="checkbox" id="fSmsOptOut"><span>Do not send SMS announcements to this resident</span></label>
             <p id="drawerMsg" class="msg"></p>
             <p id="drawerAudit" style="color:var(--text-muted);font-size:.75rem;margin-top:.5rem;"></p>
@@ -409,8 +411,9 @@
             <p class="hint">Creates a login for the resident. A Resident ID and password are generated for you unless you type your own.</p>
             <div class="grid2" id="addGrid">
                 <div class="field"><label for="aRid">Resident ID <small>(optional)</small></label><input id="aRid" maxlength="20" placeholder="Auto, e.g. SB-00001" autocomplete="off"></div>
-                <div class="field"><label for="aPw">Password <small>(optional)</small></label><input id="aPw" maxlength="128" placeholder="Auto-generated" autocomplete="new-password"></div>
+                <div class="field"><label for="aPw">Password <small>(optional)</small></label><input id="aPw" maxlength="128" placeholder="Auto: lastnameSB2026" autocomplete="new-password"></div>
             </div>
+            <label class="check"><input type="checkbox" id="aHead"><span><strong>Head of the family</strong>: receives announcement SMS for the household. Needs a Household No.; one head per household.</span></label>
             <p id="addMsg" class="msg"></p>
             <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1rem;">
                 <button class="btn" id="addCancel" type="button">Cancel</button>
@@ -459,7 +462,7 @@
         <div class="dlg">
             <h2 id="resetTitle">Reset password</h2>
             <p class="hint" id="resetFor"></p>
-            <div class="field" style="margin-top:1rem;"><label for="rPw">New password <small>(leave blank to auto-generate)</small></label><input id="rPw" maxlength="128" autocomplete="new-password"></div>
+            <div class="field" style="margin-top:1rem;"><label for="rPw">New password <small>(leave blank to use lastnameSB2026)</small></label><input id="rPw" maxlength="128" placeholder="Auto: lastnameSB2026" autocomplete="new-password"></div>
             <p class="hint" style="margin-top:.75rem;">The resident will be signed out everywhere and must log in with this password, then choose their own.</p>
             <p id="resetMsg" class="msg"></p>
             <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1rem;">
@@ -618,25 +621,28 @@
             const qs = filterParams();
             qs.set("limit", PAGE); qs.set("offset", offset);
             if (!silent) {
-                $("residentRows").innerHTML = '<tr><td colspan="6" class="empty">Loading residents…</td></tr>';
+                $("residentRows").innerHTML = '<tr><td colspan="7" class="empty">Loading residents…</td></tr>';
             }
             try {
                 const data = await api(`/staff/residents?${qs}`);
                 total = data.total;
                 $("residentRows").innerHTML = data.residents.length ? data.residents.map((r) => `
                     <tr data-id="${esc(r.id)}">
-                        <td><strong>${esc(r.fullName)}</strong>${r.residentId ? `<span class="id-chip">${esc(r.residentId)}</span>` : ""}<br><span style="color:var(--text-muted);font-size:.8rem;">${esc(r.email || "No email")}</span></td>
-                        <td>${esc(r.inhabitantType || "—")}</td><td>${esc(r.contactNumber || "—")}</td><td>${esc(r.sex || "—")}</td>
+                        <td>${r.residentId ? `<span class="id-chip" style="margin-left:0;">${esc(r.residentId)}</span>` : "—"}</td>
+                        <td><strong>${esc(r.firstName || (r.lastName ? "—" : r.fullName) || "—")}</strong></td>
+                        <td><strong>${esc(r.lastName || "—")}</strong></td>
+                        <td>${esc(r.philsysId || "—")}</td>
+                        <td>${esc(r.sex || "—")}</td>
                         <td>${ageFrom(r.birthDate)}</td>
-                        <td><span class="badge ${r.accountStatus === "Active" ? "ok" : r.accountStatus === "Pending Approval" ? "warn" : "bad"}">${esc(r.accountStatus)}</span>${r.loginIssued === false ? ' <span class="badge warn">No login yet</span>' : ""}${r.smsOptOut ? ' <span class="badge warn">No SMS</span>' : ""}${r.profileUpdatedAt ? "" : ' <span class="badge">Not profiled</span>'}</td>
-                    </tr>`).join("") : '<tr><td colspan="6" class="empty">No residents found.</td></tr>';
+                        <td>${esc(r.contactNumber || "—")}</td>
+                    </tr>`).join("") : '<tr><td colspan="7" class="empty">No residents found.</td></tr>';
                 const from = total ? offset + 1 : 0;
                 $("pageInfo").textContent = `Showing ${from}–${Math.min(offset + PAGE, total)} of ${total}`;
                 $("prevBtn").disabled = offset === 0;
                 $("nextBtn").disabled = offset + PAGE >= total;
             } catch (e) {
                 if (silent) return; // background refresh: keep what is on screen
-                $("residentRows").innerHTML = `<tr><td colspan="6" class="empty">${esc(e.message)}</td></tr>`;
+                $("residentRows").innerHTML = `<tr><td colspan="7" class="empty">${esc(e.message)}</td></tr>`;
             }
         }
 
@@ -693,6 +699,7 @@
                 { k: "motherFirstName", label: "First name", max: 60 }, { k: "motherMiddleName", label: "Middle name", max: 60 },
                 { k: "motherLastName", label: "Last name", max: 60, full: true }] },
             { title: "Barangay use <small>(not part of the RBI template)</small>", fields: [
+                { k: "householdNo", label: "Household No.", max: 40, placeholder: "e.g. HH-0001 (from the household records)" },
                 { k: "purok", label: "Purok", max: 80 }, { k: "address", label: "Address", max: 250, full: true }] }
         ];
         const ALL_FIELDS = SECTIONS.flatMap((sec) => sec.fields);
@@ -754,6 +761,7 @@
                     setFieldVal("f", f.k, v);
                 });
                 $("fSmsOptOut").checked = Boolean(r.smsOptOut);
+                $("fHead").checked = Boolean(r.isHouseholdHead);
                 $("resetPwBtn").textContent = r.loginIssued === false ? "Issue login…" : "Reset password…";
                 const reg = r.registeredAt ? `Registered ${new Date(r.registeredAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}. ` : "";
                 $("drawerAudit").textContent = reg + (r.profileUpdatedAt ? `Last updated ${new Date(r.profileUpdatedAt).toLocaleString()} by ${r.profileUpdatedBy || "staff"}` : "Profile not filled in yet.");
@@ -766,13 +774,13 @@
             if (!active) return;
             const missing = ALL_FIELDS.filter((f) => f.req && !fieldVal("f", f.k)).map((f) => f.label);
             if (missing.length) { setMsg($("drawerMsg"), `Required: ${missing.join(", ")}.`, "err"); return; }
-            const body = { smsOptOut: $("fSmsOptOut").checked };
+            const body = { smsOptOut: $("fSmsOptOut").checked, isHouseholdHead: $("fHead").checked };
             ALL_FIELDS.forEach((f) => { body[f.k] = fieldVal("f", f.k); });
             body.birthDate = body.birthDate || null;
             $("saveBtn").disabled = true; setMsg($("drawerMsg"), "Saving…");
             try {
                 const data = await api(`/staff/residents/${encodeURIComponent(active)}`, { method: "PATCH", body: JSON.stringify(body) });
-                setMsg($("drawerMsg"), "Profile saved.", "ok");
+                setMsg($("drawerMsg"), body.isHouseholdHead && !fieldVal("f", "contactNumber") ? "Profile saved. Note: this head of family has no contact number, so the household will not receive SMS." : "Profile saved.", body.isHouseholdHead && !fieldVal("f", "contactNumber") ? "err" : "ok");
                 $("drawerAudit").textContent = `Last updated just now by ${getSession()?.user?.email || "you"}`;
                 if (data?.resident) {
                     activeResident = { ...activeResident, ...data.resident };
@@ -826,13 +834,14 @@
         $("addBtn").addEventListener("click", () => {
             ["aRid", "aPw"].forEach((id) => { $(id).value = ""; });
             ALL_FIELDS.forEach((f) => setFieldVal("a", f.k, ""));
+            $("aHead").checked = false;
             setMsg($("addMsg"), ""); $("addDlg").classList.add("show"); $("a_lastName").focus();
         });
         $("addCancel").addEventListener("click", () => $("addDlg").classList.remove("show"));
         $("addSubmit").addEventListener("click", async () => {
             const missing = ALL_FIELDS.filter((f) => f.req && !fieldVal("a", f.k)).map((f) => f.label);
             if (missing.length) { setMsg($("addMsg"), `Required: ${missing.join(", ")}.`, "err"); return; }
-            const body = { residentId: $("aRid").value.trim(), password: $("aPw").value };
+            const body = { residentId: $("aRid").value.trim(), password: $("aPw").value, isHouseholdHead: $("aHead").checked };
             ALL_FIELDS.forEach((f) => { body[f.k] = fieldVal("a", f.k); });
             body.birthDate = body.birthDate || null;
             $("addSubmit").disabled = true; setMsg($("addMsg"), "Creating account…");
@@ -890,7 +899,9 @@
             motherMiddleName: ["mother s middle name", "mothers middle name", "mother middle name"],
             motherLastName: ["mother s last name", "mothers last name", "mother last name"],
             purok: ["purok", "sitio", "zone", "area"],
-            address: ["address", "residence", "complete address", "street"]
+            address: ["address", "residence", "complete address", "street"],
+            householdNo: ["household no", "household number", "household id", "hh no", "family no", "family number"],
+            isHouseholdHead: ["head of family", "head of the family", "household head", "head of household", "family head"]
         };
         const TEMPLATE_HEADERS = ["PHILSYS ID", "INHABITANT TYPE", "LAST NAME", "FIRST NAME", "MIDDLE NAME", "SUFFIX", "BIRTH PLACE", "BIRTHDATE (YYYY-MM-DD)", "SEX", "CIVIL STATUS", "CITIZENSHIP", "PROFESSION/ OCCUPATION", "CONTACT NUMBER", "EMAIL ADDRESS", "HIGHEST EDUCATIONAL ATTAINMENT", "MOTHER'S FIRST NAME", "MOTHER'S MIDDLE NAME", "MOTHER'S LAST NAME"];
         const canonOpt = (v, list) => { const k = (x) => String(x ?? "").toLowerCase().replace(/\s+/g, ""); return list.find((i) => k(i) === k(v)) || null; };
@@ -979,7 +990,8 @@
                     civilStatus: t(r, "civilStatus"), citizenship: t(r, "citizenship"), occupation: t(r, "occupation"),
                     contactNumber: normPhone(get(r, "contactNumber")), email: t(r, "email"), highestEducation: t(r, "highestEducation"),
                     motherFirstName: t(r, "motherFirstName"), motherMiddleName: t(r, "motherMiddleName"), motherLastName: t(r, "motherLastName"),
-                    purok: t(r, "purok"), address: t(r, "address"), notes
+                    purok: t(r, "purok"), address: t(r, "address"), householdNo: t(r, "householdNo"),
+                    isHouseholdHead: /^(y|yes|true|1|x|head)$/i.test(t(r, "isHouseholdHead")), notes
                 };
                 const name = [row.firstName, row.middleName, row.lastName, row.suffix].filter(Boolean).join(" ");
                 row.fullName = name;

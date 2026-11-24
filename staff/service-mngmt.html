@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com https://images.unsplash.com http://localhost:4000 http://127.0.0.1:4000; connect-src 'self' https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com http://localhost:4000 http://127.0.0.1:4000; media-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Service Management | SerbisyoBurgos</title>
+    <title>Portal Configuration | SerbisyoBurgos</title>
     <link rel="manifest" href="../manifest.webmanifest">
     <meta name="theme-color" content="#043d2e">
     <meta name="mobile-web-app-capable" content="yes">
@@ -13,7 +12,7 @@
     <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
     <link rel="apple-touch-icon" href="../asset/icons/apple-touch-icon.png">
     <script src="../shared/pwa.js" defer></script>
-    <link rel="icon" type="image/png" href="../asset/logo.png">
+    <link rel="icon" type="image/png" href="../asset/SB.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
@@ -362,7 +361,20 @@
         }
         .modal-btn-cancel { background: #f1f5f9; color: #334155; }
         .modal-btn-confirm { background: #e11d48; color: white; }
+    
+        /* Appointment types + contact configuration */
+        .sm-input-group { display: flex; gap: 10px; margin-bottom: 1rem; padding: 16px; border: 2px dashed #e2e8f0; border-radius: 12px; }
+        .sm-input-group input { flex: 1; }
+        .sm-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.5rem; }
+        .sm-span-2 { grid-column: span 2; }
+        #appointmentTypesCard label, #siteInfoCard label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; color: var(--text-main); }
+        #appointmentTypesCard input[type="text"], #siteInfoCard input[type="text"] { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.95rem; }
+        .sm-value-card { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; }
+        .sm-value-card button { color: #dc2626; border: none; background: none; cursor: pointer; width: 34px; height: 34px; border-radius: 8px; font-size: 1rem; }
+        .sm-value-card button:hover { background: #fee2e2; }
+        @media (max-width: 720px) { .sm-form-grid { grid-template-columns: 1fr; } .sm-span-2 { grid-column: span 1; } }
     </style>
+    <script src="../shared/text-format.js"></script>
 </head>
 <body>
 
@@ -372,8 +384,8 @@
     <main>
         <div class="top-bar">
             <div>
-                <h1 style="color: var(--brand-dark); font-weight: 800; font-size: 1.75rem;">Service Management</h1>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Manage the services residents can request.</p>
+                <h1 style="color: var(--brand-dark); font-weight: 800; font-size: 1.75rem;">Portal Configuration</h1>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Configure services and requirements, appointment types, and contact details.</p>
             </div>
 
             <user-badge></user-badge>
@@ -405,6 +417,41 @@
                 </thead>
                     <tbody id="serviceCatalogBody"></tbody>
             </table>
+        </div>
+
+        <div class="card" id="appointmentTypesCard" style="margin-top: 2rem;">
+            <div class="card-header" style="margin-bottom: 1rem;">
+                <h2 style="color: var(--brand-dark); font-weight: 700; font-size: 1.25rem;">Appointment Types</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">The types of scheduled visits residents can choose when booking an appointment.</p>
+            </div>
+            <form id="addAppointmentTypeForm" class="sm-input-group" action="#" method="post">
+                <input type="text" id="appointment-name" name="label" placeholder="(e.g. Complaint)" maxlength="80" autocomplete="off">
+                <button type="submit" class="btn-save">+ Add</button>
+            </form>
+            <div id="appointmentTypesList"></div>
+            <p id="appointmentTypesMessage" role="status" aria-live="polite" style="margin: 0.5rem 0 0; font-size: 0.9rem;"></p>
+            <p style="font-size: 0.75rem; color: #64748b; margin-top: 0.75rem;">Note: Removing a type hides it from booking forms and filters. Existing appointments that already use it are kept.</p>
+        </div>
+
+        <div class="card" id="siteInfoCard" style="margin-top: 2rem;">
+            <div class="card-header" style="margin-bottom: 1rem;">
+                <h2 style="color: var(--brand-dark); font-weight: 700; font-size: 1.25rem;">Contact Us Configuration</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">Shown on the public landing and contact pages, and used on certificates (place of issue, resident address and signatory). Changes apply right away.</p>
+            </div>
+            <div class="sm-form-grid">
+                <div><label for="siteBarangayName">Barangay Name</label><input type="text" id="siteBarangayName" maxlength="80" autocomplete="off" placeholder="e.g. Burgos (without &quot;Barangay&quot;)"></div>
+                <div><label for="siteMunicipality">Municipality / City</label><input type="text" id="siteMunicipality" maxlength="80" autocomplete="off" placeholder="e.g. San Marcelino"></div>
+                <div><label for="siteProvince">Province</label><input type="text" id="siteProvince" maxlength="80" autocomplete="off" placeholder="e.g. Zambales"></div>
+                <div><label for="siteContactNumber">Contact Number</label><input type="text" id="siteContactNumber" maxlength="40" autocomplete="off"></div>
+                <div><label for="siteOfficeHours">Office Hours</label><input type="text" id="siteOfficeHours" maxlength="120" autocomplete="off" placeholder="e.g. Mon-Fri 9AM - 5PM"></div>
+                <div class="sm-span-2"><label for="siteAddress">Office Address</label><input type="text" id="siteAddress" maxlength="250" autocomplete="off"></div>
+                <div><label for="siteSignatoryName">Certificate Signatory</label><input type="text" id="siteSignatoryName" maxlength="120" autocomplete="off" placeholder="e.g. HON. JUAN D. CRUZ"></div>
+                <div><label for="siteSignatoryTitle">Signatory Title</label><input type="text" id="siteSignatoryTitle" maxlength="120" autocomplete="off" placeholder="e.g. Punong Barangay"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
+                <button type="button" class="btn-save" id="siteInfoSave">Save changes</button>
+                <p id="siteInfoMessage" role="status" aria-live="polite" style="margin: 0; font-size: 0.9rem;"></p>
+            </div>
         </div>
 
         <div class="modal-overlay" id="addServiceModal">
@@ -500,7 +547,7 @@
     <div class="modal-overlay" id="logoutModal" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
         <div class="modal-card">
             <h2 class="modal-title" id="logoutModalTitle">Confirm Logout</h2>
-            <p class="modal-text">Are you sure you want to logout?</p>
+            <p class="modal-text">Are you sure you want to logout from the admin portal?</p>
             <div class="modal-actions">
                 <button type="button" class="modal-btn modal-btn-cancel" id="logoutCancelBtn">Cancel</button>
                 <button type="button" class="modal-btn modal-btn-confirm" id="logoutConfirmBtn">Logout</button>
@@ -509,11 +556,10 @@
     </div>
 
     <script src="../shared/routes.js"></script>
-    <script src="../shared/live-refresh.js"></script>
     <script src="../shared/maintenance-check.js"></script>
     <script src="../shared/admin-access.js"></script>
     <script>
-        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "";
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://serbisyoburgos-ver-26.onrender.com";
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
         let serviceCatalogCache = [];
         let editingServiceId = null;
@@ -615,21 +661,16 @@
             });
         }
 
-        async function loadServices(opts) {
-            const silent = !!(opts && opts.silent === true); // background refresh: no "Loading…", no error flash
+        async function loadServices() {
             const tbody = document.getElementById("serviceCatalogBody");
             if (!tbody) return;
-            if (!silent) {
-                tbody.innerHTML =
-                    '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading services…</td></tr>';
-            }
+            tbody.innerHTML =
+                '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading services…</td></tr>';
             try {
                 const response = await adminFetch("/admin/service-catalog");
                 const result = await response.json();
                 if (!response.ok || !result?.ok) {
-                    if (!silent) {
-                        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#b91c1c;">Unable to load services. Sign in as admin and apply the latest database migration.</td></tr>`;
-                    }
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#b91c1c;">Unable to load services. Sign in as admin and apply the latest database migration.</td></tr>`;
                     return;
                 }
                 serviceCatalogCache = Array.isArray(result.services) ? result.services : [];
@@ -673,13 +714,11 @@
                         }
                     });
                 });
-            } finally {
-                // (summary stat cards were removed; the Dashboard now shows the overview)
+            } catch (_err) {
+                tbody.innerHTML =
+                    '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#b91c1c;">Could not reach the server to load services.</td></tr>';
             }
         }
-
-        // Keep this list current while the page stays open (pauses when hidden or while the person is busy).
-        if (window.SB_LIVE) SB_LIVE.watch(() => loadServices({ silent: true }), { every: 60000 });
 
         function openConfigureModal(svc) {
             editingServiceId = svc.id;
@@ -852,10 +891,140 @@ document.getElementById("btnAddService")?.addEventListener("click", openAddModal
             }
         }
 
+        // ---- Appointment types ----
+        function setInlineMessage(id, text, isError) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.style.color = isError ? "#b91c1c" : "#15803d";
+            el.textContent = text || "";
+            if (text) setTimeout(() => { if (el.textContent === text) el.textContent = ""; }, 6000);
+        }
+
+        async function loadAppointmentTypes() {
+            const list = document.getElementById("appointmentTypesList");
+            if (!list) return;
+            try {
+                const res = await adminFetch("/admin/appointment-purpose-types");
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok) {
+                    setInlineMessage("appointmentTypesMessage", json?.message || "Unable to load appointment types.", true);
+                    return;
+                }
+                const purposes = Array.isArray(json.purposes) ? json.purposes : [];
+                list.innerHTML = "";
+                purposes.forEach((p) => {
+                    const row = document.createElement("div");
+                    row.className = "sm-value-card";
+                    const label = document.createElement("span");
+                    label.textContent = p.label;
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.title = "Remove appointment type";
+                    btn.setAttribute("aria-label", "Remove " + p.label);
+                    btn.textContent = "\u{1F5D1}";
+                    btn.addEventListener("click", () => removeAppointmentType(p.id, p.label));
+                    row.append(label, btn);
+                    list.appendChild(row);
+                });
+                if (!purposes.length) {
+                    list.innerHTML = '<p style="color:var(--text-muted);padding:0.5rem;">No appointment types yet.</p>';
+                }
+            } catch (_e) {
+                setInlineMessage("appointmentTypesMessage", "Could not reach the server.", true);
+            }
+        }
+
+        async function removeAppointmentType(id, label) {
+            const ok = await showDialog({
+                title: "Remove Appointment Type",
+                message: `Remove "${label}"? It will be hidden from booking forms and filters. Existing appointments that already use it are kept.`,
+                confirmLabel: "Remove",
+                cancelLabel: "Cancel",
+                danger: true
+            });
+            if (!ok) return;
+            const res = await adminFetch(`/admin/appointment-purpose-types/${encodeURIComponent(id)}`, { method: "DELETE" });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || !json?.ok) {
+                setInlineMessage("appointmentTypesMessage", json?.message || "Could not remove appointment type.", true);
+                return;
+            }
+            setInlineMessage("appointmentTypesMessage", "Appointment type removed.", false);
+            await loadAppointmentTypes();
+        }
+
+        document.getElementById("addAppointmentTypeForm")?.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const input = document.getElementById("appointment-name");
+            const label = (input?.value || "").trim();
+            if (!label) {
+                setInlineMessage("appointmentTypesMessage", "Enter an appointment type label.", true);
+                return;
+            }
+            const res = await adminFetch("/admin/appointment-purpose-types", { method: "POST", body: JSON.stringify({ label }) });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || !json?.ok) {
+                setInlineMessage("appointmentTypesMessage", json?.message || json?.detail || `Could not add appointment type (${res.status}).`, true);
+                return;
+            }
+            input.value = "";
+            setInlineMessage("appointmentTypesMessage", "Appointment type saved.", false);
+            await loadAppointmentTypes();
+        });
+
+        // ---- Contact Us configuration (barangay information) ----
+        const siteInfoFields = {
+            barangayName: document.getElementById("siteBarangayName"),
+            municipality: document.getElementById("siteMunicipality"),
+            province: document.getElementById("siteProvince"),
+            contactNumber: document.getElementById("siteContactNumber"),
+            officeHours: document.getElementById("siteOfficeHours"),
+            address: document.getElementById("siteAddress"),
+            signatoryName: document.getElementById("siteSignatoryName"),
+            signatoryTitle: document.getElementById("siteSignatoryTitle")
+        };
+        function fillSiteInfo(info) {
+            Object.keys(siteInfoFields).forEach((k) => { if (siteInfoFields[k]) siteInfoFields[k].value = (info && info[k]) || ""; });
+        }
+        async function loadSiteInfo() {
+            try {
+                const res = await adminFetch("/admin/site-info");
+                const json = await res.json().catch(() => ({}));
+                if (res.ok && json.ok) fillSiteInfo(json.siteInfo);
+                else setInlineMessage("siteInfoMessage", json.message || "Could not load contact information.", true);
+            } catch (_e) {
+                setInlineMessage("siteInfoMessage", "Could not reach the server to load contact information.", true);
+            }
+        }
+        document.getElementById("siteInfoSave")?.addEventListener("click", async (event) => {
+            const btn = event.currentTarget;
+            const body = {};
+            Object.keys(siteInfoFields).forEach((k) => { body[k] = (siteInfoFields[k].value || "").trim(); });
+            if (Object.keys(body).some((k) => !body[k])) {
+                setInlineMessage("siteInfoMessage", "Please fill in every field.", true);
+                return;
+            }
+            btn.disabled = true;
+            try {
+                const res = await adminFetch("/admin/site-info", { method: "PUT", body: JSON.stringify(body) });
+                const json = await res.json().catch(() => ({}));
+                if (res.ok && json.ok) {
+                    fillSiteInfo(json.siteInfo);
+                    setInlineMessage("siteInfoMessage", "Contact information saved.", false);
+                } else {
+                    setInlineMessage("siteInfoMessage", json.message || "Could not save contact information.", true);
+                }
+            } catch (_e) {
+                setInlineMessage("siteInfoMessage", "Could not reach the server. Nothing was saved.", true);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
         (async function initAdminServiceManagement() {
             const auth = await window.SB_ADMIN_ACCESS?.requireRole?.("staff");
             if (!auth) return;
-            await loadServices();
+            await Promise.all([loadServices(), loadAppointmentTypes(), loadSiteInfo()]);
         })();
     </script>
 </body>

@@ -579,6 +579,27 @@ function generateTemporaryPassword() {
   return crypto.randomBytes(9).toString("base64url");
 }
 
+/**
+ * Default password staff-issued resident accounts get when no password is typed in:
+ * the resident's last name in lowercase + "SB" + the current year, e.g. "delacruzSB2026".
+ * Spaces, punctuation and accents are dropped ("Dela Cruz" -> "delacruz", "Niño" -> "nino").
+ * The resident is still forced to choose their own password at first login (mustChangePassword).
+ * Falls back to a random password if there is no usable last name.
+ */
+function residentDefaultPassword(lastName, fullNameFallback = "") {
+  let source = String(lastName || "").trim();
+  if (!source) {
+    // no last name on file: use the last word of the full name ("Juan Dela Cruz" -> "Cruz")
+    const words = String(fullNameFallback || "").trim().split(/\s+/).filter(Boolean);
+    source = words.length > 1 ? words[words.length - 1] : "";
+  }
+  const base = source.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!base) return generateTemporaryPassword();
+  let password = `${base}SB${new Date().getFullYear()}`;
+  while (password.length < 8) password += "0";   // passwords must be at least 8 characters
+  return password.slice(0, MAX_PASSWORD_LEN);
+}
+
 const STAFF_PORTAL_ROLES = new Set(["staff", "system-admin"]);
 
 // A resident whose password was issued or reset by barangay personnel (staff-created account,
@@ -1122,8 +1143,8 @@ const SITE_INFO_DEFAULTS = Object.freeze({
   barangayName: "Burgos",
   municipality: "San Marcelino",
   province: "Zambales",
-  contactNumber: "09489454674",
-  officeHours: "Mon-Fri 9AM - 5PM",
+  contactNumber: "09212611575",
+  officeHours: "Mon-Fri 8AM - 5PM",
   address: "353 National Highway, Barangay Burgos, Covered Court, San Marcelino, Zambales",
   signatoryName: "HON. LILIBETH C. BALLON",
   signatoryTitle: "Acting Punong Barangay"
@@ -4474,6 +4495,10 @@ app.get("/resident/announcements", async (req, res) => {
 });
 
 // ---- SMS (TextBee) for announcements ----
+// Announcement SMS goes ONLY to residents marked "Head of the family" in Resident Profiling (one text per
+// household). Request-status SMS is separate: it always goes to the resident who made the request.
+const isHouseholdHeadRow = (row) => row?.residentProfile?.isHouseholdHead === true;
+
 async function loadSmsEligibleRows() {
   return User.find({
     role: "resident",
@@ -4482,7 +4507,7 @@ async function loadSmsEligibleRows() {
     smsOptOut: { $ne: true },
     contactNumber: { $nin: [null, ""] }
   })
-    .select("contactNumber residentProfile.purok")
+    .select("contactNumber residentProfile.purok residentProfile.isHouseholdHead")
     .lean();
 }
 
@@ -4494,9 +4519,9 @@ function parseSmsPuroks(raw) {
     .slice(0, 50);
 }
 
-/** Valid +639… numbers of opted-in residents, optionally limited to the given puroks. */
+/** Valid +639… numbers of opted-in heads of family, optionally limited to the given puroks. */
 async function collectResidentSmsNumbers(puroks) {
-  const rows = await loadSmsEligibleRows();
+  const rows = (await loadSmsEligibleRows()).filter(isHouseholdHeadRow);
   const want = Array.isArray(puroks) && puroks.length ? new Set(puroks.map((p) => p.toLowerCase())) : null;
   const valid = new Set();
   const userIds = {}; // number -> resident id (first resident wins when a family shares a number)
@@ -4526,7 +4551,9 @@ app.get("/admin/sms/recipient-count", async (req, res) => {
   if (!auth) return;
   try {
     const selected = parseSmsPuroks(String(req.query?.puroks || "").split("|"));
-    const rows = await loadSmsEligibleRows();
+    const eligibleRows = await loadSmsEligibleRows();
+    const rows = eligibleRows.filter(isHouseholdHeadRow);
+    const notHead = eligibleRows.length - rows.length;   // opted-in residents skipped because they are not a head of family
     const groups = new Map();
     let noPurok = 0;
     for (const row of rows) {
@@ -4548,6 +4575,7 @@ app.get("/admin/sms/recipient-count", async (req, res) => {
       ok: true,
       configured: isSmsConfigured(),
       recipients: numbers.length,
+      notHead,
       totalEligible: total,
       puroks,
       noPurok,
@@ -5508,6 +5536,8 @@ function mapResidentProfilingRow(row) {
     motherLastName: rp.motherLastName || "",
     purok: rp.purok || "",
     address: rp.address || "",
+    householdNo: rp.householdNo || "",
+    isHouseholdHead: rp.isHouseholdHead === true,
     profileUpdatedBy: rp.updatedByEmail || "",
     profileUpdatedAt: rp.updatedAt || null
   };
@@ -5538,6 +5568,7 @@ function buildResidentFilter(query) {
       { "residentProfile.firstName": rx },
       { "residentProfile.philsysId": rx },
       { "residentProfile.purok": rx },
+      { "residentProfile.householdNo": rx },
       { "residentProfile.address": rx }
     ];
   }
@@ -5591,11 +5622,13 @@ function parseResidentProfileInput(body, actorEmail, { strict = false } = {}) {
     middleName: ["Middle name", 60], suffix: ["Suffix", 20], birthPlace: ["Birth place", 120],
     occupation: ["Profession/Occupation", 120], highestEducation: ["Highest educational attainment", 80],
     motherFirstName: ["Mother's first name", 60], motherMiddleName: ["Mother's middle name", 60],
-    motherLastName: ["Mother's last name", 60], purok: ["Purok", 80], address: ["Address", 250]
+    motherLastName: ["Mother's last name", 60], purok: ["Purok", 80], address: ["Address", 250],
+    householdNo: ["Household No.", 40]
   };
   for (const [k, [, max]] of Object.entries(textFields)) {
     if (strict || has(k)) out[k] = clean(body[k], max);
   }
+  if (typeof out.householdNo === "string") out.householdNo = out.householdNo.replace(/\s+/g, " ").toUpperCase();   // "hh-001 " and "HH-001" are the same household
 
   const enumFields = {
     inhabitantType: ["Inhabitant type", RESIDENT_INHABITANT],
@@ -5608,6 +5641,11 @@ function parseResidentProfileInput(body, actorEmail, { strict = false } = {}) {
     const v = canonResidentEnum(body[k], list);
     if (v === null) return { error: `${label} "${clean(body[k], 40)}" is not valid. Use: ${list.join(", ")}.` };
     out[k] = v;
+  }
+
+  if (strict || has("isHouseholdHead")) {
+    const v = body.isHouseholdHead;
+    out.isHouseholdHead = v === true || (typeof v === "string" && /^(true|yes|y|1|x|head)$/i.test(v.trim()));
   }
 
   if (strict || has("birthDate")) {
@@ -5630,6 +5668,22 @@ function parseResidentProfileInput(body, actorEmail, { strict = false } = {}) {
   out.updatedByEmail = actorEmail || "";
   out.updatedAt = new Date();
   return { value: out };
+}
+
+/**
+ * A household is identified by its Household No. (from the barangay's household records). Exactly one resident
+ * per household number may be the head of the family, and a head needs a Household No. Returns an error message
+ * or null. `profile` is the resulting profile (existing values + edit); `exceptId` is the resident being saved.
+ */
+async function householdHeadProblem(profile, exceptId) {
+  if (profile?.isHouseholdHead !== true) return null;
+  const no = String(profile.householdNo || "").trim().toUpperCase();
+  if (!no) return "Enter the Household No. before marking this resident as head of the family.";
+  const heads = await User.find({
+    role: "resident", "residentProfile.householdNo": no, "residentProfile.isHouseholdHead": true
+  }).select("fullName").lean();
+  const other = heads.find((h) => String(h._id) !== String(exceptId || ""));
+  return other ? `Household ${no} already has a head of the family (${other.fullName}). Remove that mark first.` : null;
 }
 
 function csvCell(value) {
@@ -5771,6 +5825,12 @@ app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
   if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
   const fullName = composeResidentFullName(parsed.value);
   if (!fullName) return res.status(400).json({ ok: false, message: "First and last name are required." });
+  try {
+    const headProblem = await householdHeadProblem(parsed.value, null);
+    if (headProblem) return res.status(400).json({ ok: false, message: headProblem });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to add resident.", detail: error.message });
+  }
   const contactNumber = sanitizeResidentContactNumber(body.contactNumber);
 
   const rawEmail = String(body.email || "").trim();
@@ -5802,7 +5862,7 @@ app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
       return res.status(400).json({ ok: false, message: `Password must be at most ${MAX_PASSWORD_LEN} characters.` });
     }
   }
-  const password = customPassword || generateTemporaryPassword();
+  const password = customPassword || residentDefaultPassword(parsed.value.lastName, fullName);
 
   try {
     if (email && (await User.findOne({ email }).select("_id").lean())) {
@@ -5875,7 +5935,12 @@ app.post("/staff/residents/:id/reset-password", adminStaffCreateLimiter, async (
   if (custom && (custom.length < 8 || custom.length > MAX_PASSWORD_LEN)) {
     return res.status(400).json({ ok: false, message: "Password must be 8–128 characters long." });
   }
-  const password = custom || generateTemporaryPassword();
+  let password = custom;
+  if (!password) {
+    const current = await User.findOne(confirmedResidentQuery({ _id: id })).select("fullName residentProfile").lean().catch(() => null);
+    if (!current) return res.status(404).json({ ok: false, message: "Resident not found." });
+    password = residentDefaultPassword(current.residentProfile?.lastName, current.fullName);
+  }
   try {
     const updated = await User.findOneAndUpdate(
       confirmedResidentQuery({ _id: id }),
@@ -5952,6 +6017,8 @@ app.post("/staff/residents/import", residentImportLimiter, async (req, res) => {
       if (parsed.error) { fail(parsed.error); continue; }
       const fullName = composeResidentFullName(parsed.value);
       if (!fullName) { fail("First and last name are required"); continue; }
+      const headProblem = await householdHeadProblem(parsed.value, null);
+      if (headProblem) { fail(headProblem); continue; }
 
       let email = "";
       if (String(raw.email || "").trim()) {
@@ -6058,6 +6125,14 @@ app.patch("/staff/residents/:id", async (req, res) => {
     const missing = missingRequiredResidentFields({ ...(existing.residentProfile || {}), ...parsed.value });
     if (missing.length) {
       return res.status(400).json({ ok: false, message: `Required field(s) missing: ${missing.join(", ")}.` });
+    }
+    if ("isHouseholdHead" in parsed.value || "householdNo" in parsed.value) {
+      try {
+        const headProblem = await householdHeadProblem({ ...(existing.residentProfile || {}), ...parsed.value }, id);
+        if (headProblem) return res.status(400).json({ ok: false, message: headProblem });
+      } catch (error) {
+        return res.status(500).json({ ok: false, message: "Unable to save resident profile.", detail: error.message });
+      }
     }
   }
 
@@ -7162,14 +7237,14 @@ app.put("/system-admin/system-environment", async (req, res) => {
   return res.json({ ok: true, environment: result.environment });
 });
 
-app.get("/system-admin/site-info", async (req, res) => {
-  const auth = await requireSystemAdminUser(req, res);
+app.get("/admin/site-info", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
   return res.json({ ok: true, siteInfo: await getSiteInfoFromDb(), defaults: SITE_INFO_DEFAULTS });
 });
 
-app.put("/system-admin/site-info", async (req, res) => {
-  const auth = await requireSystemAdminUser(req, res);
+app.put("/admin/site-info", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
   const result = await saveSiteInfoToDb(req.body || {});
   if (!result.ok) {
@@ -7183,7 +7258,7 @@ app.put("/system-admin/site-info", async (req, res) => {
     action: "Updated Record",
     description: "Barangay information (contact details / signatory) updated.",
     profile: auth.profile,
-    metadata: { entity: "system_settings", field: "siteInfo", source: "system-admin" }
+    metadata: { entity: "system_settings", field: "siteInfo", source: "secretary" }
   });
   return res.json({ ok: true, siteInfo: result.siteInfo });
 });
@@ -7308,8 +7383,8 @@ app.delete("/system-admin/service-request-types/:id", async (req, res) => {
   return res.json({ ok: true, service: svcArchived });
 });
 
-app.get("/system-admin/appointment-purpose-types", async (req, res) => {
-  const auth = await requireSystemAdminUser(req, res);
+app.get("/admin/appointment-purpose-types", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
 
   let purposes;
@@ -7331,8 +7406,8 @@ app.get("/system-admin/appointment-purpose-types", async (req, res) => {
   });
 });
 
-app.post("/system-admin/appointment-purpose-types", async (req, res) => {
-  const auth = await requireSystemAdminUser(req, res);
+app.post("/admin/appointment-purpose-types", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
 
   const { label, purposeCode } = req.body || {};
@@ -7394,8 +7469,8 @@ app.post("/system-admin/appointment-purpose-types", async (req, res) => {
   });
 });
 
-app.delete("/system-admin/appointment-purpose-types/:id", async (req, res) => {
-  const auth = await requireSystemAdminUser(req, res);
+app.delete("/admin/appointment-purpose-types/:id", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
 
   const id = String(req.params.id || "");
@@ -8548,6 +8623,13 @@ server.on("error", (err) => {
 // Connect to PostgreSQL before accepting any requests — fail fast and loud
 // rather than letting every route error out individually on a dead connection.
 connectPg()
+  .then(() =>
+    // "Head of the family" mark used for announcement SMS (same as db/migrations/003_household_head.sql).
+    pool.query("ALTER TABLE resident_profiles ADD COLUMN IF NOT EXISTS is_household_head boolean NOT NULL DEFAULT false")
+      .then(() => pool.query("ALTER TABLE resident_profiles ADD COLUMN IF NOT EXISTS household_no text NOT NULL DEFAULT ''"))
+      .then(() => pool.query("CREATE INDEX IF NOT EXISTS resident_profiles_household_no_idx ON resident_profiles (household_no)"))
+      .catch((err) => console.error("[backend] Could not add household columns on resident_profiles:", err.message))
+  )
   .then(() => ensureServiceHourSlots())
   .then(() => {
     server.listen(port, "0.0.0.0", () => {
