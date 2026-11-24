@@ -400,12 +400,27 @@
         </div>
 
         <div class="section-header">
-            <h2 style="font-size: 1.1rem; color: var(--text-muted);">Morning Slots (Requests)</h2>
+            <h2 style="font-size: 1.1rem; color: var(--text-muted);">Morning Slots (Requests) · 8:00 AM – 12:00 NN</h2>
         </div>
         <div class="slot-grid">
             <div class="slot-card">
-                <span class="slot-time">09:00 AM - 10:00 AM</span>
+                <span class="slot-time">08:00 AM - 09:00 AM</span>
                 <span class="slot-label">Phase 1</span>
+                <div class="progress-container"><div id="bar-0800" class="progress-bar" style="width: 0%"></div></div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 10px;">
+                    <span id="text-0800">0 / 10 slots filled</span>
+                    <span id="pill-0800" class="status-pill status-open">Open</span>
+                </div>
+                <div class="capacity-controls">
+                    <span>Limit capacity to:</span>
+                    <input type="number" class="cap-input" value="10" onchange="updateLimit('0800', this.value)">
+                </div>
+                <button type="button" class="slot-toggle do-close" id="toggle-0800" onclick="toggleSlot('0800')">Close slot</button>
+            </div>
+
+            <div class="slot-card">
+                <span class="slot-time">09:00 AM - 10:00 AM</span>
+                <span class="slot-label">Phase 2</span>
                 <div class="progress-container"><div id="bar-0900" class="progress-bar" style="width: 0%"></div></div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 10px;">
                     <span id="text-0900">0 / 10 slots filled</span>
@@ -420,7 +435,7 @@
 
             <div class="slot-card">
                 <span class="slot-time">10:00 AM - 11:00 AM</span>
-                <span class="slot-label">Phase 2</span>
+                <span class="slot-label">Phase 3</span>
                 <div class="progress-container"><div id="bar-1000" class="progress-bar" style="width: 0%"></div></div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 10px;">
                     <span id="text-1000">0 / 10 slots filled</span>
@@ -435,7 +450,7 @@
 
             <div class="slot-card">
                 <span class="slot-time">11:00 AM - 12:00 PM</span>
-                <span class="slot-label">Phase 3</span>
+                <span class="slot-label">Phase 4</span>
                 <div class="progress-container"><div id="bar-1100" class="progress-bar" style="width: 0%"></div></div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 10px;">
                     <span id="text-1100">0 / 10 slots filled</span>
@@ -450,12 +465,12 @@
         </div>
 
         <div class="section-header">
-            <h2 style="font-size: 1.1rem; color: var(--text-muted);">Afternoon Slots (Appointments)</h2>
+            <h2 style="font-size: 1.1rem; color: var(--text-muted);">Afternoon Slots (Appointments) · 1:00 PM – 5:00 PM <span style="font-weight:400;">(lunch break 12:00 – 1:00 PM, no slots)</span></h2>
         </div>
         <div class="slot-grid">
             <div class="slot-card">
                 <span class="slot-time">01:00 PM - 02:00 PM</span>
-                <span class="slot-label">Phase 4</span>
+                <span class="slot-label">Phase 5</span>
                 <div class="progress-container"><div id="bar-0100" class="progress-bar" style="width: 0%"></div></div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 10px;">
                     <span id="text-0100">0 / 15 slots filled</span>
@@ -469,8 +484,23 @@
             </div>
 
             <div class="slot-card">
+                <span class="slot-time">02:00 PM - 03:00 PM</span>
+                <span class="slot-label">Phase 6</span>
+                <div class="progress-container"><div id="bar-0200" class="progress-bar" style="width: 0%"></div></div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 10px;">
+                    <span id="text-0200">0 / 15 slots filled</span>
+                    <span id="pill-0200" class="status-pill status-open">Open</span>
+                </div>
+                <div class="capacity-controls">
+                    <span>Limit capacity to:</span>
+                    <input type="number" class="cap-input" value="15" onchange="updateLimit('0200', this.value)">
+                </div>
+                <button type="button" class="slot-toggle do-close" id="toggle-0200" onclick="toggleSlot('0200')">Close slot</button>
+            </div>
+
+            <div class="slot-card">
                 <span class="slot-time">03:00 PM - 04:00 PM</span>
-                <span class="slot-label">Phase 5</span>
+                <span class="slot-label">Phase 7</span>
                 <div class="progress-container"><div id="bar-0300" class="progress-bar" style="width: 0%"></div></div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 10px;">
                     <span id="text-0300">0 / 15 slots filled</span>
@@ -485,7 +515,7 @@
 
             <div class="slot-card">
                 <span class="slot-time">04:00 PM - 05:00 PM</span>
-                <span class="slot-label">Phase 6</span>
+                <span class="slot-label">Phase 8</span>
                 <div class="progress-container"><div id="bar-0400" class="progress-bar" style="width: 0%"></div></div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 10px;">
                     <span id="text-0400">0 / 15 slots filled</span>
@@ -647,10 +677,12 @@
 
         // Slot capacity + ids are now backed by the API.
         let slotMetaByCode = {
+            "0800": { slotId: null, capacity: 10 },
             "0900": { slotId: 1, capacity: 10 },
             "1000": { slotId: 2, capacity: 10 },
             "1100": { slotId: 3, capacity: 10 },
             "0100": { slotId: 4, capacity: 15 },
+            "0200": { slotId: null, capacity: 15 },
             "0300": { slotId: 5, capacity: 15 },
             "0400": { slotId: 6, capacity: 15 }
         };
@@ -675,11 +707,13 @@
 
             // Accept common variants with/without leading zero and known legacy options.
             const slotPatterns = [
+                { code: "0800", patterns: ["8:00 am - 9:00 am", "08:00 am - 09:00 am", "8:00 am - 09:00 am", "08:00 am - 9:00 am"] },
                 { code: "0900", patterns: ["9:00 am - 10:00 am", "09:00 am - 10:00 am"] },
                 { code: "1000", patterns: ["10:00 am - 11:00 am"] },
                 { code: "1100", patterns: ["11:00 am - 12:00 pm", "11:00 am - 12:00 nn", "11:00 am - 12:00"] },
                 { code: "0100", patterns: ["1:00 pm - 2:00 pm", "01:00 pm - 02:00 pm"] },
-                { code: "0300", patterns: ["2:00 pm - 3:00 pm", "3:00 pm - 4:00 pm", "03:00 pm - 04:00 pm"] },
+                { code: "0200", patterns: ["2:00 pm - 3:00 pm", "02:00 pm - 03:00 pm", "2:00 pm - 03:00 pm", "02:00 pm - 3:00 pm"] },
+                { code: "0300", patterns: ["3:00 pm - 4:00 pm", "03:00 pm - 04:00 pm", "3:00 pm - 04:00 pm", "03:00 pm - 4:00 pm"] },
                 { code: "0400", patterns: ["4:00 pm - 5:00 pm", "04:00 pm - 05:00 pm"] }
             ];
 
@@ -868,7 +902,7 @@
         function toggleSlot(slot) {
             const meta = slotMetaByCode?.[slot] || {};
             const slotId = String(meta.slotId || "");
-            if (!/^[0-9a-f]{24}$/i.test(slotId) || (meta.isClosed && meta.closedReason === "time-passed")) return;
+            if (!/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{24})$/i.test(slotId) || (meta.isClosed && meta.closedReason === "time-passed")) return;
             const btn = document.getElementById(`toggle-${slot}`);
             if (btn) btn.disabled = true;
             fetch(`${API_BASE_URL}/admin/appointment-slot-status`, {
@@ -891,7 +925,7 @@
         function updateLimit(slot, newValue) {
             const parsed = Number.parseInt(newValue, 10);
             const slotId = String(slotMetaByCode?.[slot]?.slotId || "");
-            if (!/^[0-9a-f]{24}$/i.test(slotId)) {
+            if (!/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{24})$/i.test(slotId)) {
                 syncUI();
                 return;
             }

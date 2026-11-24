@@ -501,7 +501,8 @@
 </head>
 <body>
 
-    <script src="../shared/sidebar.js" data-portal="admin"></script>
+    <script src="../shared/sidebar.js" data-portal="staff"></script>
+    <script src="../shared/user-badge.js"></script>
 
 <main>
         <div class="top-bar">
@@ -510,13 +511,7 @@
                 <p style="color: var(--text-muted); font-size: 0.9rem;">Broadcast news and advisories to the residents.</p>
             </div>
 
-            <div class="user-profile">
-                <div class="user-avatar">AD</div>
-                <div style="line-height: 1.2;">
-                    <p style="font-weight: 700; font-size: 0.85rem;">Administrator</p>
-                    <p style="font-size: 0.75rem; color: var(--text-muted);">Kagawad/Secretary</p>
-                </div>
-            </div>
+            <user-badge></user-badge>
         </div>
 
         <div style="display: flex; width: 100%; justify-content: flex-end; gap: 12px; flex-wrap: wrap;">
@@ -724,7 +719,7 @@
     <div id="logoutModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
         <div class="modal-card">
             <h2 class="modal-title" id="logoutModalTitle">Confirm Logout</h2>
-            <p class="modal-text">Are you sure you want to logout from the admin portal?</p>
+            <p class="modal-text">Are you sure you want to logout?</p>
             <div class="modal-actions">
                 <button type="button" class="modal-btn modal-btn-cancel" id="logoutCancelBtn">Cancel</button>
                 <button type="button" class="modal-btn modal-btn-confirm" id="logoutConfirmBtn">Logout</button>
@@ -736,7 +731,7 @@
     <script src="../shared/maintenance-check.js"></script>
     <script src="../shared/admin-access.js"></script>
     <script>
-        (async function() { const auth = await window.SB_ADMIN_ACCESS?.requireRole("admin"); if (!auth) return; })();
+        (async function() { const auth = await window.SB_ADMIN_ACCESS?.requireRole("staff"); if (!auth) return; })();
 
         const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "https://sb-draft1.onrender.com";
         const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };

@@ -350,6 +350,22 @@
         }
         .modal-btn-cancel { background: #f1f5f9; color: #334155; }
         .modal-btn-confirm { background: #e11d48; color: white; }
+        .modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .reject-reason-input {
+            width: 100%;
+            min-height: 96px;
+            resize: vertical;
+            padding: 0.7rem 0.8rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font: inherit;
+            font-size: 0.92rem;
+            line-height: 1.45;
+            color: #0f172a;
+        }
+        .reject-reason-input:focus { outline: none; border-color: #e11d48; box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12); }
+        .reject-meta { display: flex; justify-content: space-between; gap: 0.75rem; margin: 0.4rem 0 1rem; font-size: 0.78rem; color: var(--text-muted); }
+        .reject-error { color: #b91c1c; min-height: 1em; }
 
         .btn:disabled {
             opacity: 0.45;
@@ -521,6 +537,23 @@
             <div class="modal-actions">
                 <button type="button" class="modal-btn modal-btn-cancel" id="logoutCancelBtn">Cancel</button>
                 <button type="button" class="modal-btn modal-btn-confirm" id="logoutConfirmBtn">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="rejectModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="rejectModalTitle">
+        <div class="modal-card">
+            <h2 class="modal-title" id="rejectModalTitle">Reject this request?</h2>
+            <p class="modal-text" id="rejectModalHelp" style="margin-bottom: 0.9rem;"></p>
+            <label for="rejectReason" style="display:block;font-size:0.82rem;font-weight:600;color:#334155;margin-bottom:0.35rem;">Reason for rejection <span style="color:#b91c1c;">*</span></label>
+            <textarea id="rejectReason" class="reject-reason-input" maxlength="500" placeholder="e.g. Missing valid ID. Please bring a government-issued ID and apply again."></textarea>
+            <div class="reject-meta">
+                <span id="rejectError" class="reject-error" role="alert"></span>
+                <span id="rejectCount">0/500</span>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="rejectCancelBtn">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-confirm" id="rejectConfirmBtn" disabled>Reject</button>
             </div>
         </div>
     </div>
@@ -1109,28 +1142,106 @@
             return payload;
         }
 
+        // Saves a status change and refreshes the screen. Throws if the server refuses it.
+        async function submitStatus(status, note) {
+            const actionFeedback = document.getElementById("actionFeedback");
+            const updated = await saveRequestStatus(status, note);
+            if (updated) {
+                const wrapped =
+                    activeItemType === "appointment"
+                        ? { ...updated, itemType: "appointment" }
+                        : { ...updated, itemType: "request" };
+                sessionStorage.setItem("selectedRequest", JSON.stringify(wrapped));
+            }
+            applyRequestToUI(updated, activeItemType);
+            if (actionFeedback) {
+                actionFeedback.textContent = `Status updated to “${updated?.status || status}”.`;
+            }
+            return updated;
+        }
+
         async function handleAction(button) {
             const status = button.dataset.status;
             if (!status || button.disabled) return;
 
+            // Rejecting always needs a reason: the resident sees it in the portal (and by text for requests).
+            if (status === "Rejected") {
+                openRejectModal();
+                return;
+            }
+
             const actionFeedback = document.getElementById("actionFeedback");
             try {
-                const updated = await saveRequestStatus(status, "");
-                if (updated) {
-                    const wrapped =
-                        activeItemType === "appointment"
-                            ? { ...updated, itemType: "appointment" }
-                            : { ...updated, itemType: "request" };
-                    sessionStorage.setItem("selectedRequest", JSON.stringify(wrapped));
-                }
-                applyRequestToUI(updated, activeItemType);
-                if (actionFeedback) {
-                    actionFeedback.textContent = `Status updated to “${updated?.status || status}”.`;
-                }
+                await submitStatus(status, "");
             } catch (error) {
                 if (actionFeedback) actionFeedback.textContent = error.message || "Failed to update status.";
             }
         }
+
+        // ---- "Reason for rejection" popup ----
+        const MIN_REJECTION_REASON_LEN = 5; // keep in step with the server rule
+        const rejectModal = document.getElementById("rejectModal");
+        const rejectReasonInput = document.getElementById("rejectReason");
+        const rejectErrorEl = document.getElementById("rejectError");
+        const rejectCountEl = document.getElementById("rejectCount");
+        const rejectConfirmBtn = document.getElementById("rejectConfirmBtn");
+        const rejectCancelBtn = document.getElementById("rejectCancelBtn");
+        let rejectReturnFocus = null;
+
+        function rejectReasonText() {
+            return String(rejectReasonInput?.value || "").replace(/\s+/g, " ").trim();
+        }
+        function syncRejectForm() {
+            if (rejectCountEl) rejectCountEl.textContent = `${String(rejectReasonInput?.value || "").length}/500`;
+            if (rejectConfirmBtn) rejectConfirmBtn.disabled = rejectReasonText().length < MIN_REJECTION_REASON_LEN;
+            if (rejectErrorEl) rejectErrorEl.textContent = "";
+        }
+        function openRejectModal() {
+            if (!rejectModal) return;
+            const isAppointment = activeItemType === "appointment";
+            document.getElementById("rejectModalTitle").textContent = isAppointment
+                ? "Reject this appointment?"
+                : "Reject this request?";
+            document.getElementById("rejectModalHelp").textContent = isAppointment
+                ? "Tell the resident why. They will see this reason in the portal."
+                : "Tell the resident why. They will see this reason in the portal, and it is also sent to them by text message (the text shows roughly the first 80 characters, so lead with the main reason).";
+            rejectReasonInput.value = "";
+            syncRejectForm();
+            rejectReturnFocus = document.activeElement;
+            rejectModal.classList.add("show");
+            setTimeout(() => rejectReasonInput.focus(), 0);
+        }
+        function closeRejectModal() {
+            rejectModal?.classList.remove("show");
+            if (rejectReturnFocus && typeof rejectReturnFocus.focus === "function") rejectReturnFocus.focus();
+        }
+        rejectReasonInput?.addEventListener("input", syncRejectForm);
+        rejectCancelBtn?.addEventListener("click", closeRejectModal);
+        rejectModal?.addEventListener("click", (event) => {
+            if (event.target === rejectModal) closeRejectModal();
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && rejectModal?.classList.contains("show")) closeRejectModal();
+        });
+        rejectConfirmBtn?.addEventListener("click", async () => {
+            const reason = rejectReasonText();
+            if (reason.length < MIN_REJECTION_REASON_LEN) {
+                if (rejectErrorEl) rejectErrorEl.textContent = `Please enter at least ${MIN_REJECTION_REASON_LEN} characters.`;
+                return;
+            }
+            rejectConfirmBtn.disabled = true;
+            rejectConfirmBtn.textContent = "Rejecting…";
+            try {
+                await submitStatus("Rejected", reason);
+                closeRejectModal();
+            } catch (error) {
+                // Stay open so nothing the staff member typed is lost.
+                if (rejectErrorEl) rejectErrorEl.textContent = error.message || "Failed to reject. Please try again.";
+            } finally {
+                rejectConfirmBtn.textContent = "Reject";
+                rejectConfirmBtn.disabled = rejectReasonText().length < MIN_REJECTION_REASON_LEN;
+            }
+        });
 
         function bindReviewActions() {
             document.getElementById("reviewActionCard")?.addEventListener("click", (event) => {

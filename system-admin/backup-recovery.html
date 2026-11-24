@@ -597,7 +597,7 @@
             
             <ol class="recovery-list">
                 <li>
-                    <strong>Where your data lives:</strong> The primary database is <span class="code-inline">MongoDB Atlas</span>. Free-tier clusters generally do not include automatic backups, so do not rely on the host alone—download an export regularly.
+                    <strong>Where your data lives:</strong> The primary database is <span class="code-inline">PostgreSQL (hosted on Render)</span>. Free-tier databases do not include backups, so do not rely on the host alone—download an export regularly.
                 </li>
                 <li>
                     <strong>Manual Export:</strong> Click <strong>Backup (.json)</strong> to download a complete snapshot for recovery, or <strong>Excel report (.xlsx)</strong> for a readable workbook (one sheet each for residents, requests, appointments and more; for reports only, not for restoring). It contains accounts, requests, appointments, announcements, settings and the audit trail. It does <strong>not</strong> contain passwords, login sessions, or uploaded files (ID photos, attachments, avatars).
@@ -606,10 +606,10 @@
                     <strong>Secure Storage:</strong> The file holds residents’ personal information. Keep it in a password-protected drive or encrypted storage, share it only with authorized people, and delete old copies you no longer need (Data Privacy Act of 2012, RA 10173).
                 </li>
                 <li>
-                    <strong>Restoring records:</strong> The export is meant for safekeeping, review and recovering records. It uses MongoDB Extended JSON, so ids and dates are preserved. To restore from it, contact the lead developer and provide the latest file; check that it ends with <span class="code-inline">"complete": true</span>, which means the download was not cut off.
+                    <strong>Restoring records:</strong> The export is meant for safekeeping, review and recovering records. It is plain JSON (ids as text, dates in ISO-8601), so ids and dates are preserved. To restore from it, contact the lead developer and provide the latest file; check that it ends with <span class="code-inline">"complete": true</span>, which means the download was not cut off.
                 </li>
                 <li>
-                    <strong>Full disaster recovery:</strong> Because the export leaves out passwords and uploaded files, use a database dump for a complete recovery: <span class="code-inline">mongodump --uri="&lt;MONGODB_URI&gt;" --out=backup-folder</span> to save, and <span class="code-inline">mongorestore --uri="&lt;MONGODB_URI&gt;" backup-folder</span> to restore. Treat dumps with the same care as exports, since they include password hashes.
+                    <strong>Full disaster recovery:</strong> Because the export leaves out passwords and uploaded files, use a database dump for a complete recovery: <span class="code-inline">pg_dump "&lt;DATABASE_URL&gt;" -Fc -f backup.dump</span> to save, and <span class="code-inline">pg_restore --clean --no-owner -d "&lt;DATABASE_URL&gt;" backup.dump</span> to restore (a dump also contains the uploaded files). Treat dumps with the same care as exports, since they include password hashes.
                 </li>
             </ol>
 

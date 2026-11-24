@@ -276,20 +276,39 @@
         /* Print: exactly one Letter page, nothing else */
         @page { size: 8.5in 11in; margin: 0; }
         @media print {
-            html, body { background: #fff !important; display: block !important; min-height: 0 !important; }
-            aside, .config-panel, .top-bar, .modal-overlay { display: none !important; }
-            main { margin: 0 !important; padding: 0 !important; display: block !important; }
-            .generator-container { display: block !important; }
-            .preview-panel { background: none !important; padding: 0 !important; overflow: visible !important; min-height: 0 !important; display: block !important; }
+            html, body {
+                background: #fff !important; display: block !important; min-height: 0 !important;
+                width: auto !important; height: auto !important; margin: 0 !important; padding: 0 !important;
+                overflow: visible !important;
+            }
+            /* everything except the certificate is removed from the printed page */
+            aside, .config-panel, .top-bar, .modal-overlay, #missingNotice, .print-hint,
+            .sb-open, .sb-backdrop, .sbp-bar, .sbp-card { display: none !important; }
+            main, .generator-container, .preview-panel {
+                display: block !important; margin: 0 !important; padding: 0 !important; border: 0 !important;
+                background: none !important; min-height: 0 !important; height: 0 !important; overflow: visible !important;
+                position: static !important; transform: none !important;
+            }
+            body.print-blocked .certificate-page { display: none !important; }
+            body.print-blocked::before {
+                content: 'Cannot print: complete all fields in the Document Generator first.';
+                display: block; padding: 1in; font: 14pt Arial, sans-serif; text-align: center;
+            }
+            /* The certificate is a single absolutely-positioned Letter sheet at the page's top-left corner.
+               Height is a hair under 11in so rounding can never spill onto a 2nd sheet. */
             .certificate-page {
-                box-shadow: none !important;
-                transform: none !important;
-                margin: 0 !important;
-                width: 8.5in; height: 11in;
-                break-after: avoid; page-break-after: avoid;
+                position: absolute !important; left: 0 !important; top: 0 !important;
+                margin: 0 !important; transform: none !important; box-shadow: none !important;
+                width: 8.5in !important; height: 10.98in !important;
+                overflow: hidden !important;
+                break-inside: avoid; page-break-inside: avoid;
             }
         }
 
+        .req { color: #dc2626; font-weight: 700; margin-left: 2px; }
+        .form-group input.invalid, .form-group select.invalid { border-color: #dc2626; background: #fef2f2; }
+        #missingNotice { display: none; margin-top: 1rem; padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.85rem; line-height: 1.5; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+        .btn-generate:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.8; }
         .field-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.4; }
         .form-section-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin: 0.25rem 0 0.9rem; padding-top: 1rem; border-top: 1px solid var(--border); }
         .form-row-2 { display: grid; grid-template-columns: 110px 1fr; gap: 0.75rem; }
@@ -364,19 +383,19 @@
                 <!-- Barangay Clearance Fields -->
                 <div id="clearanceFields">
                     <div class="form-group">
-                        <label for="resName">Full Name</label>
+                        <label for="resName">Full Name<span class="req">*</span></label>
                         <input type="text" id="resName" placeholder="Enter full name..." oninput="updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label for="resAddress">Address</label>
+                        <label for="resAddress">Address<span class="req">*</span></label>
                         <input type="text" id="resAddress" value="" placeholder="Street / Purok, Barangay, Municipality, Province" oninput="updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label for="resDateOfBirth">Date of Birth</label>
+                        <label for="resDateOfBirth">Date of Birth<span class="req">*</span></label>
                         <input type="date" id="resDateOfBirth" onchange="updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label for="resPlaceProv">Place of Birth</label>
+                        <label for="resPlaceProv">Place of Birth<span class="req">*</span></label>
                         <div class="place-row">
                             <input type="text" id="resPlaceProv" maxlength="60" placeholder="Province" autocomplete="off">
                             <input type="text" id="resPlaceCity" maxlength="60" placeholder="City / Municipality" autocomplete="off">
@@ -384,7 +403,7 @@
                         <input type="hidden" id="resPlaceOfBirth" oninput="updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label for="resCivilStatus">Civil Status</label>
+                        <label for="resCivilStatus">Civil Status<span class="req">*</span></label>
                         <select id="resCivilStatus" onchange="updatePreview()">
                             <option value="">Select...</option>
                             <option value="Single">Single</option>
@@ -395,7 +414,7 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="resGender">Gender</label>
+                        <label for="resGender">Gender<span class="req">*</span></label>
                         <select id="resGender" onchange="updatePreview()">
                             <option value="">Select...</option>
                             <option value="Male">Male</option>
@@ -403,11 +422,11 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="docPurpose">Purpose</label>
+                        <label for="docPurpose">Purpose<span class="req">*</span></label>
                         <input type="text" id="docPurpose" placeholder="e.g. Loan" oninput="updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label for="orNumber">OR Number</label>
+                        <label for="orNumber">OR Number<span class="req">*</span></label>
                         <input type="text" id="orNumber" placeholder="Enter OR No." oninput="updatePreview()">
                     </div>
                 </div>
@@ -415,11 +434,11 @@
                 <!-- Certificate of Indigency Fields -->
                 <div id="indigencyFields" style="display: none;">
                     <div class="form-group">
-                        <label for="resNameIndigency">Resident Full Name</label>
+                        <label for="resNameIndigency">Resident Full Name<span class="req">*</span></label>
                         <input type="text" id="resNameIndigency" placeholder="Enter full name..." oninput="syncFamilyName(); updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label>Family Name</label>
+                        <label>Family Name<span class="req">*</span></label>
                         <div class="form-row-2">
                             <select id="resTitleIndigency" onchange="updatePreview()" aria-label="Title">
                                 <option value="MR.">MR.</option>
@@ -431,7 +450,7 @@
                         <p class="field-hint">Prints as “the family of MR. ____”. Filled from the last word of the full name; edit it if the surname differs.</p>
                     </div>
                     <div class="form-group">
-                        <label for="docPurposeIndigency">Purpose</label>
+                        <label for="docPurposeIndigency">Purpose<span class="req">*</span></label>
                         <input type="text" id="docPurposeIndigency" placeholder="e.g. Medical Assistance" oninput="updatePreview()">
                         <p class="field-hint">Completes “…as requirement in availing for ____”.</p>
                     </div>
@@ -439,21 +458,23 @@
 
                 <div class="form-section-title">Issuance</div>
                 <div class="form-group">
-                    <label for="issueDate">Date of Issue</label>
+                    <label for="issueDate">Date of Issue<span class="req">*</span></label>
                     <input type="date" id="issueDate" onchange="updatePreview()">
                 </div>
                 <div class="form-group">
-                    <label for="signatoryName">Signatory</label>
+                    <label for="signatoryName">Signatory<span class="req">*</span></label>
                     <input type="text" id="signatoryName" value="" placeholder="Loading from Barangay Information…" oninput="updatePreview()">
                 </div>
                 <div class="form-group">
-                    <label for="signatoryTitle">Signatory Title</label>
+                    <label for="signatoryTitle">Signatory Title<span class="req">*</span></label>
                     <input type="text" id="signatoryTitle" value="" placeholder="Loading from Barangay Information…" oninput="updatePreview()">
                 </div>
 
-                <button class="btn-generate" onclick="window.print()">
+                <div id="missingNotice" role="alert"></div>
+                <button class="btn-generate" id="btnPrint" type="button" onclick="printDocument()" disabled>
                     🖨️ Print Document
                 </button>
+                <p class="field-hint print-hint" style="text-align:center;">All fields marked <span class="req">*</span> must be filled before printing. Prints on Letter (8.5 × 11 in).</p>
             </div>
 
             <div class="preview-panel">
@@ -694,6 +715,49 @@ const MONTHS = ["January","February","March","April","May","June","July","August
             updatePreview();
         }
 
+        // ---- Print gate: every field must be filled before the secretary can print ----
+        function requiredFields() {
+            const isClearance = $("docType").value === "Barangay Clearance";
+            const common = [["issueDate", "Date of Issue"], ["signatoryName", "Signatory"], ["signatoryTitle", "Signatory Title"]];
+            const list = isClearance
+                ? [["resName", "Full Name"], ["resAddress", "Address"], ["resDateOfBirth", "Date of Birth"],
+                   ["resPlaceProv", "Place of Birth (Province)"], ["resPlaceCity", "Place of Birth (City / Municipality)"],
+                   ["resCivilStatus", "Civil Status"], ["resGender", "Gender"], ["docPurpose", "Purpose"], ["orNumber", "OR Number"]]
+                : [["resNameIndigency", "Resident Full Name"], ["resSurname", "Family Name (Surname)"], ["docPurposeIndigency", "Purpose"]];
+            return list.concat(common);
+        }
+
+        function getMissingFields() {
+            const all = ["resName","resAddress","resDateOfBirth","resPlaceProv","resPlaceCity","resCivilStatus","resGender","docPurpose","orNumber",
+                         "resNameIndigency","resSurname","docPurposeIndigency","issueDate","signatoryName","signatoryTitle"];
+            all.forEach((id) => $(id)?.classList.remove("invalid"));
+            const missing = requiredFields().filter(([id]) => !($(id)?.value || "").trim());
+            missing.forEach(([id]) => $(id)?.classList.add("invalid"));
+            return missing.map(([, label]) => label);
+        }
+
+        function refreshPrintState() {
+            const missing = getMissingFields();
+            const btn = $("btnPrint"), box = $("missingNotice");
+            if (btn) btn.disabled = missing.length > 0;
+            document.body.classList.toggle("print-blocked", missing.length > 0);   // also blocks Ctrl+P
+            if (box) {
+                if (missing.length) {
+                    box.style.display = "block";
+                    box.innerHTML = `<strong>Complete these fields before printing:</strong><br>${missing.map(escHtml).join(", ")}`;
+                } else {
+                    box.style.display = "none";
+                    box.innerHTML = "";
+                }
+            }
+            return missing;
+        }
+
+        function printDocument() {
+            if (refreshPrintState().length) return;   // guard: never print an incomplete document
+            window.print();
+        }
+
         // Reflect current form values in the printable certificate preview.
         function updatePreview() {
             const isClearance = $("docType").value === "Barangay Clearance";
@@ -701,6 +765,7 @@ const MONTHS = ["January","February","March","April","May","June","July","August
             const sigName = $("signatoryName").value.trim() || "[SIGNATORY NAME]";
             const sigTitle = $("signatoryTitle").value.trim() || "[SIGNATORY TITLE]";
             document.title = `${$("docType").value} | SerbisyoBurgos`;
+            refreshPrintState();
 
             if (isClearance) {
                 setText("previewName", $("resName").value, "[RESIDENT NAME]");
@@ -876,6 +941,8 @@ const MONTHS = ["January","February","March","April","May","June","July","August
         window.onload = () => {
             $("issueDate").value = todayIso();
             PlaceAutocomplete.pair($("resPlaceProv"), $("resPlaceCity"), { onChange: (v) => { const h = $("resPlaceOfBirth"); h.value = v; h.dispatchEvent(new Event("input")); } });
+            document.querySelector(".config-panel").addEventListener("input", refreshPrintState);
+            document.querySelector(".config-panel").addEventListener("change", refreshPrintState);
             updateFormFields();
             prefillFromRequest();
         };

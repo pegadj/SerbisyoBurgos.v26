@@ -614,9 +614,13 @@
         let appointmentEventStream = null;
         let announcementEventStream = null;
 
+        // Announcement ids are opaque strings from the API (UUIDs now, 24-character ids before that).
+        // This used to accept only positive integers, so every announcement failed the check:
+        // nothing opened, nothing showed as unread, and "Mark all read" did nothing for them.
         function normalizeAnnouncementId(raw) {
-            const n = Number(raw);
-            return Number.isInteger(n) && n > 0 ? n : null;
+            if (raw === null || raw === undefined) return null;
+            const id = String(raw).trim();
+            return /^[A-Za-z0-9_-]{1,64}$/.test(id) ? id : null;
         }
 
         function loadReadAnnouncementIds() {

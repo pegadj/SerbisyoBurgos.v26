@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com https://images.unsplash.com http://localhost:4000 http://127.0.0.1:4000; connect-src 'self' https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com http://localhost:4000 http://127.0.0.1:4000; media-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Log | System Admin</title>
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#043d2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
+    <link rel="apple-touch-icon" href="../asset/icons/apple-touch-icon.png">
+    <script src="../shared/pwa.js" defer></script>
+    <link rel="icon" type="image/png" href="../asset/logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand-green: #16a34a;
+            --brand-dark: #043d2e;
+            --bg-light: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-width: 260px;
+            --white: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); color: var(--text-main); display: flex; min-height: 100vh; }
+
+        /* SIDEBAR NAVIGATION */
+        aside {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            color: var(--brand-dark);
+            font-size: 1.25rem;
+        }
+
+        .sidebar-header img {
+            width: 32px;
+            border-radius: 50%;
+            background: white;
+            padding: 3px;
+            border: 3px solid var(--brand-dark);
+        }
+        nav { flex-grow: 1; padding: 1rem; }
+
+        .nav-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 2.5rem; text-decoration: none; }
+        .nav-logo img { height: 35px; }
+        .nav-logo span { font-weight: 700; color: var(--brand-dark); font-size: 1.25rem; }
+
+        nav { flex: 1; }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: var(--text-muted);
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: #f0fdf4;
+            color: var(--brand-green);
+        }
+
+        .nav-item svg { width: 20px; height: 20px; }
+
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #f1f5f9;
+            margin-top: auto;
+        }
+
+        .logout-btn {
+            width: 100%;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff1f2;
+            color: #e11d48;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            border: none;
+            margin-top: 10px;
+        }
+
+        .logout-btn:hover {
+            background: #ffe4e6;
+        }
+
+        /* Sidebar theme */
+        aside {
+            background: #5f9632;
+            border-right: 1px solid rgba(4, 61, 46, 0.18);
+        }
+        .sidebar-header {
+            padding: 1.75rem 1.25rem 1.25rem;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.75rem;
+            color: white;
+            font-weight: 800;
+            text-align: center;
+        }
+        .sidebar-header img {
+            width: 54px !important;
+            height: 54px !important;
+            object-fit: contain;
+        }
+        .nav-item { color: rgba(255, 255, 255, 0.9); }
+        .nav-item:hover, .nav-item.active { background: #426c22; color: white; }
+        .nav-item:hover:not(.active) { background: #4f7f29; }
+        .logout-btn { background: rgba(255, 255, 255, 0.14); color: white; }
+        .logout-btn:hover,
+        .logout-btn:focus-visible { background: #b91c1c; }
+        .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.18); }
+
+        /* MAIN CONTENT AREA */
+        main {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 2rem;
+        }
+
+        /* HEADER & USER PROFILE */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--white);
+            padding: 6px 16px 6px 6px;
+            border-radius: 30px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            background: var(--brand-green);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        /* DASHBOARD CARDS */
+        .card {
+            background: #ffffff; /* Changed to pure white */
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0; /* Use a standard light border */
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .filter-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #ffffff; /* Changed to white */
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+.search-input:focus, .search-bar:focus {
+            border-color: var(--brand-green) !important;
+        }
+
+        .select-filter {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #ffffff; /* Changed to white */
+            min-width: 150px;
+        }
+
+        .page-title {
+            color: var(--brand-dark); font-weight: 800; font-size: 1.75rem;
+        }
+
+        .page-subtitle {
+            color: var(--text-muted); font-size: 0.9rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th {
+            background: #ffffff; /* Removed the beige background[cite: 1, 2] */
+            color: var(--text-muted); /* Using your root muted color */
+            font-weight: 600;
+            text-align: left;
+            padding: 15px;
+            font-size: 0.85rem;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #f9f9f9;
+            font-size: 0.9rem;
+            color: #444;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: inline-block;
+        }
+
+.badge-update {
+            background: #e1f0ff;
+            color: #3b82f6;
+            border: 1px solid #bfdbfe;
+        }
+
+        .badge-rejected {
+            background: #fde2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        /* Badge color types */
+        .badge-status-update {
+            background: #dbeafe;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+        }
+
+        .badge-completed-request {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .badge-rejected-request {
+            background: #fde2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .badge-updated-slots {
+            background: #fef3c7;
+            color: #a16207;
+            border: 1px solid #fde68a;
+        }
+
+        .badge-printed-document {
+            background: #ede9fe;
+            color: #7c3aed;
+            border: 1px solid #ddd6fe;
+        }
+
+        .badge-updated-record {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+
+        .badge-archived-record {
+            background: #ffedd5;
+            color: #c2410c;
+            border: 1px solid #fed7aa;
+        }
+
+        .badge-deleted-record {
+            background: #fde2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        #auditPageSummary { font-size: 0.85rem; color: var(--text-muted); margin: 1rem 0 0.65rem; }
+        #auditPagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.75rem; margin-top: 0.25rem; }
+        .audit-pag-btn {
+            padding: 0.45rem 0.95rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #334155;
+            cursor: pointer;
+        }
+        .audit-pag-btn:hover:not(:disabled) { background: #f8fafc; border-color: #cbd5e1; }
+        .audit-pag-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .audit-pag-meta { font-size: 0.85rem; color: #475569; font-weight: 600; }
+
+        /* Logout confirmation modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1200;
+            padding: 1rem;
+            opacity: 0;
+            transition: opacity 0.22s ease;
+        }
+        .modal-overlay.show { display: flex; opacity: 1; }
+        .confirm-modal {
+            width: 100%;
+            max-width: 430px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 1.25rem;
+            box-shadow: 0 18px 34px rgba(2, 6, 23, 0.25);
+            transform: translateY(8px) scale(0.98);
+            opacity: 0;
+            transition: transform 0.22s ease, opacity 0.22s ease;
+        }
+        .modal-overlay.show .confirm-modal { transform: translateY(0) scale(1); opacity: 1; }
+        .confirm-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.65rem;
+            margin-top: 1.2rem;
+        }
+        .btn-cancel {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 0.95rem;
+            font-weight: 600;
+            color: #334155;
+            cursor: pointer;
+        }
+        .btn-confirm {
+            background: var(--brand-green);
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 0.95rem;
+            font-weight: 600;
+            color: #fff;
+            cursor: pointer;
+        }
+        .btn-confirm.danger { background: #dc2626; }
+
+        /* SMS log additions */
+        .sms-badge { display:inline-block; padding:4px 10px; border-radius:999px; font-size:0.75rem; font-weight:700; white-space:nowrap; }
+        .sms-badge-sent { background:#dcfce7; color:#166534; }
+        .sms-badge-failed { background:#fee2e2; color:#991b1b; }
+        .sms-stats { display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+        .sms-stat { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 16px; cursor:pointer; text-align:left; font-family:inherit; }
+        .sms-stat strong { display:block; font-size:1.35rem; line-height:1.2; }
+        .sms-stat span { font-size:0.75rem; color:#64748b; }
+        .sms-stat.sent strong { color:#166534; } .sms-stat.failed strong { color:#991b1b; }
+        .sms-stat:focus-visible { outline:2px solid #1d4ed8; outline-offset:2px; }
+        .sms-msg { white-space:pre-wrap; word-break:break-word; max-width:420px; font-size:0.85rem; line-height:1.45; }
+        .sms-err { color:#b91c1c; font-size:0.78rem; margin-top:4px; word-break:break-word; }
+        .sms-sub { color:#64748b; font-size:0.78rem; }
+    </style>
+</head>
+<body>
+
+    <script src="../shared/sidebar.js" data-portal="system-admin"></script>
+    <script src="../shared/user-badge.js"></script>
+
+    <main>
+        <div class="top-bar">
+            <div>
+                <h1 class="page-title">SMS Log</h1>
+                <p class="page-subtitle">Every text message the system tried to send, and whether it worked.</p>
+            </div>
+            <user-badge></user-badge>
+        </div>
+
+        <p style="font-size:0.82rem;color:#475569;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;margin-bottom:16px;line-height:1.5;">
+            <strong>Sent</strong> means the SMS gateway accepted the message and queued it on the phone that sends your texts.
+            It is not a delivery receipt, so a text can still fail to reach the resident if that phone is offline or the number is wrong.
+            <strong>Failed</strong> means the gateway refused it or could not be reached; the reason is shown under the message.
+        </p>
+
+        <div class="sms-stats" id="smsStats">
+            <button type="button" class="sms-stat" id="statAll"><strong id="statAllN">–</strong><span>All messages</span></button>
+            <button type="button" class="sms-stat sent" id="statSent"><strong id="statSentN">–</strong><span>Sent</span></button>
+            <button type="button" class="sms-stat failed" id="statFailed"><strong id="statFailedN">–</strong><span>Failed</span></button>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+            <div style="position: relative; flex: 1; min-width: 240px;">
+                <input type="text" id="searchInput" class="search-bar" oninput="searchLogs()" placeholder="Search number (+63…), message, error or staff email..."
+                    style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff;">
+                <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #888;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </div>
+            <select id="statusFilter" onchange="onFilterChanged()" style="padding: 10px 20px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff; min-width: 130px;">
+                <option value="">All Statuses</option>
+                <option value="sent">Sent</option>
+                <option value="failed">Failed</option>
+            </select>
+            <select id="purposeFilter" onchange="onFilterChanged()" style="padding: 10px 20px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff; min-width: 170px;">
+                <option value="">All Types</option>
+                <option value="request_status">Request Update</option>
+                <option value="announcement">Announcement</option>
+                <option value="password_reset">Password Reset Code</option>
+                <option value="password_changed">Password Changed Alert</option>
+            </select>
+            <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#64748b;white-space:nowrap;">From
+                <input type="date" id="dateFrom" onchange="onFilterChanged()" style="padding: 9px 10px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff;">
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#64748b;white-space:nowrap;">To
+                <input type="date" id="dateTo" onchange="onFilterChanged()" style="padding: 9px 10px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff;">
+            </label>
+            <button type="button" id="clearFiltersBtn" onclick="clearFilters()" style="padding: 10px 16px; border: 1px solid #ddd; border-radius: 8px; background: #ffffff; color: #475569; font-weight: 600; cursor: pointer; display: none;">Clear</button>
+        </div>
+        <p id="smsFilterError" role="alert" style="display: none; font-size: 0.8rem; color: #b91c1c; margin: -10px 0 12px;"></p>
+
+        <div class="card" style="background: #ffffff; border: 1px solid #e2e8f0; padding: 0; overflow: hidden;">
+            <table style="margin-top: 0;">
+                <thead>
+                    <tr style="background: #ffffff;">
+                        <th style="color: #000000; padding: 20px;">Status</th>
+                        <th style="color: #000000;">Type</th>
+                        <th style="color: #000000;">Recipient</th>
+                        <th style="color: #000000;">Message</th>
+                        <th style="color: #000000;">Triggered By</th>
+                        <th style="color: #000000;">Date</th>
+                    </tr>
+                </thead>
+                <tbody id="smsLogsBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading SMS log…</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div style="padding: 0 1.25rem 1.25rem;">
+                <p id="smsPageSummary" aria-live="polite"></p>
+                <div id="smsPagination" role="navigation" aria-label="SMS log pages"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="logoutModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle" aria-hidden="true">
+        <div class="confirm-modal">
+            <h3 id="logoutModalTitle" style="font-size:1.05rem;color:var(--brand-dark);margin-bottom:0.55rem;">Confirm Logout</h3>
+            <p style="font-size:0.9rem;color:var(--text-muted);line-height:1.5;margin:0;">Are you sure you want to logout from the System Admin Portal?</p>
+            <div class="confirm-actions">
+                <button type="button" class="btn-cancel" id="logoutCancelBtn">Cancel</button>
+                <button type="button" class="btn-confirm danger" id="logoutConfirmBtn">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/routes.js"></script>
+    <script src="../shared/live-refresh.js"></script>
+    <script src="../shared/maintenance-check.js"></script>
+    <script src="../shared/admin-access.js"></script>
+    <script>
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "";
+        const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "../index.html" };
+        const logoutModal = document.getElementById("logoutModal");
+        const logoutCancelBtn = document.getElementById("logoutCancelBtn");
+        const logoutConfirmBtn = document.getElementById("logoutConfirmBtn");
+
+        function getAdminAccessToken() {
+            try {
+                const raw = sessionStorage.getItem("adminAuth");
+                if (!raw) return null;
+                return JSON.parse(raw)?.session?.accessToken || null;
+            } catch (_e) {
+                return null;
+            }
+        }
+
+        async function adminFetch(path, options = {}) {
+            const token = getAdminAccessToken();
+            const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+            if (token) headers.Authorization = `Bearer ${token}`;
+            return fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        function handleLogout(event) {
+            event?.preventDefault?.();
+            logoutModal?.classList.add("show");
+            if (logoutModal) logoutModal.setAttribute("aria-hidden", "false");
+        }
+        function closeLogoutModal() {
+            logoutModal?.classList.remove("show");
+            if (logoutModal) logoutModal.setAttribute("aria-hidden", "true");
+        }
+        logoutCancelBtn?.addEventListener("click", closeLogoutModal);
+        logoutModal?.addEventListener("click", (event) => {
+            if (event.target === logoutModal) closeLogoutModal();
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            if (logoutModal?.classList.contains("show")) closeLogoutModal();
+        });
+        logoutConfirmBtn?.addEventListener("click", () => {
+            closeLogoutModal();
+            if (window.APP_NAV?.logout) {
+                window.APP_NAV.logout();
+                return;
+            }
+            sessionStorage.removeItem("adminAuth");
+            window.location.href = COMMON_ROUTES.landing;
+        });
+
+        // Filters are applied by the server across the whole log, then the list reloads from page 1.
+        let searchTimer = null;
+        let requestSeq = 0;
+        const PAGE_SIZE = 15;
+        let currentPage = 1;
+
+        function currentFilters() {
+            return {
+                q: (document.getElementById("searchInput")?.value || "").trim(),
+                status: document.getElementById("statusFilter")?.value || "",
+                purpose: document.getElementById("purposeFilter")?.value || "",
+                from: document.getElementById("dateFrom")?.value || "",
+                to: document.getElementById("dateTo")?.value || ""
+            };
+        }
+        function filtersActive() {
+            const f = currentFilters();
+            return Boolean(f.q || f.status || f.purpose || f.from || f.to);
+        }
+        function syncClearButton() {
+            const btn = document.getElementById("clearFiltersBtn");
+            if (btn) btn.style.display = filtersActive() ? "inline-block" : "none";
+        }
+        function onFilterChanged() {
+            currentPage = 1;
+            syncClearButton();
+            void loadSmsLogs();
+        }
+        function searchLogs() {
+            clearTimeout(searchTimer);
+            syncClearButton();
+            searchTimer = setTimeout(function () {
+                currentPage = 1;
+                void loadSmsLogs();
+            }, 350);
+        }
+        function clearFilters() {
+            ["searchInput", "statusFilter", "purposeFilter", "dateFrom", "dateTo"].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el) el.value = "";
+            });
+            onFilterChanged();
+        }
+        // The three summary tiles double as quick status filters.
+        function setStatusFilter(value) {
+            const el = document.getElementById("statusFilter");
+            if (el) el.value = value;
+            onFilterChanged();
+        }
+        document.getElementById("statAll")?.addEventListener("click", function () { setStatusFilter(""); });
+        document.getElementById("statSent")?.addEventListener("click", function () { setStatusFilter("sent"); });
+        document.getElementById("statFailed")?.addEventListener("click", function () { setStatusFilter("failed"); });
+
+        function renderStats(summary) {
+            const sent = Number(summary?.sent) || 0;
+            const failed = Number(summary?.failed) || 0;
+            document.getElementById("statAllN").textContent = (sent + failed).toLocaleString();
+            document.getElementById("statSentN").textContent = sent.toLocaleString();
+            document.getElementById("statFailedN").textContent = failed.toLocaleString();
+        }
+
+        function renderPagination(total) {
+            const wrap = document.getElementById("smsPagination");
+            const summary = document.getElementById("smsPageSummary");
+            if (!wrap) return;
+            const n = Number(total);
+            const totalCount = Number.isFinite(n) ? n : 0;
+            const maxPage = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+            if (summary) {
+                if (totalCount <= 0) {
+                    summary.textContent = "";
+                } else if (totalCount <= PAGE_SIZE) {
+                    summary.textContent = `Showing all ${totalCount} message${totalCount === 1 ? "" : "s"}`;
+                } else {
+                    const from = (currentPage - 1) * PAGE_SIZE + 1;
+                    const to = Math.min(totalCount, currentPage * PAGE_SIZE);
+                    summary.textContent = `Showing ${from}–${to} of ${totalCount}`;
+                }
+            }
+
+            if (totalCount <= PAGE_SIZE) {
+                wrap.innerHTML = "";
+                return;
+            }
+
+            wrap.innerHTML = `
+                <button type="button" class="audit-pag-btn" data-prev ${currentPage <= 1 ? "disabled" : ""}>Previous</button>
+                <span class="audit-pag-meta">Page ${currentPage} of ${maxPage}</span>
+                <button type="button" class="audit-pag-btn" data-next ${currentPage >= maxPage ? "disabled" : ""}>Next</button>
+            `;
+
+            if (!wrap.dataset.paginationBound) {
+                wrap.dataset.paginationBound = "1";
+                wrap.addEventListener("click", function (e) {
+                    if (e.target.closest("[data-prev]")) {
+                        currentPage = Math.max(1, currentPage - 1);
+                        void loadSmsLogs();
+                        return;
+                    }
+                    if (e.target.closest("[data-next]")) {
+                        currentPage += 1;
+                        void loadSmsLogs();
+                    }
+                });
+            }
+        }
+
+        function renderRows(logs) {
+            const tbody = document.getElementById("smsLogsBody");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+            if (!logs.length) {
+                const msg = filtersActive() ? "No messages match your filters." : "No text messages have been sent yet.";
+                tbody.innerHTML =
+                    '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">' + msg + '</td></tr>';
+                return;
+            }
+            logs.forEach(function (log) {
+                const failed = log.status === "failed";
+                const badge = failed
+                    ? '<span class="sms-badge sms-badge-failed">Failed</span>'
+                    : '<span class="sms-badge sms-badge-sent">Sent</span>';
+                const person = log.residentName ? `<div>${escapeHtml(log.residentName)}</div>` : "";
+                const err = failed && log.error ? `<div class="sms-err">Reason: ${escapeHtml(log.error)}</div>` : "";
+                const ref = log.relatedId && log.relatedType
+                    ? `<div class="sms-sub">${escapeHtml(log.relatedType.replace(/_/g, " "))}</div>` : "";
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td style="padding-left:20px;">${badge}</td>
+                    <td>${escapeHtml(log.purposeLabel || log.purpose || "")}${ref}</td>
+                    <td>${person}<div class="sms-sub">${escapeHtml(log.recipient || "")}</div></td>
+                    <td><div class="sms-msg">${escapeHtml(log.message || "")}</div>${err}</td>
+                    <td>${log.sentBy ? escapeHtml(log.sentBy) : '<span class="sms-sub">Automatic</span>'}</td>
+                    <td>${escapeHtml(log.dateDisplay || "—")}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadSmsLogs(opts) {
+            const silent = !!(opts && opts.silent === true); // background refresh: no "Loading…", no error flash
+            const tbody = document.getElementById("smsLogsBody");
+            const summary = document.getElementById("smsPageSummary");
+            const pag = document.getElementById("smsPagination");
+            if (tbody && !silent) {
+                tbody.innerHTML =
+                    '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">Loading SMS log…</td></tr>';
+            }
+            if (!silent) {
+                if (summary) summary.textContent = "";
+                if (pag) pag.innerHTML = "";
+            }
+            const filterErr = document.getElementById("smsFilterError");
+            const f = currentFilters();
+            if (f.from && f.to && f.from > f.to) {
+                if (filterErr) {
+                    filterErr.textContent = "The “From” date is after the “To” date. Please adjust the range.";
+                    filterErr.style.display = "block";
+                }
+                if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">Choose a valid date range.</td></tr>';
+                return;
+            }
+            if (filterErr) filterErr.style.display = "none";
+            const seq = ++requestSeq;
+            try {
+                const offset = (currentPage - 1) * PAGE_SIZE;
+                const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
+                if (f.q) params.set("q", f.q);
+                if (f.status) params.set("status", f.status);
+                if (f.purpose) params.set("purpose", f.purpose);
+                if (f.from) params.set("from", f.from);
+                if (f.to) params.set("to", f.to);
+                const res = await adminFetch(`/system-admin/sms-logs?${params.toString()}`);
+                const json = await res.json().catch(() => ({}));
+                if (seq !== requestSeq) return; // a newer search/filter superseded this response
+                if (!res.ok || !json?.ok) {
+                    if (silent) return; // background refresh: keep what is on screen
+                    if (tbody) {
+                        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#b91c1c;padding:2rem;">${escapeHtml(
+                            json?.message || "Unable to load the SMS log."
+                        )}</td></tr>`;
+                    }
+                    return;
+                }
+                const total = typeof json.total === "number" && Number.isFinite(json.total) ? json.total : (json.logs || []).length;
+                const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+                if (currentPage > maxPage) {
+                    currentPage = maxPage;
+                    return loadSmsLogs();
+                }
+                renderStats(json.summary);
+                renderRows(Array.isArray(json.logs) ? json.logs : []);
+                renderPagination(total);
+            } catch (_err) {
+                if (silent) return; // background refresh: keep what is on screen
+                if (tbody) {
+                    tbody.innerHTML =
+                        '<tr><td colspan="6" style="text-align:center;color:#b91c1c;padding:2rem;">Could not reach the API server.</td></tr>';
+                }
+            }
+        }
+
+        // Keep this list current while the page stays open (pauses when hidden or while the person is busy).
+        if (window.SB_LIVE) SB_LIVE.watch(() => loadSmsLogs({ silent: true }));
+
+        (async function initSmsLogsPage() {
+            const auth = await window.SB_ADMIN_ACCESS?.requireRole?.("system-admin");
+            if (!auth) return;
+            await loadSmsLogs();
+        })();
+    </script>
+</body>
+</html>

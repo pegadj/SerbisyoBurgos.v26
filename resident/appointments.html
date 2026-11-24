@@ -846,7 +846,7 @@ function renderAppointments(appointments) {
                     throw new Error(result?.message || "Unable to load slots.");
                 }
 
-                const afternoonCodes = new Set(["0100", "0300", "0400"]);
+                const afternoonCodes = new Set(["0100", "0200", "0300", "0400"]);   // 1-5 PM; nothing during the 12-1 PM lunch break
                 const afternoon = result.slots.filter((s) => afternoonCodes.has(String(s?.code || "")));
                 const options = afternoon.map((slot) => {
                     // Closed = staff closed it, or its time has already passed. Full = no places left.

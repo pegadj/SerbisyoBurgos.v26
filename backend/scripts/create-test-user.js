@@ -1,5 +1,5 @@
 /**
- * Creates (or resets) a test user directly in MongoDB, bypassing the
+ * Creates (or resets) a test user directly in PostgreSQL, bypassing the
  * registration routes — useful right now specifically because the
  * registration/login routes themselves haven't been migrated yet (Phase 3
  * is still in progress). Once those routes are migrated, this script
@@ -19,7 +19,7 @@
  */
 
 require('dotenv').config();
-const { connectMongo, mongoose } = require('../src/config/mongoClient');
+const { connectPg, pool } = require('../src/config/pgClient');
 const { hashPassword } = require('../src/config/auth');
 const { User, USER_ROLES } = require('../src/models/User');
 
@@ -42,7 +42,7 @@ async function main() {
     process.exit(1);
   }
 
-  await connectMongo();
+  await connectPg();
 
   const normalizedEmail = email.trim().toLowerCase();
   const passwordHash = await hashPassword(password);
@@ -76,7 +76,7 @@ async function main() {
   console.log(`  _id:   ${user._id}`);
   console.log(`\nLog in with this email + the password you passed in.`);
 
-  await mongoose.disconnect();
+  await pool.end();
   process.exit(0);
 }
 

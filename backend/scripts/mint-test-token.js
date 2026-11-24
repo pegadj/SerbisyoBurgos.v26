@@ -1,5 +1,5 @@
 /**
- * Mints a valid access token for an existing MongoDB user, without going
+ * Mints a valid access token for an existing user, without going
  * through the actual /login route (which hasn't been migrated off
  * Supabase Auth yet — see the note in the chat response this came with).
  *
@@ -12,7 +12,7 @@
  */
 
 require('dotenv').config();
-const { connectMongo, mongoose } = require('../src/config/mongoClient');
+const { connectPg, pool } = require('../src/config/pgClient');
 const { signAccessToken } = require('../src/config/auth');
 const { User } = require('../src/models/User');
 
@@ -23,7 +23,7 @@ async function main() {
     process.exit(1);
   }
 
-  await connectMongo();
+  await connectPg();
 
   const user = await User.findOne({ email: email.trim().toLowerCase() });
   if (!user) {
@@ -39,7 +39,7 @@ async function main() {
   console.log(`  curl -H "Authorization: Bearer ${token}" http://localhost:${process.env.PORT || 4000}/resident/service-catalog`);
   console.log(`\nExpires in ${process.env.JWT_ACCESS_TTL || '15m'} — re-run this script for a fresh one.`);
 
-  await mongoose.disconnect();
+  await pool.end();
   process.exit(0);
 }
 

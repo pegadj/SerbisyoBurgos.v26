@@ -6,9 +6,9 @@ const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const multer = require("multer");
-const mongoose = require("mongoose");
 const crypto = require("crypto");
-const { connectMongo } = require("./config/mongoClient");
+const { connectPg, pool } = require("./config/pgClient");
+const { isValidId } = require("./db/engine");
 const {
   verifyAccessToken,
   verifyRefreshToken,
@@ -32,6 +32,7 @@ const {
 } = require("./services/chatbot");
 const AppointmentPurposeCatalog = require("./models/AppointmentPurposeCatalog");
 const PortalAuditEvent = require("./models/PortalAuditEvent");
+const SmsLog = require("./models/SmsLog");
 const { AuthAuditEvent } = require("./models/AuthAuditEvent");
 const { PasswordResetCode } = require("./models/PasswordResetCode");
 const AppointmentSlot = require("./models/AppointmentSlot");
@@ -39,7 +40,7 @@ const AppointmentSlotOverride = require("./models/AppointmentSlotOverride");
 const { Appointment, APPOINTMENT_STATUSES } = require("./models/Appointment");
 const { ServiceRequest, SERVICE_REQUEST_STATUSES } = require("./models/ServiceRequest");
 const { SystemSettings, SINGLETON_ID } = require("./models/SystemSettings");
-const { AnimalRecord, ANIMAL_SPECIES, ANIMAL_SEX } = require("./models/AnimalRecord");
+const { AnimalRecord, ANIMAL_SPECIES } = require("./models/AnimalRecord");
 
 let intentionalShutdown = false;
 
@@ -348,7 +349,7 @@ const adminAnalyticsDecisionInsightLimiter = rateLimit({
 // (supabaseAdmin, supabaseAuth) plus hasSupabaseServiceRoleKey() and
 // createResidentProfilesDbClient() helpers built around them. As of this
 // point in the migration, nothing in the app calls any of the four —
-// every route now runs on MongoDB/JWT (see src/config/mongoClient.js,
+// every route now runs on PostgreSQL/JWT (see src/config/pgClient.js,
 // src/config/auth.js, src/models/). Removed rather than left as unused
 // dead code.
 
@@ -568,12 +569,9 @@ function isPlaceholderResidentEmail(email) {
 }
 
 async function generateResidentId() {
-  const last = await User.findOne({ residentId: /^SB-\d{5}$/ })
-    .sort({ residentId: -1 })
-    .select("residentId")
-    .lean();
-  const next = last ? Number.parseInt(last.residentId.slice(3), 10) + 1 : 1;
-  return "SB-" + String(next).padStart(5, "0");
+  // Atomic: concurrent requests can never receive the same number (db/migrations/001_schema.sql).
+  const { rows } = await pool.query("SELECT nextval('resident_id_seq') AS n");
+  return "SB-" + String(rows[0].n).padStart(5, "0");
 }
 
 function generateTemporaryPassword() {
@@ -805,12 +803,12 @@ function parseLocalDateString(value) {
 
 async function getAppointmentSlotCapacityForDate(slotId, dateISO) {
   const slotIdStr = String(slotId || "");
-  if (!mongoose.Types.ObjectId.isValid(slotIdStr)) return null;
+  if (!isValidId(slotIdStr)) return null;
   const safeDate = parseLocalDateString(dateISO);
   if (!safeDate) return null;
 
   const [slot, override] = await Promise.all([
-    AppointmentSlot.findById(slotIdStr).select("defaultCapacity isActive").lean(),
+    AppointmentSlot.findById(slotIdStr).select("defaultCapacity isActive label slotCode").lean(),
     AppointmentSlotOverride.findOne({ slotId: slotIdStr, overrideDate: safeDate })
       .select("capacityLimit")
       .lean()
@@ -818,6 +816,7 @@ async function getAppointmentSlotCapacityForDate(slotId, dateISO) {
 
   if (!slot) return null;
   if (slot.isActive === false) return null;
+  if (!isSlotWithinServiceHours(slot)) return null;   // lunch break / outside 8-5
 
   const overrideCap = Number(override?.capacityLimit);
   if (Number.isInteger(overrideCap) && overrideCap > 0) return overrideCap;
@@ -829,7 +828,7 @@ async function getAppointmentSlotCapacityForDate(slotId, dateISO) {
 
 async function countBookedAppointmentsForSlot(slotId, dateISO) {
   const slotIdStr = String(slotId || "");
-  if (!mongoose.Types.ObjectId.isValid(slotIdStr)) return null;
+  if (!isValidId(slotIdStr)) return null;
   const safeDate = parseLocalDateString(dateISO);
   if (!safeDate) return null;
 
@@ -855,11 +854,13 @@ const SLOT_BOOKING_CUTOFF_MINUTES = Math.max(0, Number.parseInt(process.env.SLOT
 
 /** Time-range text (as saved on service requests) -> slot code. Same variants the staff page understands. */
 const SLOT_LABEL_PATTERNS = [
+  { code: "0800", patterns: ["8:00 am - 9:00 am", "08:00 am - 09:00 am", "8:00 am - 09:00 am", "08:00 am - 9:00 am"] },
   { code: "0900", patterns: ["9:00 am - 10:00 am", "09:00 am - 10:00 am"] },
   { code: "1000", patterns: ["10:00 am - 11:00 am"] },
   { code: "1100", patterns: ["11:00 am - 12:00 pm", "11:00 am - 12:00 nn", "11:00 am - 12:00"] },
   { code: "0100", patterns: ["1:00 pm - 2:00 pm", "01:00 pm - 02:00 pm"] },
-  { code: "0300", patterns: ["2:00 pm - 3:00 pm", "3:00 pm - 4:00 pm", "03:00 pm - 04:00 pm"] },
+  { code: "0200", patterns: ["2:00 pm - 3:00 pm", "02:00 pm - 03:00 pm", "2:00 pm - 03:00 pm", "02:00 pm - 3:00 pm"] },
+  { code: "0300", patterns: ["3:00 pm - 4:00 pm", "03:00 pm - 04:00 pm", "3:00 pm - 04:00 pm", "03:00 pm - 4:00 pm"] },
   { code: "0400", patterns: ["4:00 pm - 5:00 pm", "04:00 pm - 05:00 pm"] }
 ];
 
@@ -906,6 +907,61 @@ function slotStartMinutes(slot) {
   return h * 60 + (Number.isInteger(min) ? min : 0);
 }
 
+// ---------------------------------------------------------------------------
+// Service hours: 8:00 AM - 5:00 PM, with a lunch break from 12:00 PM to 1:00 PM (no bookings).
+// ---------------------------------------------------------------------------
+const SERVICE_OPEN_MINUTES = 8 * 60;      // 8:00 AM
+const SERVICE_CLOSE_MINUTES = 17 * 60;    // 5:00 PM
+const LUNCH_START_MINUTES = 12 * 60;      // 12:00 PM
+const LUNCH_END_MINUTES = 13 * 60;        // 1:00 PM
+const SLOT_LENGTH_MINUTES = 60;
+
+/** True when a slot sits inside service hours and does not overlap the 12:00-1:00 PM lunch break. */
+function isSlotWithinServiceHours(slot) {
+  const start = slotStartMinutes(slot);
+  if (start === null) return false;
+  const end = start + SLOT_LENGTH_MINUTES;
+  if (start < SERVICE_OPEN_MINUTES || end > SERVICE_CLOSE_MINUTES) return false;
+  if (start < LUNCH_END_MINUTES && end > LUNCH_START_MINUTES) return false;   // overlaps lunch
+  return true;
+}
+
+/** The slots the office offers. Run at startup so existing databases get the 8 AM and 2 PM slots too. */
+const SERVICE_SLOT_DEFAULTS = [
+  { slotCode: "0800", label: "08:00 AM - 09:00 AM", phaseLabel: "Phase 1", isMorningPickupOnly: true, defaultCapacity: 10 },
+  { slotCode: "0900", label: "09:00 AM - 10:00 AM", phaseLabel: "Phase 2", isMorningPickupOnly: true, defaultCapacity: 10 },
+  { slotCode: "1000", label: "10:00 AM - 11:00 AM", phaseLabel: "Phase 3", isMorningPickupOnly: true, defaultCapacity: 10 },
+  { slotCode: "1100", label: "11:00 AM - 12:00 PM", phaseLabel: "Phase 4", isMorningPickupOnly: true, defaultCapacity: 10 },
+  { slotCode: "0100", label: "01:00 PM - 02:00 PM", phaseLabel: "Phase 5", isMorningPickupOnly: false, defaultCapacity: 15 },
+  { slotCode: "0200", label: "02:00 PM - 03:00 PM", phaseLabel: "Phase 6", isMorningPickupOnly: false, defaultCapacity: 15 },
+  { slotCode: "0300", label: "03:00 PM - 04:00 PM", phaseLabel: "Phase 7", isMorningPickupOnly: false, defaultCapacity: 15 },
+  { slotCode: "0400", label: "04:00 PM - 05:00 PM", phaseLabel: "Phase 8", isMorningPickupOnly: false, defaultCapacity: 15 }
+];
+
+async function ensureServiceHourSlots() {
+  try {
+    for (const def of SERVICE_SLOT_DEFAULTS) {
+      const existing = await AppointmentSlot.findOne({ slotCode: def.slotCode }).lean();
+      if (!existing) {
+        await AppointmentSlot.create({ ...def, isActive: true });
+        console.log(`[backend] Added appointment slot ${def.label}.`);
+      } else if (existing.phaseLabel !== def.phaseLabel) {
+        await AppointmentSlot.updateOne({ _id: existing._id }, { $set: { phaseLabel: def.phaseLabel } });
+      }
+    }
+    // Anything outside 8-12 / 1-5 (e.g. a lunch-hour slot added by hand) is switched off.
+    const all = await AppointmentSlot.find({ isActive: true }).lean();
+    for (const slot of all) {
+      if (!isSlotWithinServiceHours(slot)) {
+        await AppointmentSlot.updateOne({ _id: slot._id }, { $set: { isActive: false } });
+        console.log(`[backend] Deactivated slot outside service hours / during lunch: ${slot.label}.`);
+      }
+    }
+  } catch (error) {
+    console.error("[backend] Could not sync appointment slots:", error.message);
+  }
+}
+
 /** { isClosed, reason: "time-passed" | "manual" | null } for one slot on one date. */
 function computeSlotClosure(slot, override, dateISO, now = nowPH()) {
   if (dateISO < now.dateISO) return { isClosed: true, reason: "time-passed" };
@@ -941,7 +997,9 @@ async function getSlotClosureForDate(slotId, dateISO) {
 async function validateRequestTimeSlot(timeLabel, dateISO) {
   const code = slotCodeFromTimeLabel(timeLabel);
   const slot = code ? await AppointmentSlot.findOne({ slotCode: code, isActive: true }).lean() : null;
-  if (!slot) return { ok: false, status: 400, message: "Selected time slot is unavailable." };
+  if (!slot || !isSlotWithinServiceHours(slot)) {
+    return { ok: false, status: 400, message: "Selected time slot is unavailable. Service hours are 8:00 AM to 5:00 PM, with lunch from 12:00 PM to 1:00 PM." };
+  }
 
   const override = await AppointmentSlotOverride.findOne({ slotId: String(slot._id), overrideDate: dateISO }).lean();
   const closure = computeSlotClosure(slot, override, dateISO);
@@ -1449,7 +1507,7 @@ async function summarizeAuditDescriptionsWithGroq(logs) {
 // Return basic API status and whether required env vars are present.
 app.get("/health", async (_req, res) => {
   // Lightweight check that API server is up and env is loaded.
-  const hasMongoConfig = Boolean(String(process.env.MONGODB_URI || "").trim());
+  const hasDbConfig = Boolean(String(process.env.DATABASE_URL || "").trim());
   const hasJwtConfig = Boolean(
     String(process.env.JWT_ACCESS_SECRET || "").trim() && String(process.env.JWT_REFRESH_SECRET || "").trim()
   );
@@ -1459,19 +1517,26 @@ app.get("/health", async (_req, res) => {
   res.json({
     ok: true,
     service: "backend",
-    mongoConfigured: hasMongoConfig,
+    databaseConfigured: hasDbConfig,
     jwtConfigured: hasJwtConfig,
     geminiConfigured,
     groqConfigured
   });
 });
 
-// Lightweight readiness check for the MongoDB connection. Renamed from the
-// old /supabase/health — confirmed via grep that nothing in the frontend
-// calls this route by name, so the URL itself is free to change.
+// Database readiness check. The path keeps its old name so any existing uptime monitor / Render
+// health-check setting keeps working (/health above only reports that the API process is up).
 app.get("/mongodb/health", async (_req, res) => {
-  const configured = Boolean(process.env.MONGODB_URI);
-  const connected = mongoose.connection.readyState === 1; // 1 = connected
+  const configured = Boolean(process.env.DATABASE_URL);
+  let connected = false;
+  if (configured) {
+    try {
+      await pool.query("SELECT 1");
+      connected = true;
+    } catch (_) {
+      connected = false;
+    }
+  }
   return res.json({ ok: configured && connected, configured, connected });
 });
 
@@ -1858,7 +1923,7 @@ async function getResidentDisplayNameForStaff(residentUserId) {
  */
 async function attachResidentNamesToRows(rows) {
   try {
-    const ids = [...new Set(rows.map((r) => r.residentUserId).filter((id) => id && mongoose.Types.ObjectId.isValid(id)))];
+    const ids = [...new Set(rows.map((r) => r.residentUserId).filter((id) => id && isValidId(id)))];
     const nameById = new Map();
     if (ids.length) {
       const users = await User.find({ _id: { $in: ids } }).select("fullName email").lean();
@@ -2003,7 +2068,7 @@ async function upsertResidentProfile({ email, fullName, residentSelfRegistered =
 function parseResidentUserId(rawValue) {
   if (rawValue === undefined || rawValue === null || rawValue === "") return null;
   const str = String(rawValue).trim();
-  return mongoose.Types.ObjectId.isValid(str) ? str : null;
+  return isValidId(str) ? str : null;
 }
 
 function residentRegisterUploadMiddleware(req, res, next) {
@@ -2449,7 +2514,13 @@ app.post("/auth/resident/forgot-password", forgotPasswordLimiter, async (req, re
     });
     void insertAuthAuditEvent({ action: "password_reset_requested", email: user.email, role: user.role, req });
     // Not awaited, so the response time is the same whether or not an account exists.
-    void sendSmsBatch([phone], `SerbisyoBurgos: Your password reset code is ${code}. It expires in 10 minutes. Never share this code with anyone.`)
+    void sendSmsBatch([phone], `SerbisyoBurgos: Your password reset code is ${code}. It expires in 10 minutes. Never share this code with anyone.`, {
+      purpose: "password_reset",
+      relatedType: "user",
+      relatedId: user._id,
+      userIds: { [phone]: String(user._id) },
+      logMessage: "SerbisyoBurgos: Your password reset code is ****** (hidden). It expires in 10 minutes. Never share this code with anyone."
+    })
       .then((r) => { if (r.failed) console.warn("[forgot-password] SMS failed:", (r.errors || []).join("; ")); });
     return res.json(generic);
   } catch (err) {
@@ -2502,7 +2573,12 @@ app.post("/auth/resident/reset-password", resetPasswordLimiter, async (req, res)
 
     const phone = normalizePhNumber(user.contactNumber);
     if (phone) {
-      void sendSmsBatch([phone], "SerbisyoBurgos: Your password was changed. If this was not you, please contact the barangay hall right away.");
+      void sendSmsBatch([phone], "SerbisyoBurgos: Your password was changed. If this was not you, please contact the barangay hall right away.", {
+        purpose: "password_changed",
+        relatedType: "user",
+        relatedId: user._id,
+        userIds: { [phone]: String(user._id) }
+      });
     }
     return res.json({ ok: true, message: "Your password has been changed. You can now log in." });
   } catch (err) {
@@ -2703,7 +2779,7 @@ app.get("/files/:id", (req, res, next) => {
   if (!auth) return;
 
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({ ok: false, message: "Invalid file id." });
   }
 
@@ -3004,7 +3080,10 @@ app.get("/appointment-slots", async (req, res) => {
 
   let slots, overrides, bookedRows;
   try {
-    slots = await AppointmentSlot.find({ isActive: true }).sort({ _id: 1 }).lean();
+    slots = await AppointmentSlot.find({ isActive: true }).lean();
+    slots = slots
+      .filter(isSlotWithinServiceHours)                                   // never offer 12:00-1:00 PM or off-hours
+      .sort((a, b) => (slotStartMinutes(a) ?? 0) - (slotStartMinutes(b) ?? 0));
     overrides = await AppointmentSlotOverride.find({ overrideDate: dateISO }).lean();
     bookedRows = await Appointment.find({
       appointmentDate: dateISO,
@@ -3064,7 +3143,7 @@ app.put("/admin/appointment-slot-overrides", async (req, res) => {
   const parsedLimit = Number(capacityLimit);
   const dateISO = parseLocalDateString(date);
 
-  if (!mongoose.Types.ObjectId.isValid(String(slotId || ""))) {
+  if (!isValidId(String(slotId || ""))) {
     return res.status(400).json({ ok: false, message: "slotId must be a valid id." });
   }
   if (!dateISO) {
@@ -3112,7 +3191,7 @@ app.put("/admin/appointment-slot-status", async (req, res) => {
 
   const { slotId, date, isClosed } = req.body || {};
   const dateISO = parseLocalDateString(date);
-  if (!mongoose.Types.ObjectId.isValid(String(slotId || ""))) {
+  if (!isValidId(String(slotId || ""))) {
     return res.status(400).json({ ok: false, message: "slotId must be a valid id." });
   }
   if (!dateISO) {
@@ -3195,7 +3274,7 @@ app.get("/requests", async (req, res) => {
 
 app.get("/requests/:id", async (req, res) => {
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({
       ok: false,
       message: "Invalid request id."
@@ -3287,6 +3366,81 @@ app.get("/requests/by-reference/:referenceNo", async (req, res) => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// SMS to the resident when their service request is Rejected or Ready for Pickup.
+// Runs in the background: a texting problem must never fail or slow down the status update.
+// Skipped when the resident opted out of SMS, has no valid PH mobile number, the request has no
+// linked resident account, or TextBee is not configured.
+// ---------------------------------------------------------------------------
+const REQUEST_SMS_STATUSES = new Set(["Ready for Pickup", "Rejected"]);
+
+function buildRequestStatusSms({ referenceNo, serviceLabel, status, note, officeHours, contactNumber }) {
+  // Plain ASCII on purpose: a single non-GSM character (like "…") makes the phone split the text
+  // into much shorter segments.
+  const ref = String(referenceNo || "").trim();
+  const label = String(serviceLabel || "").trim().slice(0, 60);
+  const what = [ref, label ? `(${label})` : ""].filter(Boolean).join(" ");
+  let extra = String(note || "").replace(/\s+/g, " ").trim();
+  if (extra.length > 80) extra = extra.slice(0, 77).trimEnd() + "...";
+  const end = (t) => (/[.!?]$/.test(t) ? t : t + ".");
+
+  if (status === "Ready for Pickup") {
+    let text = `SerbisyoBurgos: Your request ${what} is now ready for pickup at the Barangay Hall.`;
+    if (officeHours) text += ` Office hours: ${end(String(officeHours).trim())}`;
+    if (extra) text += ` Note: ${end(extra)}`;
+    return text;
+  }
+  let text = `SerbisyoBurgos: Your request ${what} was not approved.`;
+  if (extra) text += ` Reason: ${end(extra)}`;
+  text += " Please contact the Barangay Hall for details";
+  if (contactNumber) text += ` at ${String(contactNumber).trim()}`;
+  return text + ".";
+}
+
+async function notifyResidentOfRequestStatus(requestDoc, status, note, actorEmail) {
+  try {
+    if (!REQUEST_SMS_STATUSES.has(status) || !requestDoc?.residentUserId) return;
+    const resident = await User.findOne({
+      _id: requestDoc.residentUserId,
+      role: "resident",
+      isActive: true,
+      smsOptOut: { $ne: true }
+    })
+      .select("contactNumber")
+      .lean();
+    const phone = normalizePhNumber(resident?.contactNumber);
+    if (!phone) return;
+    const site = await getSiteInfoFromDb();
+    const text = buildRequestStatusSms({
+      referenceNo: requestDoc.referenceNo,
+      serviceLabel: requestDoc.serviceType || requestDoc.title,
+      status,
+      note,
+      officeHours: site?.officeHours,
+      contactNumber: site?.contactNumber
+    });
+    const result = await sendSmsBatch([phone], text, {
+      purpose: "request_status",
+      relatedType: "service_request",
+      relatedId: requestDoc._id,
+      createdByEmail: actorEmail || null,
+      userIds: { [phone]: String(requestDoc.residentUserId) }
+    });
+    if (result.failed) console.warn("[request-sms] SMS failed:", (result.errors || []).join("; "));
+  } catch (err) {
+    console.warn("[request-sms] error:", err?.message || err);
+  }
+}
+
+// Rejecting something always needs a reason the resident can read (shown in the portal, and in the SMS for
+// service requests). Enforced here, not only in the staff UI, so no client can skip it.
+const MIN_REJECTION_REASON_LEN = 5;
+function rejectionReasonError(nextStatus, safeNote, what) {
+  if (nextStatus !== "Rejected") return null;
+  if (String(safeNote || "").trim().length >= MIN_REJECTION_REASON_LEN) return null;
+  return `Please enter the reason for rejecting this ${what} (at least ${MIN_REJECTION_REASON_LEN} characters). The resident will see it.`;
+}
+
 app.patch("/requests/:id/status", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
@@ -3295,7 +3449,7 @@ app.patch("/requests/:id/status", async (req, res) => {
   const { status, note } = req.body || {};
   const safeNote =
     typeof note === "string" && note.trim() ? sanitizePlainTextField(note, MAX_STATUS_NOTE_LEN) : null;
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({
       ok: false,
       message: "Invalid request id."
@@ -3311,6 +3465,10 @@ app.patch("/requests/:id/status", async (req, res) => {
   }
 
   const nextStatus = String(status);
+  const missingReason = rejectionReasonError(nextStatus, safeNote, "request");
+  if (missingReason) {
+    return res.status(400).json({ ok: false, message: missingReason });
+  }
   let existing;
   try {
     existing = await ServiceRequest.findById(id).lean();
@@ -3387,6 +3545,9 @@ app.patch("/requests/:id/status", async (req, res) => {
     }
   });
 
+  // Text the resident for the two statuses that need their attention (only on a real change).
+  if (prev !== nextStatus) void notifyResidentOfRequestStatus(data, nextStatus, safeNote, auth.profile?.email);
+
   return res.json({
     ok: true,
     request: requestRow
@@ -3409,6 +3570,12 @@ app.post("/requests", async (req, res) => {
     return res.status(400).json({
       ok: false,
       message: "title, serviceType, preferredDate, and preferredTimeSlot are required. Use YYYY-MM-DD for dates."
+    });
+  }
+  if (!safePurpose) {
+    return res.status(400).json({
+      ok: false,
+      message: "Purpose is required. Please state what the document is for."
     });
   }
 
@@ -3501,7 +3668,7 @@ app.get("/requests/:id/document-data", async (req, res) => {
   if (!auth) return;
 
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({ ok: false, message: "Invalid request id." });
   }
 
@@ -3563,7 +3730,7 @@ app.delete("/requests/:id", async (req, res) => {
   if (!actor) return;
 
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({
       ok: false,
       message: "Invalid request id."
@@ -3691,7 +3858,7 @@ app.get("/appointments", async (req, res) => {
 
 app.get("/appointments/:id", async (req, res) => {
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({
       ok: false,
       message: "Invalid appointment id."
@@ -3819,7 +3986,7 @@ app.post("/appointments", async (req, res) => {
   }
 
   const parsedSlotId = String(slotId || "");
-  if (!mongoose.Types.ObjectId.isValid(parsedSlotId)) {
+  if (!isValidId(parsedSlotId)) {
     return res.status(400).json({
       ok: false,
       message: "Invalid slotId."
@@ -3916,7 +4083,7 @@ app.patch("/appointments/:id/status", async (req, res) => {
   const { status, note } = req.body || {};
   const safeNote =
     typeof note === "string" && note.trim() ? sanitizePlainTextField(note, MAX_STATUS_NOTE_LEN) : "";
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({
       ok: false,
       message: "Invalid appointment id."
@@ -3947,6 +4114,10 @@ app.patch("/appointments/:id/status", async (req, res) => {
       ok: false,
       message: "Invalid status value."
     });
+  }
+  const missingReason = rejectionReasonError(mappedStatus, safeNote, "appointment");
+  if (missingReason) {
+    return res.status(400).json({ ok: false, message: missingReason });
   }
 
   let existing;
@@ -4036,7 +4207,7 @@ app.delete("/appointments/:id", async (req, res) => {
   if (!actor) return;
 
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({
       ok: false,
       message: "Invalid appointment id."
@@ -4328,15 +4499,18 @@ async function collectResidentSmsNumbers(puroks) {
   const rows = await loadSmsEligibleRows();
   const want = Array.isArray(puroks) && puroks.length ? new Set(puroks.map((p) => p.toLowerCase())) : null;
   const valid = new Set();
+  const userIds = {}; // number -> resident id (first resident wins when a family shares a number)
   let invalid = 0;
   for (const row of rows) {
     const purok = String(row.residentProfile?.purok || "").trim().toLowerCase();
     if (want && !want.has(purok)) continue;
     const n = normalizePhNumber(row.contactNumber);
-    if (n) valid.add(n);
-    else invalid += 1;
+    if (n) {
+      valid.add(n);
+      if (!userIds[n]) userIds[n] = String(row._id);
+    } else invalid += 1;
   }
-  return { numbers: [...valid], invalid };
+  return { numbers: [...valid], invalid, userIds };
 }
 
 function buildAnnouncementSms({ category, title, body }) {
@@ -4428,11 +4602,17 @@ app.post("/admin/announcements", async (req, res) => {
     } else {
       try {
         const smsPuroks = parseSmsPuroks(req.body?.smsPuroks);
-        const { numbers, invalid } = await collectResidentSmsNumbers(smsPuroks);
+        const { numbers, invalid, userIds } = await collectResidentSmsNumbers(smsPuroks);
         const smsText = buildAnnouncementSms({ category: safeCategory || "Community News", title: safeTitle, body: safeBody });
         smsInfo = { requested: true, queued: numbers.length, skippedInvalid: invalid, puroks: smsPuroks };
         if (numbers.length) {
-          void sendSmsBatch(numbers, smsText).then((r) => {
+          void sendSmsBatch(numbers, smsText, {
+            purpose: "announcement",
+            relatedType: "announcement",
+            relatedId: createdRow.id,
+            createdByEmail: auth.profile?.email || null,
+            userIds
+          }).then((r) => {
             console.log(`[sms] announcement ${createdRow.id}: sent ${r.sent}, failed ${r.failed}`, r.errors);
             void insertPortalAuditEvent({
               action: "Updated Record",
@@ -4507,7 +4687,7 @@ app.post("/admin/announcements/:id/archive", async (req, res) => {
   }
 
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({ ok: false, message: "Invalid announcement id." });
   }
 
@@ -4567,7 +4747,7 @@ app.post("/admin/announcements/:id/restore", async (req, res) => {
   }
 
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({ ok: false, message: "Invalid announcement id." });
   }
 
@@ -4667,7 +4847,7 @@ app.post("/admin/announcement-drafts", async (req, res) => {
   try {
     let saved;
     if (id) {
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      if (!isValidId(id)) {
         return res.status(400).json({ ok: false, message: "Invalid draft id." });
       }
       saved = await AnnouncementDraft.findByIdAndUpdate(id, { $set: fields }, { new: true }).lean();
@@ -4692,7 +4872,7 @@ app.delete("/admin/announcement-drafts/:id", async (req, res) => {
   const auth = await requireAdminForDrafts(req, res);
   if (!auth) return;
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({ ok: false, message: "Invalid draft id." });
   }
   try {
@@ -4715,7 +4895,7 @@ function pctCompleted(completed, total) {
 }
 
 /** Inclusive office-hour window for peak-hours chart (9 AM–5 PM bars; excludes 8 AM / 6 PM). */
-const ANALYTICS_HOURLY_CHART_START_HOUR = 9;
+const ANALYTICS_HOURLY_CHART_START_HOUR = 8;
 const ANALYTICS_HOURLY_CHART_END_HOUR = 17;
 
 /**
@@ -4792,10 +4972,10 @@ function formatAnalyticsHourAxisLabel(hour24) {
   return `${hour24 - 12} PM`;
 }
 
-/** Bar chart order: 9 AM first, then forward through the day; hours before 9 (e.g. 8 AM) trail at the end. */
+/** Bar chart order: 8 AM first, then forward through the day. */
 function analyticsSlotBarOrderKey(hour24) {
   if (!Number.isInteger(hour24) || hour24 < 0 || hour24 > 23) return 1000;
-  return (hour24 + 15) % 24;
+  return (hour24 + 16) % 24;
 }
 
 function appointmentPreferredStartHour24(slot) {
@@ -5541,26 +5721,22 @@ app.get("/staff/residents/stats", async (req, res) => {
     const today = new Date(Date.now() + PH_UTC_OFFSET_MS);
     // Someone born on or before this day is already 60 today.
     const seniorCutoff = new Date(Date.UTC(today.getUTCFullYear() - SENIOR_CITIZEN_AGE, today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999));
-    const hasBirthDate = { $eq: [{ $type: "$residentProfile.birthDate" }, "date"] };
-    const isSenior = { $and: [hasBirthDate, { $lte: ["$residentProfile.birthDate", seniorCutoff] }] };
-    const isSex = (sex) => ({ $eq: ["$residentProfile.sex", sex] });
-    const count = (cond) => ({ $sum: { $cond: [cond, 1, 0] } });
-
-    const [row] = await User.aggregate([
-      { $match: confirmedResidentQuery() },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: 1 },
-          male: count(isSex("Male")),
-          female: count(isSex("Female")),
-          seniors: count(isSenior),
-          seniorMale: count({ $and: [isSenior, isSex("Male")] }),
-          seniorFemale: count({ $and: [isSenior, isSex("Female")] }),
-          noBirthDate: count({ $not: [hasBirthDate] })
-        }
+    const people = await User.find(confirmedResidentQuery()).select("residentProfile.sex residentProfile.birthDate").lean();
+    const row = { total: 0, male: 0, female: 0, seniors: 0, seniorMale: 0, seniorFemale: 0, noBirthDate: 0 };
+    for (const person of people) {
+      const rp = person.residentProfile || {};
+      const hasBirthDate = rp.birthDate instanceof Date && !Number.isNaN(rp.birthDate.getTime());
+      const senior = hasBirthDate && rp.birthDate <= seniorCutoff;
+      row.total += 1;
+      if (rp.sex === "Male") row.male += 1;
+      if (rp.sex === "Female") row.female += 1;
+      if (senior) {
+        row.seniors += 1;
+        if (rp.sex === "Male") row.seniorMale += 1;
+        if (rp.sex === "Female") row.seniorFemale += 1;
       }
-    ]);
+      if (!hasBirthDate) row.noBirthDate += 1;
+    }
     const r = row || {};
     return res.json({
       ok: true,
@@ -5692,7 +5868,7 @@ app.post("/staff/residents/:id/reset-password", adminStaffCreateLimiter, async (
   const auth = await requireResidentProfilingAccess(req, res);
   if (!auth) return;
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({ ok: false, message: "Invalid resident id." });
   }
   const custom = String(req.body?.password || "");
@@ -5838,7 +6014,7 @@ app.get("/staff/residents/:id", async (req, res) => {
   const auth = await requireResidentProfilingAccess(req, res);
   if (!auth) return;
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({ ok: false, message: "Invalid resident id." });
   }
   try {
@@ -5861,7 +6037,7 @@ app.patch("/staff/residents/:id", async (req, res) => {
   const auth = await requireResidentProfilingAccess(req, res);
   if (!auth) return;
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({ ok: false, message: "Invalid resident id." });
   }
   const body = req.body && typeof req.body === "object" ? req.body : {};
@@ -6257,7 +6433,7 @@ app.post("/admin/profiles/approve-link", async (req, res) => {
   if (!email || !isValidEmailFormat(email)) {
     return res.status(400).json({ ok: false, message: "A valid email is required." });
   }
-  if (!mongoose.Types.ObjectId.isValid(recordId)) {
+  if (!isValidId(recordId)) {
     return res.status(400).json({ ok: false, message: "Choose the resident record to link." });
   }
 
@@ -6417,7 +6593,7 @@ app.patch("/admin/profiles/account-status", async (req, res) => {
   });
 });
 
-/** System administrator creates the Barangay Secretary (staff) account in MongoDB. */
+/** System administrator creates the Barangay Secretary (staff) account in the database. */
 app.post("/admin/staff", adminStaffCreateLimiter, async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
@@ -6794,7 +6970,7 @@ app.patch("/admin/service-catalog/:id", async (req, res) => {
   if (!auth) return;
 
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({ ok: false, message: "Invalid service id." });
   }
 
@@ -6855,7 +7031,7 @@ app.post("/admin/service-catalog/:id/archive", async (req, res) => {
   if (!auth) return;
 
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({ ok: false, message: "Invalid service id." });
   }
 
@@ -7093,7 +7269,7 @@ app.delete("/system-admin/service-request-types/:id", async (req, res) => {
   if (!auth) return;
 
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({ ok: false, message: "Invalid service id." });
   }
 
@@ -7197,7 +7373,7 @@ app.post("/system-admin/appointment-purpose-types", async (req, res) => {
       });
       return res.status(201).json({ ok: true, purpose: row });
     } catch (error) {
-      // E11000 = MongoDB's duplicate key error, matching the old Postgres
+      // 11000 = the duplicate-key code db/engine.js reports for a Postgres unique violation, matching the old Postgres
       // "duplicate/unique/idx_appointment_purpose_code_active" check —
       // same partial-unique-index behavior enforced in
       // models/AppointmentPurposeCatalog.js, just a different error shape.
@@ -7223,7 +7399,7 @@ app.delete("/system-admin/appointment-purpose-types/:id", async (req, res) => {
   if (!auth) return;
 
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     return res.status(400).json({ ok: false, message: "Invalid purpose id." });
   }
 
@@ -7553,7 +7729,7 @@ async function fetchAuthAuditRowsForSystemAdmin(limit, query = {}) {
   const lim = Math.min(500, Math.max(1, limit));
   try {
     const rows = await AuthAuditEvent.find(query).sort({ createdAt: -1 }).limit(lim).lean();
-    return { rows, error: null, via: "mongodb" };
+    return { rows, error: null, via: "postgres" };
   } catch (error) {
     return { rows: [], error: error.message || "Could not load auth audit log.", via: null };
   }
@@ -7611,6 +7787,90 @@ function parseAuditLogFilters(query) {
   if (toDateExclusive) createdAt.$lt = toDateExclusive;
   return { action, q, createdAtRange: Object.keys(createdAt).length ? createdAt : null };
 }
+
+// ---------------------------------------------------------------------------
+// System admin: SMS log (one row per text handed to the gateway — see db/migrations/002_sms_log.sql).
+// "sent" means the TextBee gateway accepted the message; it is not a handset delivery receipt.
+// ---------------------------------------------------------------------------
+const SMS_LOG_PURPOSE_LABELS = {
+  request_status: "Request Update",
+  announcement: "Announcement",
+  password_reset: "Password Reset Code",
+  password_changed: "Password Changed Alert"
+};
+
+app.get("/system-admin/sms-logs", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  if (auth.profile.role !== "system-admin") {
+    return res.status(403).json({ ok: false, message: "System admin role is required to view the SMS log." });
+  }
+  try {
+    const offRaw = Number.parseInt(String(req.query?.offset ?? "0"), 10);
+    const offset = Number.isFinite(offRaw) && offRaw >= 0 ? Math.min(offRaw, 1_000_000) : 0;
+    const limRaw = Number.parseInt(String(req.query?.limit ?? "15"), 10);
+    const limit = Number.isFinite(limRaw) && limRaw > 0 ? Math.min(100, limRaw) : 15;
+
+    const filters = parseAuditLogFilters(req.query); // reuses from= / to= / q=
+    const status = ["sent", "failed"].includes(String(req.query?.status || "")) ? String(req.query.status) : null;
+    const purpose = Object.keys(SMS_LOG_PURPOSE_LABELS).includes(String(req.query?.purpose || ""))
+      ? String(req.query.purpose)
+      : null;
+
+    // Everything except `status`, so the Sent / Failed totals always describe the same filtered set.
+    const base = {};
+    if (filters.createdAtRange) base.createdAt = filters.createdAtRange;
+    if (purpose) base.purpose = purpose;
+    if (filters.q) {
+      const rx = new RegExp(escapeRegexLiteral(filters.q), "i");
+      base.$or = [{ recipient: rx }, { message: rx }, { error: rx }, { relatedId: rx }, { createdByEmail: rx }];
+    }
+    const listFilter = status ? { ...base, status } : base;
+
+    const [rows, total, sentCount, failedCount] = await Promise.all([
+      SmsLog.find(listFilter).sort({ createdAt: -1 }).skip(offset).limit(limit).lean(),
+      SmsLog.countDocuments(listFilter),
+      SmsLog.countDocuments({ ...base, status: "sent" }),
+      SmsLog.countDocuments({ ...base, status: "failed" })
+    ]);
+
+    const userIds = [...new Set(rows.map((r) => r.residentUserId).filter(Boolean).map(String))];
+    const people = userIds.length ? await User.find({ _id: { $in: userIds } }).select("fullName").lean() : [];
+    const nameById = new Map(people.map((p) => [String(p._id), p.fullName]));
+
+    return res.json({
+      ok: true,
+      total,
+      offset,
+      limit,
+      summary: { sent: sentCount, failed: failedCount },
+      logs: rows.map((r) => ({
+        id: String(r._id),
+        purpose: r.purpose,
+        purposeLabel: SMS_LOG_PURPOSE_LABELS[r.purpose] || r.purpose,
+        recipient: r.recipient,
+        residentName: r.residentUserId ? nameById.get(String(r.residentUserId)) || null : null,
+        message: r.message,
+        status: r.status,
+        error: r.error || null,
+        relatedType: r.relatedType || null,
+        relatedId: r.relatedId || null,
+        sentBy: r.createdByEmail || null,
+        createdAt: r.createdAt,
+        dateDisplay: formatAuditDateDisplay(r.createdAt)
+      }))
+    });
+  } catch (err) {
+    if (err?.code === "42P01") {
+      // undefined_table: the database has not had db/migrations/002_sms_log.sql applied yet.
+      return res.status(500).json({
+        ok: false,
+        message: 'The SMS log table has not been created yet. Run "node scripts/migrate-db.js" against this database, then reload.'
+      });
+    }
+    return res.status(500).json({ ok: false, message: "Unable to load the SMS log.", detail: err?.message || String(err) });
+  }
+});
 
 /** Merges our own auth audit events (logins/registrations/password changes) with portal audit events for the system-admin audit UI. */
 app.get("/system-admin/audit-logs", async (req, res) => {
@@ -7749,7 +8009,7 @@ app.get("/system-admin/audit-logs", async (req, res) => {
   if (rows.length === 0 && authError && !databaseAuditAvailable) {
     return res.status(503).json({
       ok: false,
-      message: "Unable to read audit logs. Check the MongoDB connection and retry.",
+      message: "Unable to read audit logs. Check the database connection and retry.",
       detail: authError
     });
   }
@@ -7815,7 +8075,7 @@ app.get("/system-admin/audit-logs", async (req, res) => {
 
 // ---------------------------------------------------------------------------
 // System admin: data backup (JSON export).
-// Streams every business collection as one MongoDB Extended JSON file so ids and
+// Streams every business table as one JSON file so ids and
 // dates survive a round trip. Password hashes and session counters are NEVER
 // included. Uploaded files (ID photos, attachments, avatars) live in GridFS and
 // are not part of this export; only their file ids are kept.
@@ -7884,7 +8144,6 @@ app.get("/system-admin/backup/export", async (req, res) => {
   const auth = await requireSystemAdminUser(req, res);
   if (!auth) return;
 
-  const { EJSON } = mongoose.mongo.BSON;
   const { once } = require("events");
   // The Backup page also reads this export to build its Excel report (?purpose=excel).
   const forExcel = String(req.query?.purpose || "") === "excel";
@@ -7913,12 +8172,12 @@ app.get("/system-admin/backup/export", async (req, res) => {
     const meta = {
       app: "SerbisyoBurgos",
       schemaVersion: BACKUP_SCHEMA_VERSION,
-      format: "MongoDB Extended JSON (relaxed)",
+      format: "JSON (ISO-8601 dates, string ids)",
       exportedAt: exportedAt.toISOString(),
       exportedBy: auth.profile?.email || null,
       counts,
       totalRecords,
-      notIncluded: ["passwordHash", "tokenVersion", "uploaded files (GridFS)"]
+      notIncluded: ["passwordHash", "tokenVersion", "uploaded files"]
     };
     await write(`{"meta":${JSON.stringify(meta)},"collections":{`);
     let firstCollection = true;
@@ -7929,7 +8188,7 @@ app.get("/system-admin/backup/export", async (req, res) => {
       if (c.select) query = query.select(c.select);
       let firstDoc = true;
       for await (const doc of query.lean().cursor()) {
-        await write(`${firstDoc ? "" : ","}${EJSON.stringify(doc, { relaxed: true })}`);
+        await write(`${firstDoc ? "" : ","}${JSON.stringify(doc)}`);
         firstDoc = false;
       }
       await write("]");
@@ -7955,65 +8214,19 @@ app.get("/system-admin/backup/export", async (req, res) => {
 
 // Start the API server on the configured port (explicit http.Server for error + diagnostics).
 // ---------------------------------------------------------------------------
-// Animal Vaccine Tracker (staff portal): animals, owners and vaccination history.
+// Animal Vaccine Tracker (staff portal): one record per pet, linked to its owner (a resident),
+// with a simple vaccinated / not vaccinated flag.
 // Open to every staff-portal role (staff, admin, system-admin).
 // Records are archived, not deleted.
 // ---------------------------------------------------------------------------
-const ANIMAL_DUE_SOON_DAYS = 30;
 
 /** Today's date (YYYY-MM-DD) in Philippine time. */
 function todayPH() {
   return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-function addDaysISO(iso, days) {
-  const d = new Date(`${iso}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-/**
- * Status comes from the latest dose of each vaccine that has a booster date:
- * Overdue (past due) > Due Soon (within 30 days) > Up to Date. No doses = Not Vaccinated.
- */
-function computeAnimalVaccineStatus(vaccinations, today = todayPH()) {
-  const list = Array.isArray(vaccinations) ? vaccinations : [];
-  if (!list.length) return { status: "Not Vaccinated", nextDueDate: null, lastVaccinatedOn: null };
-
-  const latestByVaccine = new Map();
-  let lastVaccinatedOn = null;
-  for (const v of list) {
-    if (!lastVaccinatedOn || String(v.dateGiven) > lastVaccinatedOn) lastVaccinatedOn = String(v.dateGiven);
-    const key = String(v.vaccine || "").trim().toLowerCase();
-    const cur = latestByVaccine.get(key);
-    if (!cur || String(v.dateGiven) >= String(cur.dateGiven)) latestByVaccine.set(key, v);
-  }
-
-  const soonLimit = addDaysISO(today, ANIMAL_DUE_SOON_DAYS);
-  let status = "Up to Date";
-  let nextDueDate = null;
-  for (const v of latestByVaccine.values()) {
-    if (!v.nextDueDate) continue;
-    if (!nextDueDate || v.nextDueDate < nextDueDate) nextDueDate = v.nextDueDate;
-    if (v.nextDueDate < today) status = "Overdue";
-    else if (v.nextDueDate <= soonLimit && status !== "Overdue") status = "Due Soon";
-  }
-  return { status, nextDueDate, lastVaccinatedOn };
-}
-
-function normalizeAnimalRow(row, today = todayPH()) {
-  const vaccinations = (Array.isArray(row.vaccinations) ? row.vaccinations : [])
-    .map((v) => ({
-      id: String(v._id),
-      vaccine: v.vaccine || "",
-      dateGiven: v.dateGiven || "",
-      nextDueDate: v.nextDueDate || null,
-      batchNo: v.batchNo || "",
-      administeredBy: v.administeredBy || "",
-      remarks: v.remarks || ""
-    }))
-    .sort((a, b) => String(b.dateGiven).localeCompare(String(a.dateGiven)));
-  const computed = computeAnimalVaccineStatus(vaccinations, today);
+function normalizeAnimalRow(row) {
+  const vaccinated = Boolean(row.vaccinated);
   return {
     id: String(row._id),
     animalCode: row.animalCode,
@@ -8025,26 +8238,20 @@ function normalizeAnimalRow(row, today = todayPH()) {
     name: row.name || "",
     species: row.species,
     speciesOther: row.speciesOther || "",
-    breed: row.breed || "",
-    color: row.color || "",
-    sex: row.sex || "Unknown",
-    birthDate: row.birthDate || null,
-    vaccinations,
-    status: computed.status,
-    nextDueDate: computed.nextDueDate,
-    lastVaccinatedOn: computed.lastVaccinatedOn,
+    vaccinated,
+    status: vaccinated ? "Vaccinated" : "Not Vaccinated",
     archivedAt: row.archivedAt || null,
     createdAt: row.createdAt
   };
 }
 
-/** Validates an optional YYYY-MM-DD field. Returns { value } (null when empty) or { error }. */
-function parseOptionalIsoDate(raw, label) {
-  const s = String(raw ?? "").trim();
-  if (!s) return { value: null };
-  const d = parseLocalDateString(s);
-  if (!d) return { error: `${label} must be a valid date.` };
-  return { value: d };
+/** Accepts true/false, "true"/"false", "yes"/"no", 1/0. Returns null when the value is not a clear yes/no. */
+function parseVaccinatedFlag(raw) {
+  if (typeof raw === "boolean") return raw;
+  const v = String(raw ?? "").trim().toLowerCase();
+  if (["true", "yes", "1", "vaccinated"].includes(v)) return true;
+  if (["false", "no", "0", "not vaccinated"].includes(v)) return false;
+  return null;
 }
 
 async function parseAnimalBody(body, { partial = false } = {}) {
@@ -8059,7 +8266,7 @@ async function parseAnimalBody(body, { partial = false } = {}) {
   }
   if (!partial || has("name")) {
     const v = sanitizePlainTextField(b.name, 80);
-    if (!v) return { error: "Animal name is required." };
+    if (!v) return { error: "Pet name is required." };
     out.name = v;
   }
   if (!partial || has("species")) {
@@ -8069,24 +8276,19 @@ async function parseAnimalBody(body, { partial = false } = {}) {
   }
   if (!partial || has("speciesOther") || out.species) {
     const v = sanitizePlainTextField(b.speciesOther, 60);
-    if (out.species === "Other" && !v) return { error: "Please say what kind of animal it is." };
+    if (out.species === "Other" && !v) return { error: "Please say what kind of pet it is." };
     if (out.species) out.speciesOther = out.species === "Other" ? v : "";
     else if (has("speciesOther")) out.speciesOther = v;
   }
   if (has("ownerContact")) out.ownerContact = sanitizePlainTextField(b.ownerContact, 30);
   if (has("ownerAddress")) out.ownerAddress = sanitizePlainTextField(b.ownerAddress, 250);
-  if (has("breed")) out.breed = sanitizePlainTextField(b.breed, 80);
-  if (has("color")) out.color = sanitizePlainTextField(b.color, 60);
-  if (has("sex")) {
-    const v = String(b.sex || "Unknown").trim();
-    if (!ANIMAL_SEX.includes(v)) return { error: "Sex must be Male, Female or Unknown." };
-    out.sex = v;
-  }
-  if (has("birthDate")) {
-    const parsed = parseOptionalIsoDate(b.birthDate, "Birth date");
-    if (parsed.error) return { error: parsed.error };
-    if (parsed.value && parsed.value > todayPH()) return { error: "Birth date cannot be in the future." };
-    out.birthDate = parsed.value;
+
+  if (has("vaccinated")) {
+    const flag = parseVaccinatedFlag(b.vaccinated);
+    if (flag === null) return { error: "Vaccinated must be Yes or No." };
+    out.vaccinated = flag;
+  } else if (!partial) {
+    out.vaccinated = false;
   }
 
   // Owner link to a confirmed resident (optional).
@@ -8096,7 +8298,7 @@ async function parseAnimalBody(body, { partial = false } = {}) {
       out.ownerUserId = null;
       out.ownerResidentId = "";
     } else {
-      if (!mongoose.Types.ObjectId.isValid(idStr)) return { error: "Invalid resident selected as owner." };
+      if (!isValidId(idStr)) return { error: "Invalid resident selected as owner." };
       let owner = null;
       try {
         owner = await User.findOne(confirmedResidentQuery({ _id: idStr })).select("residentId").lean();
@@ -8111,29 +8313,6 @@ async function parseAnimalBody(body, { partial = false } = {}) {
   return { value: out };
 }
 
-function parseVaccinationBody(body) {
-  const b = body && typeof body === "object" ? body : {};
-  const vaccine = sanitizePlainTextField(b.vaccine, 80);
-  if (!vaccine) return { error: "Vaccine name is required." };
-  const given = parseOptionalIsoDate(b.dateGiven, "Date given");
-  if (given.error) return { error: given.error };
-  if (!given.value) return { error: "Date given is required." };
-  if (given.value > todayPH()) return { error: "Date given cannot be in the future." };
-  const due = parseOptionalIsoDate(b.nextDueDate, "Next due date");
-  if (due.error) return { error: due.error };
-  if (due.value && due.value < given.value) return { error: "Next due date cannot be before the date given." };
-  return {
-    value: {
-      vaccine,
-      dateGiven: given.value,
-      nextDueDate: due.value,
-      batchNo: sanitizePlainTextField(b.batchNo, 60),
-      administeredBy: sanitizePlainTextField(b.administeredBy, 120),
-      remarks: sanitizePlainTextField(b.remarks, 300)
-    }
-  };
-}
-
 async function generateAnimalCode() {
   for (let i = 0; i < 8; i += 1) {
     const code = `ANM-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -8144,7 +8323,7 @@ async function generateAnimalCode() {
 }
 
 function animalAuditDescription(verb, animal) {
-  return `${verb} animal record ${animal.animalCode} (${animal.name}, ${animal.species}) owned by ${animal.ownerName}.`;
+  return `${verb} pet record ${animal.animalCode} (${animal.name}, ${animal.species}) owned by ${animal.ownerName} - ${animal.status}.`;
 }
 
 // Owner lookup for the "Add animal" form (confirmed residents only, minimal fields).
@@ -8188,25 +8367,20 @@ app.get("/staff/animals/export", async (req, res) => {
       .limit(5000)
       .lean();
     const today = todayPH();
-    const header = [
-      "ANIMAL CODE", "ANIMAL NAME", "SPECIES", "BREED", "COLOR", "SEX", "BIRTHDATE", "OWNER", "OWNER CONTACT",
-      "OWNER ADDRESS", "STATUS", "LAST VACCINATED", "NEXT DUE", "VACCINATION HISTORY"
-    ];
+    const header = ["PET CODE", "PET NAME", "SPECIES", "OWNER", "OWNER CONTACT", "OWNER ADDRESS", "VACCINATED"];
     const lines = [header.map(csvCell).join(",")];
     for (const row of rows) {
-      const a = normalizeAnimalRow(row, today);
-      const history = a.vaccinations.map((v) => `${v.vaccine} (${v.dateGiven}${v.nextDueDate ? `, due ${v.nextDueDate}` : ""})`).join("; ");
+      const a = normalizeAnimalRow(row);
       lines.push([
-        a.animalCode, a.name, a.species === "Other" ? a.speciesOther || "Other" : a.species, a.breed, a.color, a.sex,
-        a.birthDate || "", a.ownerName, a.ownerContact, a.ownerAddress, a.status, a.lastVaccinatedOn || "",
-        a.nextDueDate || "", history
+        a.animalCode, a.name, a.species === "Other" ? a.speciesOther || "Other" : a.species,
+        a.ownerName, a.ownerContact, a.ownerAddress, a.vaccinated ? "Yes" : "No"
       ].map(csvCell).join(","));
     }
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="Animal-Vaccine-Tracker-${today}.csv"`);
+    res.setHeader("Content-Disposition", `attachment; filename="Pet-Vaccine-Tracker-${today}.csv"`);
     void insertPortalAuditEvent({
       action: "Data Export",
-      description: `Exported ${rows.length} animal vaccination record(s) to CSV.`,
+      description: `Exported ${rows.length} pet vaccination record(s) to CSV.`,
       profile: auth.profile,
       metadata: { entity: "animal_record", count: rows.length }
     });
@@ -8225,16 +8399,10 @@ app.get("/staff/animals", async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(2000)
       .lean();
-    const today = todayPH();
-    const animals = rows.map((r) => normalizeAnimalRow(r, today));
-    const stats = { total: animals.length, upToDate: 0, dueSoon: 0, overdue: 0, notVaccinated: 0 };
-    for (const a of animals) {
-      if (a.status === "Up to Date") stats.upToDate += 1;
-      else if (a.status === "Due Soon") stats.dueSoon += 1;
-      else if (a.status === "Overdue") stats.overdue += 1;
-      else stats.notVaccinated += 1;
-    }
-    return res.json({ ok: true, animals, stats, today });
+    const animals = rows.map((r) => normalizeAnimalRow(r));
+    const vaccinated = animals.filter((a) => a.vaccinated).length;
+    const stats = { total: animals.length, vaccinated, notVaccinated: animals.length - vaccinated };
+    return res.json({ ok: true, animals, stats, today: todayPH() });
   } catch (error) {
     return res.status(500).json({ ok: false, message: "Unable to load animal records.", detail: error.message });
   }
@@ -8247,20 +8415,10 @@ app.post("/staff/animals", adminStaffCreateLimiter, async (req, res) => {
   const parsed = await parseAnimalBody(req.body);
   if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
 
-  // Optional first vaccination, so staff can register and vaccinate in one step.
-  let firstDose = null;
-  const rawDose = req.body?.vaccination;
-  if (rawDose && typeof rawDose === "object" && String(rawDose.vaccine || "").trim()) {
-    const dose = parseVaccinationBody(rawDose);
-    if (dose.error) return res.status(400).json({ ok: false, message: dose.error });
-    firstDose = { ...dose.value, recordedByEmail: auth.profile.email || "" };
-  }
-
   try {
     const created = await AnimalRecord.create({
       ...parsed.value,
       animalCode: await generateAnimalCode(),
-      vaccinations: firstDose ? [firstDose] : [],
       createdByEmail: auth.profile.email || ""
     });
     const animal = normalizeAnimalRow(created.toObject());
@@ -8280,7 +8438,7 @@ app.get("/staff/animals/:id", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
+  if (!isValidId(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
   try {
     const row = await AnimalRecord.findById(id).lean();
     if (!row) return res.status(404).json({ ok: false, message: "Animal record not found." });
@@ -8294,7 +8452,7 @@ app.patch("/staff/animals/:id", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
+  if (!isValidId(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
 
   const parsed = await parseAnimalBody(req.body, { partial: true });
   if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
@@ -8316,106 +8474,11 @@ app.patch("/staff/animals/:id", async (req, res) => {
   }
 });
 
-app.post("/staff/animals/:id/vaccinations", async (req, res) => {
-  const auth = await requireStaffPortalUser(req, res);
-  if (!auth) return;
-  const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
-
-  const dose = parseVaccinationBody(req.body);
-  if (dose.error) return res.status(400).json({ ok: false, message: dose.error });
-
-  try {
-    const row = await AnimalRecord.findOneAndUpdate(
-      { _id: id, archivedAt: null },
-      { $push: { vaccinations: { ...dose.value, recordedByEmail: auth.profile.email || "" } } },
-      { new: true }
-    ).lean();
-    if (!row) return res.status(404).json({ ok: false, message: "Animal record not found (or archived)." });
-    const animal = normalizeAnimalRow(row);
-    void insertPortalAuditEvent({
-      action: "Updated Record",
-      description: `Recorded ${dose.value.vaccine} vaccination (${dose.value.dateGiven}) for ${animal.animalCode} (${animal.name}).`,
-      profile: auth.profile,
-      metadata: { entity: "animal_record", animalId: animal.id, animalCode: animal.animalCode, vaccine: dose.value.vaccine }
-    });
-    return res.status(201).json({ ok: true, animal });
-  } catch (error) {
-    return res.status(500).json({ ok: false, message: "Unable to save the vaccination.", detail: error.message });
-  }
-});
-
-app.patch("/staff/animals/:id/vaccinations/:vid", async (req, res) => {
-  const auth = await requireStaffPortalUser(req, res);
-  if (!auth) return;
-  const id = String(req.params.id || "");
-  const vid = String(req.params.vid || "");
-  if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(vid)) {
-    return res.status(400).json({ ok: false, message: "Invalid id." });
-  }
-  const dose = parseVaccinationBody(req.body);
-  if (dose.error) return res.status(400).json({ ok: false, message: dose.error });
-
-  try {
-    const row = await AnimalRecord.findOneAndUpdate(
-      { _id: id, archivedAt: null, "vaccinations._id": vid },
-      {
-        $set: {
-          "vaccinations.$.vaccine": dose.value.vaccine,
-          "vaccinations.$.dateGiven": dose.value.dateGiven,
-          "vaccinations.$.nextDueDate": dose.value.nextDueDate,
-          "vaccinations.$.batchNo": dose.value.batchNo,
-          "vaccinations.$.administeredBy": dose.value.administeredBy,
-          "vaccinations.$.remarks": dose.value.remarks
-        }
-      },
-      { new: true }
-    ).lean();
-    if (!row) return res.status(404).json({ ok: false, message: "Vaccination record not found." });
-    const animal = normalizeAnimalRow(row);
-    void insertPortalAuditEvent({
-      action: "Updated Record",
-      description: `Corrected ${dose.value.vaccine} vaccination entry for ${animal.animalCode} (${animal.name}).`,
-      profile: auth.profile,
-      metadata: { entity: "animal_record", animalId: animal.id, animalCode: animal.animalCode, vaccinationId: vid }
-    });
-    return res.json({ ok: true, animal });
-  } catch (error) {
-    return res.status(500).json({ ok: false, message: "Unable to update the vaccination.", detail: error.message });
-  }
-});
-
-app.delete("/staff/animals/:id/vaccinations/:vid", async (req, res) => {
-  const auth = await requireStaffPortalUser(req, res);
-  if (!auth) return;
-  const id = String(req.params.id || "");
-  const vid = String(req.params.vid || "");
-  if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(vid)) {
-    return res.status(400).json({ ok: false, message: "Invalid id." });
-  }
-  try {
-    const before = await AnimalRecord.findOne({ _id: id, archivedAt: null, "vaccinations._id": vid }).lean();
-    if (!before) return res.status(404).json({ ok: false, message: "Vaccination record not found." });
-    const removed = (before.vaccinations || []).find((v) => String(v._id) === vid);
-    const row = await AnimalRecord.findByIdAndUpdate(id, { $pull: { vaccinations: { _id: vid } } }, { new: true }).lean();
-    const animal = normalizeAnimalRow(row);
-    void insertPortalAuditEvent({
-      action: "Deleted Record",
-      description: `Removed ${removed?.vaccine || "a"} vaccination entry (${removed?.dateGiven || "—"}) from ${animal.animalCode} (${animal.name}).`,
-      profile: auth.profile,
-      metadata: { entity: "animal_record", animalId: animal.id, animalCode: animal.animalCode, vaccinationId: vid }
-    });
-    return res.json({ ok: true, animal });
-  } catch (error) {
-    return res.status(500).json({ ok: false, message: "Unable to remove the vaccination.", detail: error.message });
-  }
-});
-
 app.post("/staff/animals/:id/archive", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
+  if (!isValidId(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
   try {
     const row = await AnimalRecord.findOneAndUpdate({ _id: id, archivedAt: null }, { $set: { archivedAt: new Date() } }, { new: true }).lean();
     if (!row) return res.status(404).json({ ok: false, message: "Animal record not found or already archived." });
@@ -8436,7 +8499,7 @@ app.post("/staff/animals/:id/restore", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
   if (!auth) return;
   const id = String(req.params.id || "");
-  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
+  if (!isValidId(id)) return res.status(400).json({ ok: false, message: "Invalid animal id." });
   try {
     const row = await AnimalRecord.findOneAndUpdate({ _id: id, archivedAt: { $ne: null } }, { $set: { archivedAt: null } }, { new: true }).lean();
     if (!row) return res.status(404).json({ ok: false, message: "Archived animal record not found." });
@@ -8482,11 +8545,10 @@ server.on("error", (err) => {
   process.exit(1);
 });
 
-// Connect to MongoDB before accepting any requests — fail fast and loud
-// rather than letting every route error out individually on a dead
-// connection (mirrors how the old Supabase client was expected to just
-// be ready by the time requests came in).
-connectMongo()
+// Connect to PostgreSQL before accepting any requests — fail fast and loud
+// rather than letting every route error out individually on a dead connection.
+connectPg()
+  .then(() => ensureServiceHourSlots())
   .then(() => {
     server.listen(port, "0.0.0.0", () => {
       const addr = server.address();
@@ -8499,7 +8561,7 @@ connectMongo()
     });
   })
   .catch((err) => {
-    console.error("[backend] Failed to connect to MongoDB:", err.message);
+    console.error("[backend] Failed to connect to PostgreSQL:", err.message);
     process.exit(1);
   });
 

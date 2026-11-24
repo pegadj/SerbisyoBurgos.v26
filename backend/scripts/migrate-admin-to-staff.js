@@ -14,15 +14,19 @@
  * treats 'admin' and 'staff' the same when residents view announcements, so nothing else changes.
  */
 require('dotenv').config();
-const { connectMongo, mongoose } = require('../src/config/mongoClient');
-const { User } = require('../src/models/User');
+// STANDALONE: talks to the OLD MongoDB directly (needs MONGODB_URI and the `mongodb` package, which is
+// otherwise only used by scripts/migrate-mongo-to-postgres.js). Run it BEFORE the Postgres import,
+// because the import rejects users whose role is the retired 'admin'.
+const { MongoClient } = require('mongodb');
 
 async function main() {
   const apply = process.argv.includes('--apply');
-  await connectMongo();
+  if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required.');
+  const client = new MongoClient(process.env.MONGODB_URI);
+  await client.connect();
 
-  // Use the raw collection: the User model no longer lists 'admin' as a valid role.
-  const users = User.collection;
+  // Raw collection: the User model no longer lists 'admin' as a valid role.
+  const users = client.db().collection('users');
   const legacy = await users.find({ role: 'admin' }, { projection: { email: 1, fullName: 1 } }).toArray();
 
   if (!legacy.length) {
@@ -42,7 +46,7 @@ async function main() {
     }
   }
 
-  await mongoose.disconnect();
+  await client.close();
   process.exit(0);
 }
 

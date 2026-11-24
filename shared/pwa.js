@@ -5,7 +5,8 @@
  * It does four things:
  *   1. Registers the service worker (sw.js at the site root). Needs https, or localhost for testing.
  *   2. Offers "Install app" where the browser supports it (Chrome / Edge / Android), and shows
- *      "Add to Home Screen" steps on iPhone / iPad.
+ *      "Add to Home Screen" steps on iPhone / iPad. This automatic banner appears only on the landing
+ *      page and the login page (see BANNER_PAGES), not on every page the user opens.
  *   3. Tells the user when a new version is ready and refreshes on request.
  *   4. Shows a bar when the device is offline.
  *
@@ -21,6 +22,11 @@
   var script = doc.currentScript;
   // The site root is the folder above shared/, so this works from any page depth.
   var ROOT = script && script.src ? new URL("../", script.src) : new URL("./", global.location.href);
+
+  // The automatic "Install SerbisyoBurgos" banner is only offered on these pages (relative to the site
+  // root, without ".html"): the landing page and the login page. Everywhere else the script still
+  // works, and any <button data-pwa-install> you place on a page can still install the app.
+  var BANNER_PAGES = ["", "index", "login"];
 
   var DISMISS_KEY = "sb-pwa-install-dismissed";
   var DISMISS_DAYS = 14;
@@ -39,6 +45,14 @@
     var ua = nav.userAgent || "";
     var iPadOs13 = nav.platform === "MacIntel" && nav.maxTouchPoints > 1;
     return /iphone|ipad|ipod/i.test(ua) || iPadOs13;
+  }
+
+  function isBannerPage() {
+    var path = global.location.pathname || "/";
+    var rootPath = ROOT.pathname || "/";
+    var rel = path.indexOf(rootPath) === 0 ? path.slice(rootPath.length) : path.replace(/^\/+/, "");
+    rel = rel.replace(/\/+$/, "").replace(/\.html?$/i, "");
+    return BANNER_PAGES.indexOf(rel) !== -1;
   }
 
   function recentlyDismissed() {
@@ -157,7 +171,7 @@
   }
 
   function showInstallBanner(iosSteps) {
-    if (installBanner || isStandalone() || recentlyDismissed()) return;
+    if (installBanner || !isBannerPage() || isStandalone() || recentlyDismissed()) return;
     injectStyle();
     installBanner = el("div", { id: "sbp-install", class: "sbp-card", role: "dialog", "aria-label": "Install SerbisyoBurgos" });
     var body = iosSteps

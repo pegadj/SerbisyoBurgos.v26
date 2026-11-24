@@ -272,6 +272,9 @@
         .status-completed { background: #ccfbf1; color: #047857; }
         .status-rejected { background: #fee2e2; color: #dc2626; }
         .status-cancelled { background: #f1f5f9; color: #64748b; }
+        .status-cell-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+        .rejection-reason { max-width: 280px; font-size: 0.78rem; line-height: 1.4; color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 6px 10px; overflow-wrap: anywhere; }
+        .rejection-reason b { font-weight: 700; }
         .btn-delete:disabled:hover { background: transparent; color: inherit; }
         
         /* Gmail-style Delete Icon */
@@ -566,8 +569,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Purpose (optional)</label>
-                    <input type="text" id="reqPurpose" maxlength="160" placeholder="e.g. Employment, Scholarship, School enrollment" autocomplete="off">
+                    <label>Purpose *</label>
+                    <input type="text" id="reqPurpose" maxlength="160" required placeholder="e.g. Employment, Scholarship, School enrollment" autocomplete="off">
                     <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">What the document is for. It is printed on certificates such as the Barangay Clearance.</p>
                 </div>
 
@@ -616,6 +619,10 @@
                 <div><p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Status</p><p id="viewStatus">—</p><div id="viewPickupHint" class="pickup-appointment-hint" style="display:none;"></div></div>
                 <div><p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Title</p><p id="viewTitle">—</p></div>
                 <div><p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Date Submitted</p><p id="viewSubmittedDate">—</p></div>
+                <div id="viewRejectionWrap" style="grid-column: 1 / -1; display:none;">
+                    <p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Reason for Rejection</p>
+                    <p id="viewRejectionReason" class="rejection-reason" style="max-width:none; margin-top:4px;"></p>
+                </div>
                 <div style="grid-column: 1 / -1;"><p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Preferred Slot</p><p id="viewPreferredSlot">—</p></div>
                 <div style="grid-column: 1 / -1;">
                     <p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Supporting Documents</p>
@@ -742,8 +749,8 @@
             return `${y}-${m}-${day}`;
         }
 
-        // Morning time slots for service requests come from the server so closed / full / past slots are shown as unavailable.
-        const REQUEST_SLOT_CODES = new Set(["0900", "1000", "1100"]);
+        // Morning pickup slots (8 AM-12 NN) for service requests come from the server so closed / full / past slots are shown as unavailable.
+        const REQUEST_SLOT_CODES = new Set(["0800", "0900", "1000", "1100"]);   // 8 AM-12 NN; lunch break 12-1 PM has no slots
 
         function resetRequestSlotOptions() {
             const sel = document.getElementById("reqTime");
@@ -814,6 +821,8 @@
         const viewRefNo = document.getElementById('viewRefNo');
         const viewStatus = document.getElementById('viewStatus');
         const viewPickupHint = document.getElementById('viewPickupHint');
+        const viewRejectionWrap = document.getElementById('viewRejectionWrap');
+        const viewRejectionReason = document.getElementById('viewRejectionReason');
         const viewTitle = document.getElementById('viewTitle');
         const viewSubmittedDate = document.getElementById('viewSubmittedDate');
         const viewPreferredSlot = document.getElementById('viewPreferredSlot');
@@ -1004,6 +1013,11 @@ async function populateResidentNameField() {
                     viewPickupHint.innerHTML = "";
                     viewPickupHint.style.display = "none";
                 }
+            }
+            if (viewRejectionWrap && viewRejectionReason) {
+                const reason = getRejectionReason(request);
+                viewRejectionReason.textContent = reason;
+                viewRejectionWrap.style.display = reason ? 'block' : 'none';
             }
             if (viewTitle) viewTitle.textContent = request.title || request.serviceType || 'Service Request';
             if (viewSubmittedDate) viewSubmittedDate.textContent = formatDate(request.createdAt || request.preferredDate);
@@ -1343,11 +1357,28 @@ async function populateResidentNameField() {
             }
         }
 
+        /** Staff's reason for a rejected request: the note on its latest "Rejected" status update ("" if none). */
+        function getRejectionReason(req) {
+            if (String(req?.status || "").trim().toLowerCase() !== "rejected") return "";
+            const timeline = Array.isArray(req?.statusTimeline) ? req.statusTimeline : [];
+            for (let i = timeline.length - 1; i >= 0; i--) {
+                const entry = timeline[i];
+                if (String(entry?.status || "").trim().toLowerCase() === "rejected" && typeof entry?.note === "string" && entry.note.trim()) {
+                    return entry.note.trim();
+                }
+            }
+            return "";
+        }
+
         function buildRequestStatusCellHtml(req) {
             const statusText = String(req.status || "Pending");
             const escaped = escapeHtmlText(statusText);
             const cls = statusClass(req.status);
             const badge = `<span class="status-badge ${cls}">${escaped}</span>`;
+            const rejectionReason = getRejectionReason(req);
+            if (rejectionReason) {
+                return `<div class="status-cell-stack">${badge}<div class="rejection-reason"><b>Reason:</b> ${escapeHtmlText(rejectionReason)}</div></div>`;
+            }
             if (String(req.status || "").toLowerCase() !== "ready for pickup") return badge;
             const apptUrl = RESIDENT_ROUTES.appointments || "appointments.html";
             return `<div class="status-cell-stack">${badge}<div class="pickup-appointment-hint">Book an <a href="${escapeHtmlText(apptUrl)}">appointment</a> for when you want to pick it up.</div></div>`;
@@ -1452,12 +1483,18 @@ function isCancellableRequest(status) {
                 applyServicePreferredDateMin();
                 return;
             }
+            const purposeValue = (document.getElementById('reqPurpose')?.value || '').trim();
+            if (!purposeValue) {
+                openFeedbackModal("Purpose required", "Please enter the purpose of your request (e.g. Employment, Scholarship).");
+                document.getElementById('reqPurpose')?.focus();
+                return;
+            }
             const payload = {
                 title: serviceType,
                 serviceType,
                 preferredDate,
                 preferredTimeSlot,
-                purpose: (document.getElementById('reqPurpose')?.value || '').trim() || undefined,
+                purpose: purposeValue,
                 supportingDocumentNames: selectedSupportingFiles.map((file) => file.name)
             };
 

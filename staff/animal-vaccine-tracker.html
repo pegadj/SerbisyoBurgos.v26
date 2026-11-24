@@ -347,7 +347,7 @@ color: white;
         .av-btn.danger:hover { background: #fef2f2; }
         .av-btn.small { padding: 0.35rem 0.7rem; font-size: 0.8rem; border-radius: 8px; }
         .av-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-        .av-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.9rem; margin-bottom: 1.25rem; }
+        .av-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.9rem; margin-bottom: 1.25rem; }
         .av-stat { background: white; border: 1px solid #e2e8f0; border-radius: 14px; padding: 0.9rem 1rem; text-align: left; cursor: pointer; font-family: inherit; }
         .av-stat:hover, .av-stat.active { border-color: var(--brand-green); box-shadow: 0 0 0 3px rgba(22,163,74,0.12); }
         .av-stat .n { font-size: 1.6rem; font-weight: 700; color: var(--brand-dark); display: block; }
@@ -407,39 +407,35 @@ color: white;
         <div class="top-bar">
             <section class="welcome-section">
                 <h1 id="pageHeading">Animal Vaccine Tracker</h1>
-                <p>Register animals, record vaccinations and see which ones are due for a booster</p>
+                <p>Keep track of which residents' pets are vaccinated and which are not</p>
             </section>
 
             <user-badge></user-badge>
         </div>
 
         <div class="av-actions">
-            <button type="button" class="av-btn primary" id="addAnimalBtn">+ Add Animal</button>
+            <button type="button" class="av-btn primary" id="addAnimalBtn">+ Add Pet</button>
             <button type="button" class="av-btn" id="exportBtn">Export CSV</button>
             <button type="button" class="av-btn" id="toggleArchivedBtn">View archived</button>
         </div>
 
         <div class="av-stats" id="statsRow">
-            <button type="button" class="av-stat active" data-status="all"><span class="n" id="statTotal">0</span><span class="l">Total animals</span></button>
-            <button type="button" class="av-stat" data-status="Up to Date"><span class="n" id="statOk">0</span><span class="l">Up to date</span></button>
-            <button type="button" class="av-stat" data-status="Due Soon"><span class="n" id="statSoon">0</span><span class="l">Due within 30 days</span></button>
-            <button type="button" class="av-stat" data-status="Overdue"><span class="n" id="statOver">0</span><span class="l">Overdue</span></button>
+            <button type="button" class="av-stat active" data-status="all"><span class="n" id="statTotal">0</span><span class="l">Total pets</span></button>
+            <button type="button" class="av-stat" data-status="Vaccinated"><span class="n" id="statOk">0</span><span class="l">Vaccinated</span></button>
             <button type="button" class="av-stat" data-status="Not Vaccinated"><span class="n" id="statNone">0</span><span class="l">Not vaccinated</span></button>
         </div>
 
         <div class="av-filter">
-            <input type="text" id="searchInput" placeholder="Search animal, owner, breed or code…" autocomplete="off">
+            <input type="text" id="searchInput" placeholder="Search pet, owner or code…" autocomplete="off">
             <select id="speciesFilter">
-                <option value="all">All animals</option>
+                <option value="all">All pets</option>
                 <option value="Dog">Dogs</option>
                 <option value="Cat">Cats</option>
                 <option value="Other">Other</option>
             </select>
             <select id="statusFilter">
                 <option value="all">All status</option>
-                <option value="Up to Date">Up to date</option>
-                <option value="Due Soon">Due soon</option>
-                <option value="Overdue">Overdue</option>
+                <option value="Vaccinated">Vaccinated</option>
                 <option value="Not Vaccinated">Not vaccinated</option>
             </select>
         </div>
@@ -449,16 +445,14 @@ color: white;
                 <thead>
                     <tr>
                         <th>Code</th>
-                        <th>Animal</th>
+                        <th>Pet</th>
                         <th>Owner</th>
-                        <th>Last vaccinated</th>
-                        <th>Next due</th>
                         <th>Status</th>
                         <th style="text-align:right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="animalsBody">
-                    <tr><td colspan="7" class="av-empty">Loading…</td></tr>
+                    <tr><td colspan="5" class="av-empty">Loading…</td></tr>
                 </tbody>
             </table>
             <div class="av-pager">
@@ -471,10 +465,10 @@ color: white;
         </div>
     </main>
 
-    <!-- Add / edit animal -->
+    <!-- Add / edit pet -->
     <div id="animalModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="animalModalTitle">
         <div class="modal-card av-wide">
-            <h2 class="modal-title" id="animalModalTitle">Add Animal</h2>
+            <h2 class="modal-title" id="animalModalTitle">Add Pet</h2>
 
             <div class="av-section-title first">Owner</div>
             <div class="av-field">
@@ -501,10 +495,10 @@ color: white;
                 </div>
             </div>
 
-            <div class="av-section-title">Animal</div>
+            <div class="av-section-title">Pet</div>
             <div class="av-form-grid">
                 <div class="av-field">
-                    <label for="animalName">Animal name *</label>
+                    <label for="animalName">Pet name *</label>
                     <input type="text" id="animalName" maxlength="80">
                 </div>
                 <div class="av-field">
@@ -516,50 +510,15 @@ color: white;
                     </select>
                 </div>
                 <div class="av-field full" id="speciesOtherWrap" hidden>
-                    <label for="animalSpeciesOther">What kind of animal? *</label>
+                    <label for="animalSpeciesOther">What kind of pet? *</label>
                     <input type="text" id="animalSpeciesOther" maxlength="60">
                 </div>
-                <div class="av-field">
-                    <label for="animalBreed">Breed</label>
-                    <input type="text" id="animalBreed" maxlength="80">
-                </div>
-                <div class="av-field">
-                    <label for="animalColor">Color</label>
-                    <input type="text" id="animalColor" maxlength="60">
-                </div>
-                <div class="av-field">
-                    <label for="animalSex">Sex</label>
-                    <select id="animalSex">
-                        <option value="Unknown">Unknown</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
+                <div class="av-field full">
+                    <label for="animalVaccinated">Vaccinated? *</label>
+                    <select id="animalVaccinated">
+                        <option value="no">No - not vaccinated</option>
+                        <option value="yes">Yes - vaccinated</option>
                     </select>
-                </div>
-                <div class="av-field">
-                    <label for="animalBirthDate">Birth date (approximate is fine)</label>
-                    <input type="date" id="animalBirthDate">
-                </div>
-            </div>
-
-            <div id="firstDoseSection">
-                <div class="av-section-title">First vaccination (optional)</div>
-                <div class="av-form-grid">
-                    <div class="av-field">
-                        <label for="firstVaccine">Vaccine</label>
-                        <input type="text" id="firstVaccine" maxlength="80" list="vaccineList" placeholder="e.g. Anti-Rabies">
-                    </div>
-                    <div class="av-field">
-                        <label for="firstDateGiven">Date given</label>
-                        <input type="date" id="firstDateGiven">
-                    </div>
-                    <div class="av-field">
-                        <label for="firstNextDue">Next due date (booster)</label>
-                        <input type="date" id="firstNextDue">
-                    </div>
-                    <div class="av-field">
-                        <label for="firstAdministeredBy">Administered by</label>
-                        <input type="text" id="firstAdministeredBy" maxlength="120">
-                    </div>
                 </div>
             </div>
 
@@ -571,78 +530,6 @@ color: white;
         </div>
     </div>
 
-    <!-- Animal details + vaccination history -->
-    <div id="detailModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
-        <div class="modal-card av-wide">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
-                <div>
-                    <h2 class="modal-title" id="detailTitle" style="margin-bottom:0.2rem;">Animal</h2>
-                    <span id="detailBadge"></span>
-                </div>
-                <div style="display:flex; gap:0.5rem;">
-                    <button type="button" class="av-btn small" id="detailEditBtn">Edit</button>
-                    <button type="button" class="av-btn small danger" id="detailArchiveBtn">Archive</button>
-                </div>
-            </div>
-
-            <dl class="av-detail-grid" style="margin-top:1rem;" id="detailInfo"></dl>
-
-            <div class="av-section-title">Vaccination history</div>
-            <div style="overflow-x:auto;">
-                <table class="av-table" style="min-width:560px;">
-                    <thead><tr><th>Vaccine</th><th>Given</th><th>Next due</th><th>By</th><th></th></tr></thead>
-                    <tbody id="doseBody"></tbody>
-                </table>
-            </div>
-
-            <div class="av-section-title" id="doseFormTitle">Record a vaccination</div>
-            <div class="av-form-grid" id="doseForm">
-                <div class="av-field">
-                    <label for="doseVaccine">Vaccine *</label>
-                    <input type="text" id="doseVaccine" maxlength="80" list="vaccineList" placeholder="e.g. Anti-Rabies">
-                </div>
-                <div class="av-field">
-                    <label for="doseDateGiven">Date given *</label>
-                    <input type="date" id="doseDateGiven">
-                </div>
-                <div class="av-field">
-                    <label for="doseNextDue">Next due date (booster)</label>
-                    <input type="date" id="doseNextDue">
-                </div>
-                <div class="av-field">
-                    <label for="doseAdministeredBy">Administered by</label>
-                    <input type="text" id="doseAdministeredBy" maxlength="120">
-                </div>
-                <div class="av-field">
-                    <label for="doseBatchNo">Batch / lot no.</label>
-                    <input type="text" id="doseBatchNo" maxlength="60">
-                </div>
-                <div class="av-field">
-                    <label for="doseRemarks">Remarks</label>
-                    <input type="text" id="doseRemarks" maxlength="300">
-                </div>
-            </div>
-            <p class="av-msg" id="doseMsg" role="alert"></p>
-            <div class="modal-actions">
-                <button type="button" class="modal-btn modal-btn-cancel" id="detailCloseBtn">Close</button>
-                <button type="button" class="modal-btn modal-btn-cancel" id="doseCancelEditBtn" hidden>Cancel edit</button>
-                <button type="button" class="modal-btn" style="background:var(--brand-green);color:#fff;" id="doseSaveBtn">Save vaccination</button>
-            </div>
-        </div>
-    </div>
-
-    <datalist id="vaccineList">
-        <option value="Anti-Rabies"></option>
-        <option value="5-in-1 (DHPP)"></option>
-        <option value="Parvovirus"></option>
-        <option value="Distemper"></option>
-        <option value="Leptospirosis"></option>
-        <option value="Kennel Cough (Bordetella)"></option>
-        <option value="Feline 4-in-1"></option>
-        <option value="Deworming"></option>
-    </datalist>
-
-    <!-- Generic confirm -->
     <div id="confirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
         <div class="modal-card">
             <h2 class="modal-title" id="confirmTitle">Confirm</h2>
@@ -774,14 +661,10 @@ color: white;
         // ===================== Animal Vaccine Tracker =====================
         const PAGE_SIZE = 10;
         let animals = [];
-        let todayISO = new Date().toISOString().slice(0, 10);
         let showArchived = false;
         let currentPage = 1;
-        let activeStatus = "all";
         let editingAnimalId = null;
         let linkedOwner = null;
-        let detailAnimalId = null;
-        let editingDoseId = null;
         let confirmAction = null;
         let ownerSearchTimer = null;
 
@@ -816,20 +699,14 @@ color: white;
                 .replaceAll("'", "&#39;");
         }
 
-        function formatDate(iso) {
-            if (!iso) return "—";
-            const d = new Date(`${iso}T12:00:00`);
-            if (Number.isNaN(d.getTime())) return "—";
-            return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
-        }
-
         function speciesLabel(a) {
             return a.species === "Other" ? (a.speciesOther || "Other") : a.species;
         }
 
-        function statusBadge(status) {
-            const cls = status === "Up to Date" ? "ok" : status === "Due Soon" ? "soon" : status === "Overdue" ? "over" : "none";
-            return `<span class="av-badge ${cls}">${escapeHtml(status)}</span>`;
+        function statusBadge(a) {
+            return a.vaccinated
+                ? '<span class="av-badge ok">Vaccinated</span>'
+                : '<span class="av-badge none">Not vaccinated</span>';
         }
 
         let toastTimer = null;
@@ -844,27 +721,19 @@ color: white;
 
         // ---------- list ----------
         async function loadAnimals(opts) {
-            const silent = !!(opts && opts.silent === true); // background refresh: no "Loading…", no error flash
+            const silent = !!(opts && opts.silent === true); // background refresh: no error flash
             try {
                 const json = await api(`/staff/animals?archived=${showArchived ? 1 : 0}`);
                 animals = json.animals || [];
-                if (json.today) todayISO = json.today;
-                applyDateLimits();
                 render();
             } catch (err) {
-                if (silent) return; // background refresh: keep what is on screen
-                if (!silent) {
-                    $("animalsBody").innerHTML = `<tr><td colspan="7" class="av-empty" style="color:#b91c1c;">${escapeHtml(err.message || "Unable to load animal records.")}</td></tr>`;
-                }
+                if (silent) return; // keep what is on screen
+                $("animalsBody").innerHTML = `<tr><td colspan="5" class="av-empty" style="color:#b91c1c;">${escapeHtml(err.message || "Unable to load pet records.")}</td></tr>`;
             }
         }
 
         // Keep this list current while the page stays open (pauses when hidden or while the person is busy).
         if (window.SB_LIVE) SB_LIVE.watch(() => loadAnimals({ silent: true }));
-
-        function applyDateLimits() {
-            ["animalBirthDate", "firstDateGiven", "doseDateGiven"].forEach((id) => { if ($(id)) $(id).max = todayISO; });
-        }
 
         function filteredAnimals() {
             const q = $("searchInput").value.trim().toLowerCase();
@@ -874,25 +743,17 @@ color: white;
                 if (species !== "all" && a.species !== species) return false;
                 if (status !== "all" && a.status !== status) return false;
                 if (!q) return true;
-                return [a.name, a.ownerName, a.breed, a.animalCode, a.ownerContact, speciesLabel(a)]
+                return [a.name, a.ownerName, a.animalCode, a.ownerContact, speciesLabel(a)]
                     .some((v) => String(v || "").toLowerCase().includes(q));
             });
         }
 
         function render() {
-            const counts = { total: animals.length, ok: 0, soon: 0, over: 0, none: 0 };
-            animals.forEach((a) => {
-                if (a.status === "Up to Date") counts.ok += 1;
-                else if (a.status === "Due Soon") counts.soon += 1;
-                else if (a.status === "Overdue") counts.over += 1;
-                else counts.none += 1;
-            });
-            $("statTotal").textContent = counts.total;
-            $("statOk").textContent = counts.ok;
-            $("statSoon").textContent = counts.soon;
-            $("statOver").textContent = counts.over;
-            $("statNone").textContent = counts.none;
-            document.querySelectorAll(".av-stat").forEach((b) => b.classList.toggle("active", b.dataset.status === $("statusFilter").value || (b.dataset.status === "all" && $("statusFilter").value === "all")));
+            const vaccinated = animals.filter((a) => a.vaccinated).length;
+            $("statTotal").textContent = animals.length;
+            $("statOk").textContent = vaccinated;
+            $("statNone").textContent = animals.length - vaccinated;
+            document.querySelectorAll(".av-stat").forEach((b) => b.classList.toggle("active", b.dataset.status === $("statusFilter").value));
 
             const list = filteredAnimals();
             const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
@@ -900,21 +761,21 @@ color: white;
             const slice = list.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
             if (!slice.length) {
-                $("animalsBody").innerHTML = `<tr><td colspan="7" class="av-empty">${showArchived ? "No archived animal records." : "No animal records found. Click “Add Animal” to register one."}</td></tr>`;
+                $("animalsBody").innerHTML = `<tr><td colspan="5" class="av-empty">${showArchived ? "No archived pet records." : "No pet records found. Click “Add Pet” to register one."}</td></tr>`;
             } else {
                 $("animalsBody").innerHTML = slice.map((a) => `
                     <tr>
                         <td><b>${escapeHtml(a.animalCode)}</b></td>
-                        <td>${escapeHtml(a.name)}<span class="av-sub">${escapeHtml(speciesLabel(a))}${a.breed ? " · " + escapeHtml(a.breed) : ""}</span></td>
+                        <td>${escapeHtml(a.name)}<span class="av-sub">${escapeHtml(speciesLabel(a))}</span></td>
                         <td>${escapeHtml(a.ownerName)}<span class="av-sub">${escapeHtml(a.ownerContact || a.ownerAddress || "")}</span></td>
-                        <td>${escapeHtml(formatDate(a.lastVaccinatedOn))}</td>
-                        <td>${escapeHtml(formatDate(a.nextDueDate))}</td>
-                        <td>${statusBadge(a.status)}</td>
+                        <td>${statusBadge(a)}</td>
                         <td style="text-align:right; white-space:nowrap;">
-                            <button type="button" class="av-btn small" data-view="${escapeHtml(a.id)}">View</button>
                             ${showArchived
                                 ? `<button type="button" class="av-btn small" data-restore="${escapeHtml(a.id)}">Restore</button>`
-                                : `<button type="button" class="av-btn small danger" data-archive="${escapeHtml(a.id)}">Archive</button>`}
+                                : `<button type="button" class="av-btn small" data-toggle="${escapeHtml(a.id)}">${a.vaccinated ? "Mark not vaccinated" : "Mark vaccinated"}</button>
+                                   <button type="button" class="av-btn small" data-edit="${escapeHtml(a.id)}">Edit</button>
+                                   <button type="button" class="av-btn small" data-add-pet="${escapeHtml(a.id)}" title="Add another pet for ${escapeHtml(a.ownerName)}">+ Pet</button>
+                                   <button type="button" class="av-btn small danger" data-archive="${escapeHtml(a.id)}">Archive</button>`}
                         </td>
                     </tr>`).join("");
             }
@@ -948,7 +809,7 @@ color: white;
             confirmAction = null;
         }
 
-        // ---------- add / edit animal ----------
+        // ---------- add / edit pet ----------
         function setOwnerChip() {
             const chip = $("ownerChip");
             if (linkedOwner) {
@@ -963,32 +824,31 @@ color: white;
             $("speciesOtherWrap").hidden = $("animalSpecies").value !== "Other";
         }
 
-        function openAnimalModal(animal) {
+        /**
+         * Opens the form. Pass `animal` to edit it, or `ownerFrom` (an existing pet) to add another pet
+         * for the same owner with the owner's details already filled in.
+         */
+        function openAnimalModal(animal, ownerFrom) {
             editingAnimalId = animal ? animal.id : null;
-            $("animalModalTitle").textContent = animal ? "Edit Animal" : "Add Animal";
+            const ownerSrc = animal || ownerFrom || null;
+            $("animalModalTitle").textContent = animal ? "Edit Pet" : "Add Pet";
             $("animalMsg").textContent = "";
             $("ownerSearch").value = "";
             $("ownerResults").hidden = true;
-            linkedOwner = animal && animal.ownerUserId
-                ? { id: animal.ownerUserId, fullName: animal.ownerName, residentId: animal.ownerResidentId }
+            linkedOwner = ownerSrc && ownerSrc.ownerUserId
+                ? { id: ownerSrc.ownerUserId, fullName: ownerSrc.ownerName, residentId: ownerSrc.ownerResidentId }
                 : null;
             setOwnerChip();
-            $("ownerName").value = animal?.ownerName || "";
-            $("ownerContact").value = animal?.ownerContact || "";
-            $("ownerAddress").value = animal?.ownerAddress || "";
+            $("ownerName").value = ownerSrc?.ownerName || "";
+            $("ownerContact").value = ownerSrc?.ownerContact || "";
+            $("ownerAddress").value = ownerSrc?.ownerAddress || "";
             $("animalName").value = animal?.name || "";
             $("animalSpecies").value = animal?.species || "Dog";
             $("animalSpeciesOther").value = animal?.speciesOther || "";
-            $("animalBreed").value = animal?.breed || "";
-            $("animalColor").value = animal?.color || "";
-            $("animalSex").value = animal?.sex || "Unknown";
-            $("animalBirthDate").value = animal?.birthDate || "";
+            $("animalVaccinated").value = animal?.vaccinated ? "yes" : "no";
             toggleSpeciesOther();
-            $("firstDoseSection").hidden = Boolean(animal);
-            ["firstVaccine", "firstNextDue", "firstAdministeredBy"].forEach((id) => { $(id).value = ""; });
-            $("firstDateGiven").value = todayISO;
             $("animalModal").classList.add("show");
-            setTimeout(() => (animal ? $("animalName") : $("ownerSearch")).focus(), 0);
+            setTimeout(() => (ownerSrc ? $("animalName") : $("ownerSearch")).focus(), 0);
         }
 
         function closeAnimalModal() {
@@ -1025,35 +885,19 @@ color: white;
                 name: $("animalName").value,
                 species: $("animalSpecies").value,
                 speciesOther: $("animalSpeciesOther").value,
-                breed: $("animalBreed").value,
-                color: $("animalColor").value,
-                sex: $("animalSex").value,
-                birthDate: $("animalBirthDate").value
+                vaccinated: $("animalVaccinated").value === "yes"
             };
-            if (!editingAnimalId && $("firstVaccine").value.trim()) {
-                if (!$("firstDateGiven").value) {
-                    msg.textContent = "Please enter the date the first vaccine was given.";
-                    return;
-                }
-                body.vaccination = {
-                    vaccine: $("firstVaccine").value,
-                    dateGiven: $("firstDateGiven").value,
-                    nextDueDate: $("firstNextDue").value,
-                    administeredBy: $("firstAdministeredBy").value
-                };
-            }
             const btn = $("animalSaveBtn");
             btn.disabled = true;
             try {
-                const json = editingAnimalId
+                const wasEditing = Boolean(editingAnimalId);
+                const json = wasEditing
                     ? await api(`/staff/animals/${editingAnimalId}`, { method: "PATCH", body: JSON.stringify(body) })
                     : await api("/staff/animals", { method: "POST", body: JSON.stringify(body) });
                 upsertAnimal(json.animal);
                 render();
-                const wasEditing = Boolean(editingAnimalId);
                 closeAnimalModal();
-                toast(wasEditing ? "Animal record updated." : `Animal registered (${json.animal.animalCode}).`);
-                if (wasEditing && detailAnimalId === json.animal.id) renderDetail();
+                toast(wasEditing ? "Pet record updated." : `Pet registered (${json.animal.animalCode}).`);
             } catch (err) {
                 msg.textContent = err.message || "Unable to save.";
             } finally {
@@ -1061,143 +905,18 @@ color: white;
             }
         }
 
-        // ---------- detail + vaccinations ----------
-        function currentDetail() {
-            return animals.find((a) => a.id === detailAnimalId) || null;
-        }
-
-        function resetDoseForm() {
-            editingDoseId = null;
-            ["doseVaccine", "doseNextDue", "doseAdministeredBy", "doseBatchNo", "doseRemarks"].forEach((id) => { $(id).value = ""; });
-            $("doseDateGiven").value = todayISO;
-            $("doseFormTitle").textContent = "Record a vaccination";
-            $("doseSaveBtn").textContent = "Save vaccination";
-            $("doseCancelEditBtn").hidden = true;
-            $("doseMsg").textContent = "";
-        }
-
-        function renderDetail() {
-            const a = currentDetail();
+        // ---------- quick vaccinated toggle ----------
+        async function toggleVaccinated(id) {
+            const a = animals.find((x) => x.id === id);
             if (!a) return;
-            $("detailTitle").textContent = `${a.name} · ${a.animalCode}`;
-            $("detailBadge").innerHTML = statusBadge(a.status);
-            const row = (label, value) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || "—")}</dd></div>`;
-            $("detailInfo").innerHTML = [
-                row("Owner", a.ownerName),
-                row("Contact", a.ownerContact),
-                row("Address / Purok", a.ownerAddress),
-                row("Resident ID", a.ownerResidentId),
-                row("Species", speciesLabel(a)),
-                row("Breed", a.breed),
-                row("Color", a.color),
-                row("Sex", a.sex),
-                row("Birth date", a.birthDate ? formatDate(a.birthDate) : ""),
-                row("Next due", a.nextDueDate ? formatDate(a.nextDueDate) : "")
-            ].join("");
-            const archived = Boolean(a.archivedAt);
-            $("detailEditBtn").hidden = archived;
-            $("detailArchiveBtn").hidden = archived;
-            $("doseForm").hidden = archived;
-            $("doseFormTitle").hidden = archived;
-            $("doseSaveBtn").hidden = archived;
-            $("doseBody").innerHTML = a.vaccinations.length
-                ? a.vaccinations.map((v) => `
-                    <tr>
-                        <td>${escapeHtml(v.vaccine)}${v.batchNo ? `<span class="av-sub">Batch ${escapeHtml(v.batchNo)}</span>` : ""}${v.remarks ? `<span class="av-sub">${escapeHtml(v.remarks)}</span>` : ""}</td>
-                        <td>${escapeHtml(formatDate(v.dateGiven))}</td>
-                        <td>${escapeHtml(formatDate(v.nextDueDate))}</td>
-                        <td>${escapeHtml(v.administeredBy || "—")}</td>
-                        <td style="text-align:right; white-space:nowrap;">${archived ? "" : `
-                            <button type="button" class="av-btn small" data-dose-edit="${escapeHtml(v.id)}">Edit</button>
-                            <button type="button" class="av-btn small danger" data-dose-remove="${escapeHtml(v.id)}">Remove</button>`}</td>
-                    </tr>`).join("")
-                : `<tr><td colspan="5" class="av-empty" style="padding:1.2rem;">No vaccinations recorded yet.</td></tr>`;
-        }
-
-        function openDetail(id) {
-            detailAnimalId = id;
-            resetDoseForm();
-            renderDetail();
-            $("detailModal").classList.add("show");
-        }
-
-        function closeDetail() {
-            $("detailModal").classList.remove("show");
-            detailAnimalId = null;
-            editingDoseId = null;
-        }
-
-        async function saveDose() {
-            const a = currentDetail();
-            if (!a) return;
-            const msg = $("doseMsg");
-            msg.textContent = "";
-            const body = {
-                vaccine: $("doseVaccine").value,
-                dateGiven: $("doseDateGiven").value,
-                nextDueDate: $("doseNextDue").value,
-                administeredBy: $("doseAdministeredBy").value,
-                batchNo: $("doseBatchNo").value,
-                remarks: $("doseRemarks").value
-            };
-            const btn = $("doseSaveBtn");
-            btn.disabled = true;
             try {
-                const json = editingDoseId
-                    ? await api(`/staff/animals/${a.id}/vaccinations/${editingDoseId}`, { method: "PATCH", body: JSON.stringify(body) })
-                    : await api(`/staff/animals/${a.id}/vaccinations`, { method: "POST", body: JSON.stringify(body) });
-                const wasEditing = Boolean(editingDoseId);
+                const json = await api(`/staff/animals/${id}`, { method: "PATCH", body: JSON.stringify({ vaccinated: !a.vaccinated }) });
                 upsertAnimal(json.animal);
-                resetDoseForm();
-                renderDetail();
                 render();
-                toast(wasEditing ? "Vaccination updated." : "Vaccination recorded.");
+                toast(`${json.animal.name} marked as ${json.animal.vaccinated ? "vaccinated" : "not vaccinated"}.`);
             } catch (err) {
-                msg.textContent = err.message || "Unable to save the vaccination.";
-            } finally {
-                btn.disabled = false;
+                toast(err.message || "Unable to update the record.", true);
             }
-        }
-
-        function startEditDose(doseId) {
-            const a = currentDetail();
-            const v = a?.vaccinations.find((d) => d.id === doseId);
-            if (!v) return;
-            editingDoseId = v.id;
-            $("doseVaccine").value = v.vaccine;
-            $("doseDateGiven").value = v.dateGiven;
-            $("doseNextDue").value = v.nextDueDate || "";
-            $("doseAdministeredBy").value = v.administeredBy || "";
-            $("doseBatchNo").value = v.batchNo || "";
-            $("doseRemarks").value = v.remarks || "";
-            $("doseFormTitle").textContent = "Edit vaccination";
-            $("doseSaveBtn").textContent = "Update vaccination";
-            $("doseCancelEditBtn").hidden = false;
-            $("doseMsg").textContent = "";
-            $("doseVaccine").focus();
-        }
-
-        function removeDose(doseId) {
-            const a = currentDetail();
-            const v = a?.vaccinations.find((d) => d.id === doseId);
-            if (!a || !v) return;
-            askConfirm({
-                title: "Remove this vaccination entry?",
-                text: `${v.vaccine} (${formatDate(v.dateGiven)}) will be removed from ${a.name}'s history. Use this only to correct a wrong entry.`,
-                okLabel: "Remove",
-                onConfirm: async () => {
-                    try {
-                        const json = await api(`/staff/animals/${a.id}/vaccinations/${doseId}`, { method: "DELETE" });
-                        upsertAnimal(json.animal);
-                        if (editingDoseId === doseId) resetDoseForm();
-                        renderDetail();
-                        render();
-                        toast("Vaccination entry removed.");
-                    } catch (err) {
-                        toast(err.message || "Unable to remove the entry.", true);
-                    }
-                }
-            });
         }
 
         // ---------- archive / restore ----------
@@ -1205,16 +924,15 @@ color: white;
             const a = animals.find((x) => x.id === id);
             if (!a) return;
             askConfirm({
-                title: "Archive this animal record?",
+                title: "Archive this pet record?",
                 text: `${a.name} (${a.animalCode}) will move to the archive. You can restore it later.`,
                 okLabel: "Archive",
                 onConfirm: async () => {
                     try {
                         await api(`/staff/animals/${id}/archive`, { method: "POST" });
                         removeAnimalFromList(id);
-                        if (detailAnimalId === id) closeDetail();
                         render();
-                        toast("Animal record archived.");
+                        toast("Pet record archived.");
                     } catch (err) {
                         toast(err.message || "Unable to archive the record.", true);
                     }
@@ -1227,7 +945,7 @@ color: white;
                 await api(`/staff/animals/${id}/restore`, { method: "POST" });
                 removeAnimalFromList(id);
                 render();
-                toast("Animal record restored.");
+                toast("Pet record restored.");
             } catch (err) {
                 toast(err.message || "Unable to restore the record.", true);
             }
@@ -1244,7 +962,7 @@ color: white;
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = `Animal-Vaccine-Tracker-${todayISO}.csv`;
+                a.download = `Pet-Vaccine-Tracker-${new Date().toISOString().slice(0, 10)}.csv`;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
@@ -1261,7 +979,7 @@ color: white;
             showArchived = !showArchived;
             $("toggleArchivedBtn").textContent = showArchived ? "View active" : "View archived";
             $("addAnimalBtn").hidden = showArchived;
-            $("pageHeading").textContent = showArchived ? "Archived Animal Records" : "Animal Vaccine Tracker";
+            $("pageHeading").textContent = showArchived ? "Archived Pet Records" : "Animal Vaccine Tracker";
             currentPage = 1;
             loadAnimals();
         });
@@ -1279,8 +997,12 @@ color: white;
         $("nextPageBtn").addEventListener("click", () => { currentPage += 1; render(); });
 
         $("animalsBody").addEventListener("click", (e) => {
-            const view = e.target.closest("[data-view]");
-            if (view) return openDetail(view.dataset.view);
+            const tog = e.target.closest("[data-toggle]");
+            if (tog) return toggleVaccinated(tog.dataset.toggle);
+            const edit = e.target.closest("[data-edit]");
+            if (edit) return openAnimalModal(animals.find((x) => x.id === edit.dataset.edit) || null);
+            const addPet = e.target.closest("[data-add-pet]");
+            if (addPet) return openAnimalModal(null, animals.find((x) => x.id === addPet.dataset.addPet) || null);
             const arch = e.target.closest("[data-archive]");
             if (arch) return archiveAnimal(arch.dataset.archive);
             const rest = e.target.closest("[data-restore]");
@@ -1311,21 +1033,6 @@ color: white;
         });
         $("ownerUnlinkBtn").addEventListener("click", () => { linkedOwner = null; setOwnerChip(); });
 
-        $("detailCloseBtn").addEventListener("click", closeDetail);
-        $("detailEditBtn").addEventListener("click", () => {
-            const a = currentDetail();
-            if (a) openAnimalModal(a);
-        });
-        $("detailArchiveBtn").addEventListener("click", () => { if (detailAnimalId) archiveAnimal(detailAnimalId); });
-        $("doseSaveBtn").addEventListener("click", saveDose);
-        $("doseCancelEditBtn").addEventListener("click", resetDoseForm);
-        $("doseBody").addEventListener("click", (e) => {
-            const ed = e.target.closest("[data-dose-edit]");
-            if (ed) return startEditDose(ed.dataset.doseEdit);
-            const rm = e.target.closest("[data-dose-remove]");
-            if (rm) return removeDose(rm.dataset.doseRemove);
-        });
-
         $("confirmCancelBtn").addEventListener("click", closeConfirm);
         $("confirmOkBtn").addEventListener("click", async () => {
             const fn = confirmAction;
@@ -1333,11 +1040,10 @@ color: white;
             if (fn) await fn();
         });
 
-        ["animalModal", "detailModal", "confirmModal"].forEach((id) => {
+        ["animalModal", "confirmModal"].forEach((id) => {
             $(id).addEventListener("click", (e) => {
                 if (e.target !== $(id)) return;
                 if (id === "animalModal") closeAnimalModal();
-                else if (id === "detailModal") closeDetail();
                 else closeConfirm();
             });
         });
@@ -1345,10 +1051,8 @@ color: white;
             if (e.key !== "Escape") return;
             if ($("confirmModal").classList.contains("show")) closeConfirm();
             else if ($("animalModal").classList.contains("show")) closeAnimalModal();
-            else if ($("detailModal").classList.contains("show")) closeDetail();
         });
 
-        applyDateLimits();
         loadAnimals();
     </script>
 </body>

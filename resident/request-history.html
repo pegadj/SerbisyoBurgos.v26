@@ -513,6 +513,19 @@
             return String(value || "Appointment").trim() || "Appointment";
         }
 
+        /** "Reason: ..." line for a rejected item, taken from the staff note on its latest "Rejected" update. */
+        function rejectionReasonHtml(item) {
+            if (String(item?.status || "").trim().toLowerCase() !== "rejected") return "";
+            const timeline = Array.isArray(item?.statusTimeline) ? item.statusTimeline : [];
+            for (let i = timeline.length - 1; i >= 0; i--) {
+                const entry = timeline[i];
+                if (String(entry?.status || "").trim().toLowerCase() === "rejected" && typeof entry?.note === "string" && entry.note.trim()) {
+                    return `<small style="color:#b91c1c;"><b>Reason:</b> ${escapeHtml(entry.note.trim())}</small>`;
+                }
+            }
+            return "";
+        }
+
         function formatHistoryDate(value) {
             if (!value) return "—";
             const dateObj = new Date(value);
@@ -625,6 +638,7 @@
                                         <b>${title}</b>
                                         <small>Ref: #${ref}</small>
                                         <small>Status: ${status}</small>
+                                        ${rejectionReasonHtml(r)}
                                         <small>${pref}</small>
                                     </div>
                                     <div class="date-info">
@@ -665,6 +679,7 @@
                                     <b>${purpose}</b>
                                     <small>Ref: #${ref}</small>
                                     <small>Status: ${status}</small>
+                                    ${rejectionReasonHtml(a)}
                                     <small>${slot}</small>
                                 </div>
                                 <div class="date-info">

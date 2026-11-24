@@ -1,5 +1,5 @@
 /**
- * Seeds baseline reference data into MongoDB.
+ * Seeds baseline reference data into PostgreSQL.
  *
  * This REPLACES scripts/migrate-to-mongodb.js for this project — since the
  * Supabase account is inaccessible and there were no resident records in
@@ -17,7 +17,7 @@
  */
 
 require('dotenv').config();
-const { connectMongo, mongoose } = require('../src/config/mongoClient');
+const { connectPg, pool } = require('../src/config/pgClient');
 
 const { ServiceCatalog } = require('../src/models/ServiceCatalog');
 const { FaqEntry } = require('../src/models/FaqEntry');
@@ -39,7 +39,7 @@ const FAQ_DEFAULTS = [
   {
     category: 'general',
     question: 'What time is the barangay hall open?',
-    answer: 'Monday to Friday, 9:00 AM to 5:00 PM.',
+    answer: 'Monday to Friday, 8:00 AM to 5:00 PM (closed for lunch from 12:00 PM to 1:00 PM).',
     keywords: ['open', 'hours', 'office hours', 'schedule', 'time', 'barangay hall', 'mon', 'fri', 'monday', 'friday', '9am', '5pm'],
     sortOrder: 1,
   },
@@ -94,19 +94,22 @@ const PURPOSE_CATALOG_DEFAULTS = [
 // these against what your staff actually expect before relying on them —
 // this is a best-effort reconstruction, not a confirmed export.
 const APPOINTMENT_SLOT_DEFAULTS = [
-  { slotCode: '0900', label: '09:00 AM - 10:00 AM', phaseLabel: 'Phase 1', isMorningPickupOnly: true, defaultCapacity: 10 },
-  { slotCode: '1000', label: '10:00 AM - 11:00 AM', phaseLabel: 'Phase 2', isMorningPickupOnly: true, defaultCapacity: 10 },
-  { slotCode: '1100', label: '11:00 AM - 12:00 PM', phaseLabel: 'Phase 3', isMorningPickupOnly: true, defaultCapacity: 10 },
-  { slotCode: '0100', label: '01:00 PM - 02:00 PM', phaseLabel: 'Phase 4', isMorningPickupOnly: false, defaultCapacity: 15 },
-  { slotCode: '0300', label: '03:00 PM - 04:00 PM', phaseLabel: 'Phase 5', isMorningPickupOnly: false, defaultCapacity: 15 },
-  { slotCode: '0400', label: '04:00 PM - 05:00 PM', phaseLabel: 'Phase 6', isMorningPickupOnly: false, defaultCapacity: 15 },
+  // 8:00 AM - 5:00 PM, no slot from 12:00 PM to 1:00 PM (lunch break).
+  { slotCode: '0800', label: '08:00 AM - 09:00 AM', phaseLabel: 'Phase 1', isMorningPickupOnly: true, defaultCapacity: 10 },
+  { slotCode: '0900', label: '09:00 AM - 10:00 AM', phaseLabel: 'Phase 2', isMorningPickupOnly: true, defaultCapacity: 10 },
+  { slotCode: '1000', label: '10:00 AM - 11:00 AM', phaseLabel: 'Phase 3', isMorningPickupOnly: true, defaultCapacity: 10 },
+  { slotCode: '1100', label: '11:00 AM - 12:00 PM', phaseLabel: 'Phase 4', isMorningPickupOnly: true, defaultCapacity: 10 },
+  { slotCode: '0100', label: '01:00 PM - 02:00 PM', phaseLabel: 'Phase 5', isMorningPickupOnly: false, defaultCapacity: 15 },
+  { slotCode: '0200', label: '02:00 PM - 03:00 PM', phaseLabel: 'Phase 6', isMorningPickupOnly: false, defaultCapacity: 15 },
+  { slotCode: '0300', label: '03:00 PM - 04:00 PM', phaseLabel: 'Phase 7', isMorningPickupOnly: false, defaultCapacity: 15 },
+  { slotCode: '0400', label: '04:00 PM - 05:00 PM', phaseLabel: 'Phase 8', isMorningPickupOnly: false, defaultCapacity: 15 },
 ];
 
 // --- Seeding logic ----------------------------------------------------------
 
 async function main() {
-  console.log('Connecting to MongoDB...');
-  await connectMongo();
+  console.log('Connecting to PostgreSQL...');
+  await connectPg();
 
   await seedIfEmpty(ServiceCatalog, SERVICE_CATALOG_DEFAULTS, 'service catalog');
   await seedIfEmpty(FaqEntry, FAQ_DEFAULTS, 'FAQ entries');
@@ -115,7 +118,7 @@ async function main() {
   await seedSystemSettings();
 
   console.log('\nSeeding complete.');
-  await mongoose.disconnect();
+  await pool.end();
   process.exit(0);
 }
 

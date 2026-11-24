@@ -10,7 +10,7 @@
  * Usage:  node scripts/seed-chatbot-faq.js
  */
 require('dotenv').config();
-const { connectMongo, mongoose } = require('../src/config/mongoClient');
+const { connectPg, pool } = require('../src/config/pgClient');
 const { FaqEntry } = require('../src/models/FaqEntry');
 
 const ENTRIES = [
@@ -113,7 +113,7 @@ const RETIRED_QUESTIONS = [
 ];
 
 async function main() {
-  await connectMongo();
+  await connectPg();
 
   const retired = await FaqEntry.deleteMany({ question: { $in: RETIRED_QUESTIONS } });
   if (retired.deletedCount) console.log(`  removed ${retired.deletedCount} outdated sign-up FAQ entr${retired.deletedCount === 1 ? 'y' : 'ies'}`);
@@ -141,12 +141,12 @@ async function main() {
     console.log('  added:', entry.question.slice(0, 60));
   }
   console.log(`Done. ${added} new FAQ entries added.`);
-  await mongoose.disconnect();
+  await pool.end();
   process.exit(0);
 }
 
 main().catch(async (err) => {
   console.error('Seeding failed:', err.message || err);
-  try { await mongoose.disconnect(); } catch (_e) { /* ignore */ }
+  try { await pool.end(); } catch (_e) { /* ignore */ }
   process.exit(1);
 });

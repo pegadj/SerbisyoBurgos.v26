@@ -1,6 +1,8 @@
 // TextBee SMS gateway client (https://textbee.dev) — sends SMS through your own Android phone.
 // Env: TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID, optional TEXTBEE_BASE_URL.
 
+const { recordSms } = require("./smsLog");
+
 const BASE_URL = (process.env.TEXTBEE_BASE_URL || "https://api.textbee.dev/api/v1").replace(/\/$/, "");
 const BATCH_SIZE = 20;
 const BATCH_DELAY_MS = 1500;
@@ -35,12 +37,18 @@ async function sendOneBatch(recipients, message) {
   }
 }
 
-/** Sends the same message to many numbers in small batches. Never throws. */
-async function sendSmsBatch(numbers, message) {
+/**
+ * Sends the same message to many numbers in small batches. Never throws.
+ * Every recipient's outcome is recorded in the sms_log table (see db/migrations/002_sms_log.sql);
+ * `meta` says what the text is for (see config/smsLog.js).
+ */
+async function sendSmsBatch(numbers, message, meta = {}) {
   const result = { sent: 0, failed: 0, errors: [] };
   if (!isSmsConfigured()) {
     result.failed = numbers.length;
-    result.errors.push("TextBee is not configured (TEXTBEE_API_KEY / TEXTBEE_DEVICE_ID).");
+    const reason = "TextBee is not configured (TEXTBEE_API_KEY / TEXTBEE_DEVICE_ID).";
+    result.errors.push(reason);
+    await recordSms(numbers, message, "failed", reason, meta);
     return result;
   }
   for (let i = 0; i < numbers.length; i += BATCH_SIZE) {
@@ -48,9 +56,11 @@ async function sendSmsBatch(numbers, message) {
     try {
       await sendOneBatch(chunk, message);
       result.sent += chunk.length;
+      await recordSms(chunk, message, "sent", null, meta);
     } catch (err) {
       result.failed += chunk.length;
       if (result.errors.length < 3) result.errors.push(err.message);
+      await recordSms(chunk, message, "failed", err.message, meta);
     }
     if (i + BATCH_SIZE < numbers.length) await sleep(BATCH_DELAY_MS);
   }
