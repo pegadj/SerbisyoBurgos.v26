@@ -56,7 +56,7 @@ const NOT_COVERED_REPLY =
  */
 const PORTAL_GUIDE = `
 - Resident menu pages: Dashboard, Service Requests, Appointments, Bulletin Board, Request History. Residents can also open their profile to update details and change their password.
-- Accounts: residents do NOT sign up online. The Barangay Secretary records the resident at the barangay hall and issues a Resident ID (like SB-00001) and a temporary password. Residents log in with their Resident ID (or email) and password. A temporary password must be changed at first login.
+- Accounts: residents do NOT sign up online. The Barangay Secretary records the resident at the barangay hall and issues a Resident ID (like SB00001) and a temporary password. Residents log in with their Resident ID (not an email) and password. A temporary password must be changed at first login.
 - Forgot password: on the login page choose "Forgot password?", enter the Resident ID or email, and a 6-digit code is texted to the mobile number the barangay has on file (valid 10 minutes). Enter the code and a new password (at least 8 characters). If there is no mobile number on file, no code arrives, or the text option is unavailable, the resident should visit the barangay hall: the Barangay Secretary can reset the password and give a temporary one. Barangay staff and administrators are reset by a system administrator.
 - Too many wrong passwords temporarily locks the account; the resident can wait and try again or use "Forgot password?".
 - Service requests: open "Service Requests", choose the service, pick a preferred date and preferred time slot, add a purpose (optional), attach the required documents, and submit. Each request gets a reference number (REQ-####).

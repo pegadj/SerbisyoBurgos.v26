@@ -436,6 +436,11 @@
             line-height: 1.3;
         }
     </style>
+<script>
+    /* Residents added without an email only hold an internal placeholder address: never export it. */
+    window.SB_showEmail = function (e) { return /@residents\.serbisyoburgos\.local$/i.test(String(e || "")) ? "" : String(e || ""); };
+    window.SB_auditWho = function (e) { var v = String(e || ""); return /@residents\.serbisyoburgos\.local$/i.test(v) ? v.split("@")[0].toUpperCase() : v; };
+</script>
 </head>
 <body>
 
@@ -876,7 +881,7 @@
             const users = C.users || [];
             const userById = new Map(users.map((u) => [ejId(u._id), u]));
             const residentName = (id) => userById.get(ejId(id))?.fullName || "(unknown)";
-            const residentEmail = (id) => userById.get(ejId(id))?.email || "";
+            const residentEmail = (id) => SB_showEmail(userById.get(ejId(id))?.email);
 
             const wb = new ExcelJS.Workbook();
             wb.creator = "SerbisyoBurgos";
@@ -936,8 +941,8 @@
                     at: e.createdAt,
                     type: "Sign-in & account",
                     action: { login: "Login", register: "Registration", password_change: "Password change" }[e.action] || e.action || "",
-                    details: e.email || "",
-                    by: e.email || "",
+                    details: SB_auditWho(e.email),
+                    by: SB_auditWho(e.email),
                     role: ROLE_LABELS[e.role] || e.role || ""
                 }))
             ].sort((a, b) => (ejDate(b.at)?.getTime() || 0) - (ejDate(a.at)?.getTime() || 0));
@@ -987,7 +992,7 @@
 
             addSheet("Residents", [
                 { header: "Full Name", get: (u) => u.fullName || "" },
-                { header: "Email", get: (u) => u.email || "" },
+                { header: "Email", get: (u) => SB_showEmail(u.email) },
                 { header: "Contact Number", get: (u) => u.contactNumber || "" },
                 { header: "Account Status", get: (u) => titleCase(u.accountStatus) },
                 { header: "Sex", get: (u) => u.residentProfile?.sex || "" },
@@ -1003,7 +1008,7 @@
 
             addSheet("Secretary & System Admins", [
                 { header: "Full Name", get: (u) => u.fullName || "" },
-                { header: "Email", get: (u) => u.email || "" },
+                { header: "Email", get: (u) => SB_showEmail(u.email) },
                 { header: "Role", get: (u) => ROLE_LABELS[u.role] || u.role || "" },
                 { header: "Account Status", get: (u) => titleCase(u.accountStatus) },
                 {

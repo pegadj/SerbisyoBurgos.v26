@@ -95,10 +95,10 @@ const PURPOSE_CATALOG_DEFAULTS = [
 // this is a best-effort reconstruction, not a confirmed export.
 const APPOINTMENT_SLOT_DEFAULTS = [
   // 8:00 AM - 5:00 PM, no slot from 12:00 PM to 1:00 PM (lunch break).
-  { slotCode: '0800', label: '08:00 AM - 09:00 AM', phaseLabel: 'Phase 1', isMorningPickupOnly: true, defaultCapacity: 10 },
-  { slotCode: '0900', label: '09:00 AM - 10:00 AM', phaseLabel: 'Phase 2', isMorningPickupOnly: true, defaultCapacity: 10 },
-  { slotCode: '1000', label: '10:00 AM - 11:00 AM', phaseLabel: 'Phase 3', isMorningPickupOnly: true, defaultCapacity: 10 },
-  { slotCode: '1100', label: '11:00 AM - 12:00 PM', phaseLabel: 'Phase 4', isMorningPickupOnly: true, defaultCapacity: 10 },
+  { slotCode: '0800', label: '08:00 AM - 09:00 AM', phaseLabel: 'Phase 1', isMorningPickupOnly: false, defaultCapacity: 10 },
+  { slotCode: '0900', label: '09:00 AM - 10:00 AM', phaseLabel: 'Phase 2', isMorningPickupOnly: false, defaultCapacity: 10 },
+  { slotCode: '1000', label: '10:00 AM - 11:00 AM', phaseLabel: 'Phase 3', isMorningPickupOnly: false, defaultCapacity: 10 },
+  { slotCode: '1100', label: '11:00 AM - 12:00 PM', phaseLabel: 'Phase 4', isMorningPickupOnly: false, defaultCapacity: 10 },
   { slotCode: '0100', label: '01:00 PM - 02:00 PM', phaseLabel: 'Phase 5', isMorningPickupOnly: false, defaultCapacity: 15 },
   { slotCode: '0200', label: '02:00 PM - 03:00 PM', phaseLabel: 'Phase 6', isMorningPickupOnly: false, defaultCapacity: 15 },
   { slotCode: '0300', label: '03:00 PM - 04:00 PM', phaseLabel: 'Phase 7', isMorningPickupOnly: false, defaultCapacity: 15 },

@@ -273,6 +273,18 @@
         .ci-sign-block { left: 4.4in; width: 3.2in; top: 7.0in; text-align: center; z-index: 2; }
         .doc-footer { left: 50%; transform: translateX(-50%); width: 8in; bottom: -0.09in; z-index: 2; } /* sits in the margin, below the page border */
 
+        /* ── Custom service template (uploaded Word body) ── */
+        #customContent { inset: 0; }
+        #customContent > * { position: absolute; }
+        .cc-body { left: 0.85in; right: 0.85in; top: 2.7in; z-index: 2; font-size: 12pt; line-height: 1.45; }
+        .cc-body p { text-align: justify; margin: 0 0 0.12in 0; text-indent: 0.5in; }
+        .cc-body h1, .cc-body h2, .cc-body h3, .cc-body h4, .cc-body h5, .cc-body h6 { font-size: 12pt; font-weight: 700; text-align: center; margin: 0 0 0.12in 0; }
+        .cc-body ul, .cc-body ol { margin: 0 0 0.12in 0; padding-left: 0.6in; }
+        .cc-body table { border-collapse: collapse; width: 100%; margin-bottom: 0.12in; }
+        .cc-body td, .cc-body th { border: 1px solid #000; padding: 2px 6px; vertical-align: top; }
+        .cc-body .ph { font-weight: 700; }
+        .cc-sign { margin: 0.45in 0 0 3.55in; width: 3.2in; text-align: center; }
+
         /* Print: exactly one Letter page, nothing else */
         @page { size: 8.5in 11in; margin: 0; }
         @media print {
@@ -457,6 +469,12 @@
                     </div>
                 </div>
 
+                <div id="customFields" style="display: none;">
+                    <div class="form-section-title">Document Details</div>
+                    <div id="customFieldsList"></div>
+                    <p class="field-hint" id="customFieldsHint"></p>
+                </div>
+
                 <div class="form-section-title">Issuance</div>
                 <div class="form-group">
                     <label for="issueDate">Date of Issue<span class="req">*</span></label>
@@ -546,6 +564,20 @@
                         </div>
 
                         <div class="doc-notvalid" style="left: 0.58in; top: 9.2in; width: 1.21in; height: 0.46in;">Not Valid without<br>Official Seal</div>
+                    </div>
+                    <!-- ═══════════ CUSTOM SERVICE TEMPLATE (uploaded in Portal Configuration) ═══════════ -->
+                    <div id="customContent" style="display: none;">
+                        <img class="doc-letterhead" src="../asset/docs/Header.png" alt="" style="width: 7.7in; height: 1.31in;">
+                        <div class="doc-office" style="top: 1.49in; font-size: 12.5pt;">Office of the punong barangay</div>
+                        <div class="doc-rule" style="top: 1.75in;"></div>
+                        <div class="doc-title" id="customTitle" style="top: 2.1in;"></div>
+                        <div class="cc-body">
+                            <div id="customBody"></div>
+                            <div class="cc-sign">
+                                <div class="doc-sig-name" id="customSigName"></div>
+                                <div class="doc-sig-title" id="customSigTitle"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -706,14 +738,187 @@ const MONTHS = ["January","February","March","April","May","June","July","August
             $("resSurname").value = words.length > 1 ? words[words.length - 1] : "";
         }
 
+        // ---- Custom service templates (Word body uploaded in Portal Configuration) ----
+        let customTemplates = [];        // [{ id, name, html, fileName }]
+        let customFieldIds = [];         // placeholder keys that have an input box right now
+        let customBuiltFor = "";         // which template the current boxes/body were built for
+        let customKeys = [];
+        const AUTO_KEYS = ["DATE_ISSUED", "DAY", "ORDINAL", "MONTH", "YEAR", "SIGNATORY_NAME", "SIGNATORY_TITLE"];
+        const INPUT_LABELS = { FULL_NAME: "Full Name", ADDRESS: "Address", PURPOSE: "Purpose", DATE_OF_BIRTH: "Date of Birth",
+                               PLACE_OF_BIRTH: "Place of Birth", CIVIL_STATUS: "Civil Status", GENDER: "Gender" };
+        const ALLOWED_TAGS = new Set(["P","BR","STRONG","B","EM","I","U","H1","H2","H3","H4","H5","H6","UL","OL","LI","TABLE","THEAD","TBODY","TR","TD","TH","SPAN","DIV","SUP","SUB"]);
+        const DROP_TAGS = new Set(["SCRIPT","STYLE","IFRAME","OBJECT","EMBED","NOSCRIPT","TEMPLATE"]);
+
+        function isCustomType() {
+            const o = $("docType").selectedOptions[0];
+            return Boolean(o && o.dataset.custom);
+        }
+        function prettyKey(k) { return INPUT_LABELS[k] || k.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()); }
+        function normKey(s) { return String(s).trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, ""); }
+
+        // Rebuild the uploaded HTML through an allow-list so nothing but plain document formatting can get in.
+        function sanitizeInto(src, dest) {
+            src.childNodes.forEach((n) => {
+                if (n.nodeType === 3) { dest.appendChild(document.createTextNode(n.nodeValue)); return; }
+                if (n.nodeType !== 1 || DROP_TAGS.has(n.tagName)) return;
+                if (ALLOWED_TAGS.has(n.tagName)) {
+                    const el = document.createElement(n.tagName);
+                    if (n.tagName === "TD" || n.tagName === "TH") {
+                        ["colspan", "rowspan"].forEach((a) => { const v = parseInt(n.getAttribute(a), 10); if (v > 1 && v < 20) el.setAttribute(a, String(v)); });
+                    }
+                    sanitizeInto(n, el);
+                    dest.appendChild(el);
+                } else {
+                    sanitizeInto(n, dest);
+                }
+            });
+        }
+        // Turn {{PLACEHOLDERS}} into <span class="ph" data-key="..."> and report which keys the template uses.
+        function buildCustomBody(rawHtml) {
+            const doc = new DOMParser().parseFromString(String(rawHtml || ""), "text/html");
+            const root = document.createElement("div");
+            sanitizeInto(doc.body, root);
+            const keys = [];
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            const nodes = [];
+            while (walker.nextNode()) nodes.push(walker.currentNode);
+            nodes.forEach((node) => {
+                const text = node.nodeValue;
+                const re = /\{\{\s*([^{}]+?)\s*\}\}/g;
+                if (!re.test(text)) return;
+                re.lastIndex = 0;
+                const frag = document.createDocumentFragment();
+                let last = 0, m;
+                while ((m = re.exec(text))) {
+                    if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+                    const key = normKey(m[1]);
+                    if (key) {
+                        const span = document.createElement("span");
+                        span.className = "ph";
+                        span.dataset.key = key;
+                        frag.appendChild(span);
+                        if (!keys.includes(key)) keys.push(key);
+                    }
+                    last = m.index + m[0].length;
+                }
+                if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+                node.parentNode.replaceChild(frag, node);
+            });
+            return { root, keys };
+        }
+
+        function selectedCustomTemplate() {
+            return customTemplates.find((x) => x.name === $("docType").value) || null;
+        }
+        function setupCustomTemplate() {
+            const tpl = selectedCustomTemplate();
+            if (!tpl || customBuiltFor === tpl.name) return;
+            customBuiltFor = tpl.name;
+            const { root, keys } = buildCustomBody(tpl.html);
+            customKeys = keys;
+            const body = $("customBody");
+            body.textContent = "";
+            while (root.firstChild) body.appendChild(root.firstChild);
+            $("customTitle").textContent = tpl.name.toUpperCase();
+
+            const inputKeys = keys.filter((k) => !AUTO_KEYS.includes(k));
+            customFieldIds = inputKeys;
+            const list = $("customFieldsList");
+            list.textContent = "";
+            inputKeys.forEach((k) => {
+                const wrap = document.createElement("div");
+                wrap.className = "form-group";
+                const label = document.createElement("label");
+                label.setAttribute("for", "cf_" + k);
+                label.textContent = prettyKey(k);
+                const star = document.createElement("span");
+                star.className = "req";
+                star.textContent = "*";
+                label.appendChild(star);
+                const input = document.createElement("input");
+                input.type = k === "DATE_OF_BIRTH" ? "date" : "text";
+                input.id = "cf_" + k;
+                input.addEventListener("input", updatePreview);
+                input.addEventListener("change", updatePreview);
+                wrap.append(label, input);
+                list.appendChild(wrap);
+            });
+            $("customFieldsHint").textContent = inputKeys.length
+                ? "These fields come from the placeholders in the uploaded template."
+                : "This template has no fill-in fields. Only the date and signatory are set below.";
+        }
+
+        function customInputValue(k) {
+            return ($("cf_" + k)?.value || "").trim();
+        }
+        function updateCustomPreview(issue, sigName, sigTitle) {
+            setupCustomTemplate();
+            const vals = {
+                DATE_ISSUED: issue ? longDate(issue) : "",
+                DAY: issue ? String(issue.day) : "",
+                ORDINAL: issue ? ordinalSuffix(issue.day) : "",
+                MONTH: issue ? MONTHS[issue.month] : "",
+                YEAR: issue ? String(issue.year) : "",
+                SIGNATORY_NAME: $("signatoryName").value.trim(),
+                SIGNATORY_TITLE: $("signatoryTitle").value.trim()
+            };
+            customFieldIds.forEach((k) => {
+                const v = customInputValue(k);
+                if (k === "DATE_OF_BIRTH") { const d = parseIso(v); vals[k] = d ? longDate(d) : ""; }
+                else vals[k] = v;
+            });
+            $("customBody").querySelectorAll(".ph").forEach((span) => {
+                const key = span.dataset.key;
+                span.textContent = vals[key] || `[${key.replace(/_/g, " ")}]`;
+                span.style.textTransform = key === "FULL_NAME" ? "uppercase" : "none";
+            });
+            $("customSigName").textContent = sigName === "[SIGNATORY NAME]" ? "" : sigName;
+            $("customSigTitle").textContent = sigTitle === "[SIGNATORY TITLE]" ? "" : sigTitle;
+        }
+        function fillCustomFields(r, req) {
+            const set = (k, v) => { const el = $("cf_" + k); if (el && v) el.value = v; };
+            if (req) set("PURPOSE", req.purpose);
+            if (!r) return;
+            set("FULL_NAME", r.fullName);
+            if (r.address || r.purok) set("ADDRESS", composeAddress(r));
+            set("DATE_OF_BIRTH", r.birthDate);
+            set("PLACE_OF_BIRTH", r.birthPlace);
+            set("CIVIL_STATUS", normalizeCivilStatus(r.civilStatus) || r.civilStatus);
+            set("GENDER", r.sex);
+        }
+        async function loadCustomTemplates() {
+            let token = "";
+            try { token = JSON.parse(sessionStorage.getItem("adminAuth") || "{}")?.session?.accessToken || ""; } catch (_e) { /* ignore */ }
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_BASE_URL}/admin/service-templates`, { headers: { Authorization: `Bearer ${token}` } });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok) return;
+                const builtIn = new Set(["Barangay Clearance", "Certificate of Indigency"]);
+                (json.templates || []).forEach((tpl) => {
+                    if (builtIn.has(tpl.name)) return;
+                    customTemplates.push(tpl);
+                    const o = document.createElement("option");
+                    o.value = tpl.name;
+                    o.textContent = tpl.name;
+                    o.dataset.custom = "1";
+                    $("docType").appendChild(o);
+                });
+            } catch (_e) { /* the two built-in certificates still work */ }
+        }
+
         // Show/hide form fields and preview based on document type
         function updateFormFields() {
             printAttempted = false;   // new form: start clean, nothing red until Print is clicked
+            const custom = isCustomType();
             const isClearance = $("docType").value === "Barangay Clearance";
-            $("clearanceFields").style.display = isClearance ? "block" : "none";
-            $("indigencyFields").style.display = isClearance ? "none" : "block";
-            $("clearanceContent").style.display = isClearance ? "block" : "none";
-            $("indigencyContent").style.display = isClearance ? "none" : "block";
+            $("clearanceFields").style.display = !custom && isClearance ? "block" : "none";
+            $("indigencyFields").style.display = !custom && !isClearance ? "block" : "none";
+            $("customFields").style.display = custom ? "block" : "none";
+            $("clearanceContent").style.display = !custom && isClearance ? "block" : "none";
+            $("indigencyContent").style.display = !custom && !isClearance ? "block" : "none";
+            $("customContent").style.display = custom ? "block" : "none";
+            if (custom) setupCustomTemplate(); else customFieldIds = [];
             updatePreview();
         }
 
@@ -721,6 +926,7 @@ const MONTHS = ["January","February","March","April","May","June","July","August
         function requiredFields() {
             const isClearance = $("docType").value === "Barangay Clearance";
             const common = [["issueDate", "Date of Issue"], ["signatoryName", "Signatory"], ["signatoryTitle", "Signatory Title"]];
+            if (isCustomType()) return customFieldIds.map((k) => ["cf_" + k, prettyKey(k)]).concat(common);
             const list = isClearance
                 ? [["resName", "Full Name"], ["resAddress", "Address"], ["resDateOfBirth", "Date of Birth"],
                    ["resPlaceProv", "Place of Birth (Province)"], ["resPlaceCity", "Place of Birth (City / Municipality)"],
@@ -743,7 +949,7 @@ const MONTHS = ["January","February","March","April","May","June","July","August
             const box = $("missingNotice");
             document.body.classList.toggle("print-blocked", missing.length > 0);   // also blocks Ctrl+P (no visual change on screen)
 
-            ALL_REQUIRED_IDS.forEach((id) => $(id)?.classList.remove("invalid"));
+            ALL_REQUIRED_IDS.concat(customFieldIds.map((k) => "cf_" + k)).forEach((id) => $(id)?.classList.remove("invalid"));
             if (printAttempted && missing.length) {
                 missing.forEach(([id]) => $(id)?.classList.add("invalid"));
                 if (box) {
@@ -812,6 +1018,7 @@ const MONTHS = ["January","February","March","April","May","June","July","August
             const sigTitle = $("signatoryTitle").value.trim() || "[SIGNATORY TITLE]";
             document.title = `${$("docType").value} | SerbisyoBurgos`;
             refreshPrintState();
+            if (isCustomType()) { updateCustomPreview(issue, sigName, sigTitle); return; }
 
             if (isClearance) {
                 setText("previewName", $("resName").value, "[RESIDENT NAME]");
@@ -918,6 +1125,7 @@ const MONTHS = ["January","February","March","April","May","June","July","August
             }
 
             if (data.template) setSelectValue($("docType"), data.template);
+            updateFormFields();   // builds the custom template fields when this is an uploaded template
             const isClearance = $("docType").value === "Barangay Clearance";
             const r = data.resident;
             const req = data.request || {};
@@ -930,10 +1138,13 @@ const MONTHS = ["January","February","March","April","May","June","July","August
             }
 
             if (!r) {
+                fillCustomFields(null, req);
                 updateFormFields();
                 showPrefillNotice("warn", `<strong>${escHtml(req.referenceNo || "This request")}</strong> is not linked to a resident account, so the name and profile details could not be filled in. Please enter them manually.`);
                 return;
             }
+
+            fillCustomFields(r, req);
 
             // Name: used by both certificate types
             if (r.fullName) {
@@ -985,11 +1196,12 @@ const MONTHS = ["January","February","March","April","May","June","July","August
         }
 
         // Initialize: default the issue date to today, then render.
-        window.onload = () => {
+        window.onload = async () => {
             $("issueDate").value = todayIso();
             PlaceAutocomplete.pair($("resPlaceProv"), $("resPlaceCity"), { onChange: (v) => { const h = $("resPlaceOfBirth"); h.value = v; h.dispatchEvent(new Event("input")); } });
             document.querySelector(".config-panel").addEventListener("input", refreshPrintState);
             document.querySelector(".config-panel").addEventListener("change", refreshPrintState);
+            await loadCustomTemplates();
             updateFormFields();
             prefillFromRequest();
         };

@@ -373,6 +373,7 @@
         .sm-value-card button { color: #dc2626; border: none; background: none; cursor: pointer; width: 34px; height: 34px; border-radius: 8px; font-size: 1rem; }
         .sm-value-card button:hover { background: #fee2e2; }
         @media (max-width: 720px) { .sm-form-grid { grid-template-columns: 1fr; } .sm-span-2 { grid-column: span 1; } }
+            #configModal .modal-content { max-height: 90vh; overflow-y: auto; }
     </style>
     <script src="../shared/text-format.js"></script>
 </head>
@@ -525,6 +526,22 @@
                     </p>
                 </div>
 
+                <div class="form-group" id="templateSection" style="margin: 1rem 0;">
+                    <label style="display:block; font-weight:600; margin-bottom: 5px;">Document Template (Word)</label>
+                    <p id="templateStatus" style="font-size:0.85rem; color:#64748b; margin-bottom:8px;">No template uploaded.</p>
+                    <input type="file" id="templateFile" accept=".docx" style="display:none;">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="button" class="btn-secondary" id="templateUploadBtn">Upload .docx</button>
+                        <button type="button" class="btn-secondary" id="templateRemoveBtn" style="display:none;">Remove</button>
+                    </div>
+                    <p style="margin-top:8px;font-size:0.72rem;color:#64748b;line-height:1.4;">
+                        Upload only the <strong>body</strong> of the document. The letterhead, border, title, signature and footer are added automatically when it is printed.
+                        Type placeholders where details go: <code>{{FULL_NAME}}</code>, <code>{{ADDRESS}}</code>, <code>{{PURPOSE}}</code>, <code>{{DATE_OF_BIRTH}}</code>,
+                        <code>{{PLACE_OF_BIRTH}}</code>, <code>{{CIVIL_STATUS}}</code>, <code>{{GENDER}}</code>, <code>{{DATE_ISSUED}}</code>, <code>{{DAY}}</code> and <code>{{ORDINAL}}</code> (type <code>{{DAY}}{{ORDINAL}}</code> to get &ldquo;5th&rdquo;),
+                        <code>{{MONTH}}</code>, <code>{{YEAR}}</code>. Any other <code>{{NAME}}</code> becomes a field staff fill in. Images and fancy layout are not kept.
+                    </p>
+                </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     <button type="button" class="btn-save" onclick="saveConfig()">Save Changes</button>
@@ -555,6 +572,7 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <script src="../shared/routes.js"></script>
     <script src="../shared/maintenance-check.js"></script>
     <script src="../shared/admin-access.js"></script>
@@ -686,7 +704,7 @@
                         const timeLabel = processingTimeLabel(svc.processingTime);
                         return `
                         <tr data-service-id="${svc.id}">
-                            <td style="font-weight: 600;">${name}</td>
+                            <td style="font-weight: 600;">${name}${svc.hasTemplate ? `<div style="font-size:0.72rem;font-weight:500;color:#16a34a;margin-top:2px;">Template: ${escapeHtml(svc.templateFileName || "uploaded")}</div>` : ""}</td>
                             <td>${docs}</td>
                             <td>${timeLabel}</td>
                             <td>${statusBadgeHtml(svc.status)}</td>
@@ -726,6 +744,7 @@
             document.getElementById("editDocs").value = svc.requiredDocuments || "";
             syncProcessingSelect(document.getElementById("editTime"), svc.processingTime);
             document.getElementById("editStatus").value = svc.status || "Active";
+            renderTemplateStatus(svc);
             document.getElementById("configModal").style.display = "flex";
         }
 
@@ -1019,6 +1038,69 @@ document.getElementById("btnAddService")?.addEventListener("click", openAddModal
             } finally {
                 btn.disabled = false;
             }
+        });
+
+        // ---- Document template (Word body -> HTML, used by the Document Generator) ----
+        function editingService() {
+            return serviceCatalogCache.find((s) => String(s.id) === String(editingServiceId)) || null;
+        }
+        function renderTemplateStatus(svc) {
+            const status = document.getElementById("templateStatus");
+            const removeBtn = document.getElementById("templateRemoveBtn");
+            const uploadBtn = document.getElementById("templateUploadBtn");
+            if (!status) return;
+            const has = Boolean(svc && svc.hasTemplate);
+            status.textContent = has ? `Current template: ${svc.templateFileName || "uploaded file"}` : "No template uploaded. This service cannot be generated in the Document Generator yet.";
+            if (removeBtn) removeBtn.style.display = has ? "inline-flex" : "none";
+            if (uploadBtn) uploadBtn.textContent = has ? "Replace .docx" : "Upload .docx";
+        }
+        async function refreshServicesKeepModal() {
+            const id = editingServiceId;
+            await loadServices();
+            editingServiceId = id;
+            renderTemplateStatus(editingService());
+        }
+        document.getElementById("templateUploadBtn")?.addEventListener("click", () => document.getElementById("templateFile")?.click());
+        document.getElementById("templateFile")?.addEventListener("change", async (event) => {
+            const input = event.currentTarget;
+            const file = input.files && input.files[0];
+            input.value = "";
+            if (!file || !editingServiceId) return;
+            const fail = (message) => showDialog({ title: "Template Upload", message, confirmLabel: "OK" });
+            if (!/\.docx$/i.test(file.name)) { await fail("Please choose a Word document (.docx)."); return; }
+            if (!window.mammoth) { await fail("The Word converter could not load. Check your internet connection and refresh the page."); return; }
+            let html = "";
+            try {
+                const result = await window.mammoth.convertToHtml(
+                    { arrayBuffer: await file.arrayBuffer() },
+                    { convertImage: window.mammoth.images.imgElement(() => Promise.resolve({ src: "" })) }
+                );
+                html = String(result.value || "").replace(/<img[^>]*>/gi, "").trim();
+            } catch (_e) {
+                await fail("That file could not be read. Make sure it is a valid .docx file.");
+                return;
+            }
+            if (!html) { await fail("The document has no text in it."); return; }
+            const response = await adminFetch(`/admin/service-catalog/${editingServiceId}/template`, {
+                method: "PUT",
+                body: JSON.stringify({ fileName: file.name, html })
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result?.ok) { await fail(result?.message || "Could not save the template."); return; }
+            await refreshServicesKeepModal();
+            await showDialog({ title: "Template Saved", message: `"${file.name}" is now the document template for this service. It will appear in the Document Generator.`, confirmLabel: "OK" });
+        });
+        document.getElementById("templateRemoveBtn")?.addEventListener("click", async () => {
+            if (!editingServiceId) return;
+            const ok = await showDialog({ title: "Remove Template", message: "Remove this service's document template? It will no longer be available in the Document Generator.", confirmLabel: "Remove", cancelLabel: "Cancel", danger: true });
+            if (!ok) return;
+            const response = await adminFetch(`/admin/service-catalog/${editingServiceId}/template`, { method: "DELETE" });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result?.ok) {
+                await showDialog({ title: "Remove Template", message: result?.message || "Could not remove the template.", confirmLabel: "OK" });
+                return;
+            }
+            await refreshServicesKeepModal();
         });
 
         (async function initAdminServiceManagement() {

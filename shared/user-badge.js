@@ -71,7 +71,7 @@
       var key = this.getAttribute("portal");
       var cfg = PORTALS[key] || PORTALS[portalFromPage()];
       var user = readUser();
-      var name = (cfg.useUserName && user && (user.fullName || user.email)) || cfg.title;
+      var name = (cfg.useUserName && user && (user.fullName || String(user.email || "").replace(/^[^@\s]+@residents\.serbisyoburgos\.local$/i, ""))) || cfg.title;
 
       this.textContent = "";
       var box = document.createElement("div");

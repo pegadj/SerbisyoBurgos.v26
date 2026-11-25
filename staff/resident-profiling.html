@@ -271,9 +271,6 @@
         .dlg { background:#fff; border-radius:16px; width:min(640px,100%); max-height:92vh; overflow-y:auto; padding:1.5rem; }
         .dlg h2 { color:var(--brand-dark); margin-bottom:.25rem; }
         .dlg .hint { color:var(--text-muted); font-size:.85rem; }
-        .cred-box { background:#f0fdf4; border:1px dashed #16a34a; border-radius:12px; padding:1rem 1.25rem; margin:1rem 0; }
-        .cred-row { display:flex; justify-content:space-between; gap:1rem; padding:.35rem 0; font-size:.95rem; }
-        .cred-row b { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:1.05rem; word-break:break-all; }
         .check { display:flex; gap:.5rem; align-items:flex-start; font-size:.9rem; margin-top:1rem; cursor:pointer; }
         .icon-btn { width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #cbd5e1; border-radius:10px; background:#fff; color:#334155; cursor:pointer; position:relative; padding:0; }
         .icon-btn:hover, .icon-btn:focus-visible { background:#f0fdf4; border-color:#16a34a; color:#166534; }
@@ -299,13 +296,14 @@
 <body>
     <script src="../shared/sidebar.js" data-portal="staff"></script>
     <script src="../shared/user-badge.js"></script>
+    <script src="../shared/resident-credentials.js"></script>
 
     <main>
         <div class="top-bar">
             <div class="header-section">
                 <div>
                     <h1 style="font-size: 1.75rem; color: var(--brand-dark);">Resident Profiling</h1>
-                    <p style="color: var(--text-muted); font-size: 0.9rem;">Issue resident accounts and keep their profile records.</p>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Keep the barangay's resident records (RBI). Logins and passwords are managed under <a href="user-role.html" style="color:var(--brand-green);font-weight:600;">Resident Accounts</a>.</p>
                 </div>
             </div>
             <user-badge></user-badge>
@@ -395,7 +393,7 @@
             <p id="drawerMsg" class="msg"></p>
             <p id="drawerAudit" style="color:var(--text-muted);font-size:.75rem;margin-top:.5rem;"></p>
             <div style="display:flex;gap:.75rem;justify-content:space-between;flex-wrap:wrap;margin-top:1.25rem;">
-                <button class="btn btn-danger-ghost" id="resetPwBtn" type="button">Reset password…</button>
+                <span style="font-size:.85rem;color:var(--text-muted);" id="loginStatusLine"></span>
                 <span style="display:flex;gap:.75rem;">
                     <button class="btn" id="closeBtn" type="button">Close</button>
                     <button class="btn btn-primary" id="saveBtn" type="button">Save profile</button>
@@ -408,16 +406,18 @@
     <div id="addDlg" class="dlg-overlay" role="dialog" aria-modal="true" aria-labelledby="addTitle">
         <div class="dlg">
             <h2 id="addTitle">Add resident</h2>
-            <p class="hint">Creates a login for the resident. A Resident ID and password are generated for you unless you type your own.</p>
+            <p class="hint">Adds the resident to the records. A Resident ID is generated unless you type your own. Residents who need the online system get a login from <strong>Resident Accounts</strong>, or tick the box below to issue one now.</p>
             <div class="grid2" id="addGrid">
-                <div class="field"><label for="aRid">Resident ID <small>(optional)</small></label><input id="aRid" maxlength="20" placeholder="Auto, e.g. SB-00001" autocomplete="off"></div>
-                <div class="field"><label for="aPw">Password <small>(optional)</small></label><input id="aPw" maxlength="128" placeholder="Auto: lastnameSB2026" autocomplete="new-password"></div>
+                <div class="field"><label for="aRid">Resident ID <small>(optional)</small></label><input id="aRid" maxlength="20" placeholder="Auto, e.g. SB00001" autocomplete="off"></div>
+                <div class="field" id="aPwField" style="display:none;"><label for="aPw">Password <small>(optional)</small></label><input id="aPw" maxlength="128" placeholder="Auto: random, e.g. K7MQ-X4PD" autocomplete="new-password"></div>
             </div>
+            <label class="check"><input type="checkbox" id="aIssue"><span><strong>Also issue a login now</strong>: shows a Resident ID and password to give to the resident (they choose their own at first login).</span></label>
+            <label class="check" id="aSmsWrap" style="display:none;"><input type="checkbox" id="aSms"><span><strong>Text the credentials</strong> to the Contact number filled in above. Needs SMS set up and a valid mobile number.</span></label>
             <label class="check"><input type="checkbox" id="aHead"><span><strong>Head of the family</strong>: receives announcement SMS for the household. Needs a Household No.; one head per household.</span></label>
             <p id="addMsg" class="msg"></p>
             <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1rem;">
                 <button class="btn" id="addCancel" type="button">Cancel</button>
-                <button class="btn btn-primary" id="addSubmit" type="button">Create account</button>
+                <button class="btn btn-primary" id="addSubmit" type="button">Add resident</button>
             </div>
         </div>
     </div>
@@ -426,7 +426,7 @@
     <div id="importDlg" class="dlg-overlay" role="dialog" aria-modal="true" aria-labelledby="importTitle">
         <div class="dlg">
             <h2 id="importTitle">Import RBI records</h2>
-            <p class="hint">Upload your RBI template as an <strong>.xlsx</strong> (records on the <strong>DATA</strong> sheet) or <strong>.csv</strong> file. Required: inhabitant type, last name, first name, birthdate (YYYY-MM-DD), sex, civil status and citizenship. Each row becomes a resident record with an automatic Resident ID. Imported residents <strong>cannot log in yet</strong>: use <em>Issue login</em> on a resident later, only for those who need the online system. <a href="#" id="tplLink">Download template</a></p>
+            <p class="hint">Upload your RBI template as an <strong>.xlsx</strong> (records on the <strong>DATA</strong> sheet) or <strong>.csv</strong> file. Required: inhabitant type, last name, first name, birthdate (YYYY-MM-DD), sex, civil status and citizenship. Each row becomes a resident record with an automatic Resident ID. Imported residents <strong>cannot log in yet</strong>: issue logins later from Resident Accounts, only for those who need the online system. <a href="#" id="tplLink">Download template</a></p>
             <div class="drop"><input type="file" id="importFile" accept=".csv,.xlsx,.xls"></div>
             <div id="importPreview"></div>
             <div class="bar" id="importBarWrap" hidden><span id="importBar"></span></div>
@@ -435,39 +435,6 @@
                 <button class="btn" id="importReport" type="button" hidden>Download report</button>
                 <button class="btn" id="importClose" type="button">Close</button>
                 <button class="btn btn-primary" id="importGo" type="button" disabled>Import</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Credentials (shown once) -->
-    <div id="credDlg" class="dlg-overlay" role="dialog" aria-modal="true" aria-labelledby="credTitle">
-        <div class="dlg">
-            <h2 id="credTitle">Account ready</h2>
-            <p class="hint" id="credFor"></p>
-            <div class="cred-box">
-                <div class="cred-row"><span>Resident ID</span><b id="credId"></b></div>
-                <div class="cred-row"><span>Password</span><b id="credPw"></b></div>
-            </div>
-            <p class="hint"><strong>This password is shown only once.</strong> Print the slip or copy it now and give it to the resident. At first login they will be asked to choose their own password, so only they will know it.</p>
-            <div style="display:flex;gap:.75rem;justify-content:flex-end;flex-wrap:wrap;margin-top:1rem;">
-                <button class="btn" id="credCopy" type="button">Copy</button>
-                <button class="btn" id="credPrint" type="button">Print slip</button>
-                <button class="btn btn-primary" id="credDone" type="button">Done</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Reset password -->
-    <div id="resetDlg" class="dlg-overlay" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
-        <div class="dlg">
-            <h2 id="resetTitle">Reset password</h2>
-            <p class="hint" id="resetFor"></p>
-            <div class="field" style="margin-top:1rem;"><label for="rPw">New password <small>(leave blank to use lastnameSB2026)</small></label><input id="rPw" maxlength="128" placeholder="Auto: lastnameSB2026" autocomplete="new-password"></div>
-            <p class="hint" style="margin-top:.75rem;">The resident will be signed out everywhere and must log in with this password, then choose their own.</p>
-            <p id="resetMsg" class="msg"></p>
-            <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1rem;">
-                <button class="btn" id="resetCancel" type="button">Cancel</button>
-                <button class="btn btn-primary" id="resetSubmit" type="button">Reset password</button>
             </div>
         </div>
     </div>
@@ -762,7 +729,7 @@
                 });
                 $("fSmsOptOut").checked = Boolean(r.smsOptOut);
                 $("fHead").checked = Boolean(r.isHouseholdHead);
-                $("resetPwBtn").textContent = r.loginIssued === false ? "Issue login…" : "Reset password…";
+                $("loginStatusLine").innerHTML = (r.loginIssued === false ? "Login: <strong>not issued</strong>" : "Login: <strong>issued</strong>") + ' · <a href="user-role.html" style="color:var(--brand-green);font-weight:600;">Manage in Resident Accounts</a>';
                 const reg = r.registeredAt ? `Registered ${new Date(r.registeredAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}. ` : "";
                 $("drawerAudit").textContent = reg + (r.profileUpdatedAt ? `Last updated ${new Date(r.profileUpdatedAt).toLocaleString()} by ${r.profileUpdatedBy || "staff"}` : "Profile not filled in yet.");
             } catch (e) { setMsg($("drawerMsg"), e.message, "err"); }
@@ -791,91 +758,32 @@
             finally { $("saveBtn").disabled = false; }
         });
 
-        // ---------- credentials dialog + print slip ----------
-        let lastCreds = null;
-        function showCredentials(c, who, title) {
-            lastCreds = { ...c, fullName: who };
-            $("credTitle").textContent = title;
-            $("credFor").textContent = who;
-            $("credId").textContent = c.residentId || "—";
-            $("credPw").textContent = c.password;
-            $("credDlg").classList.add("show");
-        }
-        $("credDone").addEventListener("click", () => { $("credDlg").classList.remove("show"); $("credPw").textContent = ""; lastCreds = null; });
-        $("credCopy").addEventListener("click", async () => {
-            if (!lastCreds) return;
-            const text = `Resident ID: ${lastCreds.residentId}\nPassword: ${lastCreds.password}`;
-            try { await navigator.clipboard.writeText(text); $("credCopy").textContent = "Copied!"; }
-            catch (_e) { $("credCopy").textContent = "Copy failed"; }
-            setTimeout(() => { $("credCopy").textContent = "Copy"; }, 1500);
-        });
-        $("credPrint").addEventListener("click", () => {
-            if (!lastCreds) return;
-            const loginUrl = new URL("../login.html", window.location.href).href;
-            const w = window.open("", "_blank", "width=520,height=700");
-            if (!w) { alert("Please allow pop-ups to print the slip."); return; }
-            w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Resident account slip</title>
-                <style>body{font-family:system-ui,Arial,sans-serif;padding:32px;color:#0f172a}h1{font-size:20px;margin:0 0 4px;color:#043d2e}
-                .sub{color:#64748b;font-size:13px;margin-bottom:24px}.box{border:2px dashed #16a34a;border-radius:12px;padding:18px 22px;background:#f0fdf4}
-                .row{display:flex;justify-content:space-between;padding:8px 0;font-size:15px}.row b{font-family:ui-monospace,Consolas,monospace;font-size:18px}
-                ol{font-size:13px;color:#334155;line-height:1.7;padding-left:18px}.foot{margin-top:28px;font-size:12px;color:#64748b}</style></head><body>
-                <h1>SerbisyoBurgos — Resident Account</h1><div class="sub">Barangay Burgos online services</div>
-                <p><strong>${esc(lastCreds.fullName)}</strong></p>
-                <div class="box"><div class="row"><span>Resident ID</span><b>${esc(lastCreds.residentId)}</b></div>
-                <div class="row"><span>Password</span><b>${esc(lastCreds.password)}</b></div></div>
-                <ol><li>Open <strong>${esc(loginUrl)}</strong></li><li>Enter your Resident ID and this password, then log in.</li>
-                <li>You will be asked to choose your own new password. Do this right away.</li><li>Keep this slip private. Do not share your password.</li></ol>
-                <div class="foot">Lost your password? Visit the barangay office to get a new one.</div>`);
-            w.document.close(); w.focus();
-            setTimeout(() => w.print(), 250);
-        });
-
         // ---------- add resident ----------
         $("addBtn").addEventListener("click", () => {
             ["aRid", "aPw"].forEach((id) => { $(id).value = ""; });
+            $("aIssue").checked = false; $("aPwField").style.display = "none"; $("aSms").checked = false; $("aSmsWrap").style.display = "none";
             ALL_FIELDS.forEach((f) => setFieldVal("a", f.k, ""));
             $("aHead").checked = false;
             setMsg($("addMsg"), ""); $("addDlg").classList.add("show"); $("a_lastName").focus();
         });
+        $("aIssue").addEventListener("change", () => { $("aPwField").style.display = $("aIssue").checked ? "" : "none"; $("aSmsWrap").style.display = $("aIssue").checked ? "" : "none"; if (!$("aIssue").checked) $("aSms").checked = false; });
         $("addCancel").addEventListener("click", () => $("addDlg").classList.remove("show"));
         $("addSubmit").addEventListener("click", async () => {
             const missing = ALL_FIELDS.filter((f) => f.req && !fieldVal("a", f.k)).map((f) => f.label);
             if (missing.length) { setMsg($("addMsg"), `Required: ${missing.join(", ")}.`, "err"); return; }
-            const body = { residentId: $("aRid").value.trim(), password: $("aPw").value, isHouseholdHead: $("aHead").checked };
+            const issueLogin = $("aIssue").checked;
+            const body = { residentId: $("aRid").value.trim(), issueLogin, sendSms: issueLogin && $("aSms").checked, password: issueLogin ? $("aPw").value : "", isHouseholdHead: $("aHead").checked };
             ALL_FIELDS.forEach((f) => { body[f.k] = fieldVal("a", f.k); });
             body.birthDate = body.birthDate || null;
-            $("addSubmit").disabled = true; setMsg($("addMsg"), "Creating account…");
+            $("addSubmit").disabled = true; setMsg($("addMsg"), "Saving…");
             try {
                 const data = await api("/staff/residents", { method: "POST", body: JSON.stringify(body) });
                 $("addDlg").classList.remove("show");
-                showCredentials(data.credentials, data.resident.fullName, "Account created");
+                if (data.credentials && window.SB_CREDS) SB_CREDS.show(data.credentials, data.resident.fullName, "Resident added · login issued", data.sms);
                 offset = 0; loadResidents(); loadStats();
             } catch (e) { setMsg($("addMsg"), e.message, "err"); }
             finally { $("addSubmit").disabled = false; }
         });
-
-        // ---------- reset password ----------
-        $("resetPwBtn").addEventListener("click", () => {
-            if (!activeResident) return;
-            const issuing = activeResident.loginIssued === false;
-            $("resetTitle").textContent = issuing ? "Issue login" : "Reset password";
-            $("resetSubmit").textContent = issuing ? "Issue login" : "Reset password";
-            $("resetFor").textContent = `${activeResident.fullName} (${activeResident.residentId || "no Resident ID"})`;
-            $("rPw").value = ""; setMsg($("resetMsg"), ""); $("resetDlg").classList.add("show");
-        });
-        $("resetCancel").addEventListener("click", () => $("resetDlg").classList.remove("show"));
-        $("resetSubmit").addEventListener("click", async () => {
-            if (!active || !activeResident) return;
-            $("resetSubmit").disabled = true; setMsg($("resetMsg"), "Resetting…");
-            try {
-                const data = await api(`/staff/residents/${encodeURIComponent(active)}/reset-password`, { method: "POST", body: JSON.stringify({ password: $("rPw").value }) });
-                $("resetDlg").classList.remove("show");
-                showCredentials(data.credentials, activeResident.fullName, activeResident.loginIssued === false ? "Login issued" : "New password issued");
-                activeResident.loginIssued = true; $("resetPwBtn").textContent = "Reset password…"; loadResidents();
-            } catch (e) { setMsg($("resetMsg"), e.message, "err"); }
-            finally { $("resetSubmit").disabled = false; }
-        });
-
 
         // ---------- import RBI (CSV / Excel) ----------
         // Column names match the RBI template's DATA sheet; common alternatives are accepted too.

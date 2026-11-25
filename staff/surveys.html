@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com https://images.unsplash.com http://localhost:4000 http://127.0.0.1:4000; connect-src 'self' https://serbisyoburgos-ver-26.onrender.com https://sb-draft1.onrender.com http://localhost:4000 http://127.0.0.1:4000; media-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surveys | SerbisyoBurgos</title>
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#043d2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SerbisyoBurgos">
+    <link rel="apple-touch-icon" href="../asset/icons/apple-touch-icon.png">
+    <script src="../shared/pwa.js" defer></script>
+    <link rel="icon" type="image/png" href="../asset/logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand-green: #16a34a;
+            --brand-dark: #043d2e;
+            --brand-blue: #2563eb;
+            --bg-light: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-width: 260px;
+            --white: #ffffff;
+            
+            /* Status Colors */
+            --status-pending-bg: #fef9c3;
+            --status-pending-text: #854d0e;
+            --status-processing-bg: #dbeafe;
+            --status-processing-text: #1d4ed8;
+            --status-pickup-bg: #f0fdf4;
+            --status-pickup-text: #16a34a;
+            --status-completed-bg: #f1f5f9;
+            --status-completed-text: #475569;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-light); color: var(--text-main); display: flex; min-height: 100vh; }
+
+        /* SIDEBAR NAVIGATION */
+        aside {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            color: var(--brand-dark);
+            font-size: 1.25rem;
+        }
+
+        .sidebar-header img {
+            width: 32px;
+            border-radius: 50%;
+            background: white;
+            padding: 3px;
+            border: 3px solid var(--brand-dark);
+        }
+        nav { flex-grow: 1; padding: 1rem; }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.85rem 1rem;
+            text-decoration: none;
+            color: var(--text-muted);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+
+        .nav-link:hover { background: #f8fafc; color: var(--brand-green); transform: translateY(-2px); opacity: 0.9; }
+        .nav-link.active { background: #f0fdf4; color: var(--brand-green); font-weight: 600; }
+
+        .sidebar-footer { padding: 1.5rem; border-top: 1px solid #f1f5f9; margin-top: auto; }
+
+        .logout-btn {
+            width: 100%;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff1f2;
+            color: #e11d48;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            border: none;
+            margin-top: 10px;
+        }
+
+        .logout-btn:hover {
+            background: #ffe4e6;
+        }
+
+        /* Sidebar theme */
+        aside {
+            background: #5f9632;
+            border-right: 1px solid rgba(4, 61, 46, 0.18);
+        }
+.sidebar-header {
+            padding: 1.75rem 1.25rem 1.25rem;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.75rem;
+color: white;
+            font-weight: 800;
+            text-align: center;
+        }
+        .sidebar-header img {
+            width: 54px !important;
+            height: 54px !important;
+            object-fit: contain;
+        }
+        .nav-link { color: rgba(255, 255, 255, 0.9); }
+        .nav-link:hover { background: #4f7f29; color: white; transform: none; opacity: 1; }
+        .nav-link.active { background: #426c22; color: white; }
+        .logout-btn { background: rgba(255, 255, 255, 0.14); color: white; }
+        .logout-btn:hover,
+        .logout-btn:focus-visible { background: #b91c1c; }
+        .sidebar-footer { border-top-color: rgba(255, 255, 255, 0.18); }
+
+        /* MAIN CONTENT */
+        main { margin-left: var(--sidebar-width); flex-grow: 1; padding: 2.5rem; }
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--white);
+            padding: 6px 16px 6px 6px;
+            border-radius: 30px;
+            border: 1px solid #e2e8f0;
+        }
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            background: var(--brand-green);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+        .welcome-section { margin-bottom: 2rem; }
+        .top-bar .welcome-section { margin-bottom: 0; }
+        .welcome-section h1 { font-size: 1.875rem; color: var(--brand-dark); font-weight: 700; }
+        .welcome-section p { color: var(--text-muted); margin-top: 0.5rem; }
+
+        /* FILTER BAR */
+        .filter-bar {
+            background: white;
+            padding: 1.25rem 1.5rem;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-wrapper { position: relative; }
+        .search-wrapper input {
+            width: 100%;
+            padding: 0.7rem 0.7rem 0.7rem 2.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .search-wrapper input:focus { border-color: var(--brand-green); box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1); }
+        .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+
+        .filter-dropdown, .date-input { width: 100%; padding: 0.7rem; border: 1px solid #e2e8f0; border-radius: 10px; outline: none; background: white; }
+
+        .showing-text { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 500;}
+
+        /* REQUEST CARDS */
+        .request-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 1rem;
+            display: block; /* Changed from grid to block */
+            transition: all 0.2s ease;
+        }
+
+        .request-card:hover { border-color: var(--brand-green); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+        .title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+        .title-row h2 { font-size: 1.15rem; color: var(--brand-dark); font-weight: 600; }
+        
+        /* ROUNDER BADGES */
+        .badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-type { background: #e2e8f0; color: #475569; }
+        .badge-pending { background: var(--status-pending-bg); color: var(--status-pending-text); }
+        .badge-processing { background: var(--status-processing-bg); color: var(--status-processing-text); }
+        .badge-pickup { background: var(--status-pickup-bg); color: var(--status-pickup-text); }
+        .badge-completed { background: var(--status-completed-bg); color: var(--status-completed-text); }
+        .badge-approved { background: #d1fae5; color: #065f46; }
+        .badge-revision { background: #fef3c7; color: #92400e; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; }
+
+        .desc-text { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px; }
+        .meta-row { display: flex; align-items: center; gap: 1rem; font-size: 0.8rem; color: var(--text-muted); }
+
+        /* BUTTONS */
+        .btn-review {
+            background-color: var(--brand-green);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none; /* In case it's an <a> tag */
+            display: inline-block; /* Corrects alignment */
+            font-size: 0.85rem;
+        }
+
+        .btn-review:hover {
+            background-color: #15803d; /* Darker green on hover */
+        }
+
+        .btn-review--outline {
+            background-color: #ffffff;
+            color: var(--brand-green);
+            border: 1.5px solid var(--brand-green);
+            margin-left: 8px;
+        }
+        .btn-review--outline:hover { background-color: #f0fdf4; }
+
+        .pagination {
+            display: none;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .page-btn {
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: var(--text-main);
+            border-radius: 8px;
+            padding: 0.45rem 0.8rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .page-indicator {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin: 0 0.25rem;
+        }
+
+        .empty-state {
+            background: white;
+            border: 1px dashed #cbd5e1;
+            border-radius: 16px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-card {
+            width: 100%;
+            max-width: 420px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px rgba(2, 6, 23, 0.2);
+        }
+        .modal-title { font-size: 1.1rem; font-weight: 700; color: var(--brand-dark); margin-bottom: 0.6rem; }
+        .modal-text { font-size: 0.92rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.25rem; }
+        .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+        .modal-btn {
+            border: none;
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .modal-btn-cancel { background: #f1f5f9; color: #334155; }
+        .modal-btn-confirm { background: #e11d48; color: white; }
+
+
+        /* ===== Animal Vaccine Tracker ===== */
+        .av-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+        .av-btn { border: 1px solid #e2e8f0; background: white; color: #334155; border-radius: 10px; padding: 0.6rem 1rem; font-size: 0.88rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+        .av-btn:hover { background: #f8fafc; }
+        .av-btn.primary { background: var(--brand-green); border-color: var(--brand-green); color: #fff; }
+        .av-btn.primary:hover { background: #15803d; }
+        .av-btn.danger { color: #b91c1c; border-color: #fecaca; }
+        .av-btn.danger:hover { background: #fef2f2; }
+        .av-btn.small { padding: 0.35rem 0.7rem; font-size: 0.8rem; border-radius: 8px; }
+        .av-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .av-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.9rem; margin-bottom: 1.25rem; }
+        .av-stat { background: white; border: 1px solid #e2e8f0; border-radius: 14px; padding: 0.9rem 1rem; text-align: left; cursor: pointer; font-family: inherit; }
+        .av-stat:hover, .av-stat.active { border-color: var(--brand-green); box-shadow: 0 0 0 3px rgba(22,163,74,0.12); }
+        .av-stat .n { font-size: 1.6rem; font-weight: 700; color: var(--brand-dark); display: block; }
+        .av-stat .l { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; }
+        .av-filter { background: white; padding: 1rem 1.25rem; border-radius: 16px; border: 1px solid #e2e8f0; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+        .av-filter input, .av-filter select { width: 100%; padding: 0.7rem; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; font-family: inherit; background: white; }
+        .av-filter input:focus, .av-filter select:focus { outline: none; border-color: var(--brand-green); box-shadow: 0 0 0 3px rgba(22,163,74,0.12); }
+        .av-table-wrap { background: white; border: 1px solid #e2e8f0; border-radius: 16px; overflow-x: auto; }
+        table.av-table { width: 100%; border-collapse: collapse; min-width: 860px; }
+        .av-table th { text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); padding: 0.85rem 1rem; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+        .av-table td { padding: 0.85rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; vertical-align: middle; }
+        .av-table tr:last-child td { border-bottom: none; }
+        .av-sub { display: block; font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+        .av-empty { text-align: center; color: var(--text-muted); padding: 2.5rem 1rem; }
+        .av-badge { display: inline-block; padding: 4px 12px; border-radius: 30px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+        .av-badge.ok { background: #dcfce7; color: #166534; }
+        .av-badge.soon { background: #fef9c3; color: #854d0e; }
+        .av-badge.over { background: #fee2e2; color: #991b1b; }
+        .av-badge.none { background: #e2e8f0; color: #475569; }
+        .av-pager { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1rem; font-size: 0.85rem; color: var(--text-muted); }
+        .av-pager .btns { display: flex; gap: 0.5rem; }
+        .modal-card.av-wide { max-width: 720px; max-height: 92vh; overflow-y: auto; }
+        .av-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem 1rem; }
+        .av-form-grid .full { grid-column: 1 / -1; }
+        .av-field label { display: block; font-size: 0.78rem; font-weight: 600; color: #334155; margin-bottom: 4px; }
+        .av-field input, .av-field select, .av-field textarea { width: 100%; padding: 0.6rem 0.7rem; border: 1px solid #e2e8f0; border-radius: 9px; font-size: 0.9rem; font-family: inherit; background: white; }
+        .av-field input:focus, .av-field select:focus, .av-field textarea:focus { outline: none; border-color: var(--brand-green); box-shadow: 0 0 0 3px rgba(22,163,74,0.12); }
+        .av-section-title { font-size: 0.8rem; font-weight: 700; color: var(--brand-dark); text-transform: uppercase; letter-spacing: 0.04em; margin: 1.1rem 0 0.6rem; padding-top: 0.9rem; border-top: 1px solid #f1f5f9; }
+        .av-section-title.first { border-top: none; padding-top: 0; margin-top: 0; }
+        .av-owner-results { border: 1px solid #e2e8f0; border-radius: 10px; margin-top: 6px; max-height: 190px; overflow-y: auto; background: white; }
+        .av-owner-results button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 0.55rem 0.8rem; cursor: pointer; font-family: inherit; font-size: 0.88rem; border-bottom: 1px solid #f1f5f9; }
+        .av-owner-results button:hover { background: #f0fdf4; }
+        .av-owner-chip { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: 9px; padding: 0.45rem 0.7rem; font-size: 0.85rem; margin-top: 6px; }
+        .av-link-btn { background: none; border: none; color: #166534; font-weight: 700; cursor: pointer; font-size: 0.8rem; font-family: inherit; }
+        .av-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1.5rem; font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .av-detail-grid dt { font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.04em; }
+        .av-detail-grid dd { margin: 0 0 0.4rem; color: #1e293b; }
+        .av-msg { font-size: 0.85rem; min-height: 1.1rem; margin-top: 0.6rem; color: #b91c1c; }
+        .av-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #043d2e; color: white; padding: 0.75rem 1.1rem; border-radius: 10px; font-size: 0.9rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 1200; opacity: 0; transform: translateY(8px); transition: all 0.2s; pointer-events: none; }
+        .av-toast.show { opacity: 1; transform: none; }
+        .av-toast.err { background: #b91c1c; }
+        @media (max-width: 900px) {
+            .av-stats { grid-template-columns: repeat(2, 1fr); }
+            .av-filter { grid-template-columns: 1fr; }
+            .av-form-grid, .av-detail-grid { grid-template-columns: 1fr; }
+        }
+
+        [hidden] { display: none !important; }
+
+        /* ---- Surveys page ---- */
+        .sv-intro { background: #f0fdf4; border: 1px solid #bbf7d0; color: #14532d; border-radius: 14px; padding: 0.9rem 1.1rem; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.25rem; }
+        .sv-list { display: grid; gap: 1rem; }
+        .sv-card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.1rem 1.25rem; display: grid; grid-template-columns: 1fr auto; gap: 0.75rem 1.25rem; align-items: start; }
+        .sv-card.on { border-color: #86efac; box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.08); }
+        .sv-title { font-size: 1.05rem; font-weight: 700; color: var(--brand-dark); }
+        .sv-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.4rem; font-size: 0.8rem; color: var(--text-muted); }
+        .sv-desc { margin-top: 0.5rem; font-size: 0.9rem; color: #475569; line-height: 1.45; white-space: pre-line; }
+        .sv-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.6rem; }
+        .sv-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end; grid-column: 1 / -1; border-top: 1px solid #f1f5f9; padding-top: 0.8rem; }
+        .sv-switch { display: inline-flex; align-items: center; gap: 0.55rem; font-size: 0.82rem; font-weight: 700; cursor: pointer; user-select: none; }
+        .sv-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .sv-switch .track { width: 44px; height: 24px; border-radius: 999px; background: #cbd5e1; position: relative; transition: background .15s; flex: none; }
+        .sv-switch .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+        .sv-switch input:checked + .track { background: var(--brand-green); }
+        .sv-switch input:checked + .track::after { transform: translateX(20px); }
+        .sv-switch input:focus-visible + .track { outline: 3px solid rgba(22, 163, 74, .35); outline-offset: 2px; }
+        .sv-switch input:disabled + .track { opacity: .55; cursor: not-allowed; }
+        .sv-switch .txt.on { color: #15803d; } .sv-switch .txt.off { color: #64748b; }
+        .sv-types { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+        .sv-type-btn { text-align: left; background: #fff; border: 1px solid #cbd5e1; border-radius: 14px; padding: 1rem; cursor: pointer; font-family: inherit; }
+        .sv-type-btn:hover { border-color: var(--brand-green); background: #f0fdf4; }
+        .sv-type-btn .ic { font-size: 1.6rem; display: block; margin-bottom: 0.3rem; }
+        .sv-type-btn b { display: block; color: var(--brand-dark); margin-bottom: 0.2rem; }
+        .sv-type-btn span.d { font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; }
+        .sv-qrow { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 12px; padding: 0.7rem; margin-bottom: 0.6rem; display: grid; grid-template-columns: 1fr 150px auto; gap: 0.5rem; align-items: center; }
+        .sv-qrow .opts { grid-column: 1 / -1; }
+        .sv-qrow input[type="text"], .sv-qrow select { width: 100%; padding: 0.55rem 0.65rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.88rem; font-family: inherit; background: #fff; }
+        .sv-qrow .foot { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #475569; }
+        .sv-help { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
+        .sv-locked { background: #fef9c3; color: #854d0e; border-radius: 10px; padding: 0.6rem 0.8rem; font-size: 0.82rem; margin-bottom: 0.7rem; }
+        .sv-summary { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1rem; }
+        .sv-pill { background: #f1f5f9; border-radius: 999px; padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 600; color: #334155; }
+        .modal-card.sv-xwide { max-width: 980px; max-height: 92vh; overflow-y: auto; }
+        .sv-resp-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; }
+        .sv-resp-wrap table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .sv-resp-wrap th { text-align: left; background: #f8fafc; padding: 0.6rem 0.8rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: .04em; color: #64748b; white-space: nowrap; }
+        .sv-resp-wrap td { padding: 0.6rem 0.8rem; border-top: 1px solid #f1f5f9; vertical-align: top; }
+        @media (max-width: 900px) {
+            .sv-card { grid-template-columns: 1fr; }
+            .sv-side { align-items: flex-start; }
+            .sv-types { grid-template-columns: 1fr; }
+            .sv-qrow { grid-template-columns: 1fr; }
+        }
+
+    </style>
+    <script src="../shared/text-format.js"></script>
+</head>
+<body>
+
+    <script src="../shared/sidebar.js" data-portal="staff"></script>
+    <script src="../shared/user-badge.js"></script>
+
+
+    <main>
+        <div class="top-bar">
+            <section class="welcome-section">
+                <h1 id="pageHeading">Surveys</h1>
+                <p>Post a survey pop-up for residents. While a survey is ON, each resident sees it once when they open their dashboard.</p>
+            </section>
+
+            <user-badge></user-badge>
+        </div>
+
+        <div class="sv-intro">
+            <strong>How it works:</strong> create a survey, then switch it <strong>ON</strong>. Residents who haven't answered it will get a pop-up the next time they open the resident portal. Switch it <strong>OFF</strong> any time to stop showing it. Use the <em>Pet survey</em> when you need animal records (answers go straight to the Animal Vaccine Tracker), or a <em>Custom survey</em> for anything else, such as updating resident information.
+        </div>
+
+        <div class="av-actions">
+            <button type="button" class="av-btn primary" id="newSurveyBtn">+ New Survey</button>
+            <button type="button" class="av-btn" id="refreshBtn">Refresh</button>
+        </div>
+
+        <div id="surveyList" class="sv-list"><div class="av-empty">Loading…</div></div>
+    </main>
+
+    <!-- Create / edit survey -->
+    <div id="surveyModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="surveyModalTitle">
+        <div class="modal-card av-wide">
+            <h2 class="modal-title" id="surveyModalTitle">New survey</h2>
+
+            <div id="svStepType">
+                <p class="modal-text">What kind of survey do you want to post?</p>
+                <div class="sv-types">
+                    <button type="button" class="sv-type-btn" data-kind="pets">
+                        <span class="ic">🐾</span><b>Pet survey</b>
+                        <span class="d">Ready-made. Asks residents if they have pets, how many, and whether each is vaccinated. Answers are added to the Animal Vaccine Tracker.</span>
+                    </button>
+                    <button type="button" class="sv-type-btn" data-kind="custom">
+                        <span class="ic">📋</span><b>Custom survey</b>
+                        <span class="d">Write your own questions, for example to ask residents for updated information. View and export the answers here.</span>
+                    </button>
+                </div>
+                <div class="modal-actions" style="margin-top:1.2rem;">
+                    <button type="button" class="modal-btn modal-btn-cancel" id="svTypeCancel">Cancel</button>
+                </div>
+            </div>
+
+            <div id="svForm" hidden>
+                <div class="av-field" style="margin-bottom:0.8rem;">
+                    <label for="svTitle">Survey title</label>
+                    <input type="text" id="svTitle" maxlength="120" autocomplete="off">
+                </div>
+                <div class="av-field" style="margin-bottom:0.8rem;">
+                    <label for="svDesc">Message to residents (optional)</label>
+                    <textarea id="svDesc" rows="3" maxlength="500"></textarea>
+                </div>
+
+                <div id="svQuestionsWrap" hidden>
+                    <div class="av-section-title first">Questions</div>
+                    <div id="svLocked" class="sv-locked" hidden>Residents have already answered this survey, so its questions can't be changed. You can still edit the title and message, or create a new survey.</div>
+                    <div id="svTemplateRow" style="margin-bottom:0.6rem;">
+                        <button type="button" class="av-btn small" id="svTemplateBtn">Use template: Resident information update</button>
+                    </div>
+                    <div id="svQuestions"></div>
+                    <button type="button" class="av-btn small" id="svAddQ">+ Add question</button>
+                    <p class="sv-help">Up to 20 questions. Each resident answers once.</p>
+                </div>
+
+                <label class="sv-switch" style="margin-top:1rem;">
+                    <input type="checkbox" id="svActive">
+                    <span class="track"></span>
+                    <span>Turn ON right away</span>
+                </label>
+
+                <div class="av-msg" id="svMsg" role="alert"></div>
+                <div class="modal-actions" style="margin-top:1rem;">
+                    <button type="button" class="modal-btn modal-btn-cancel" id="svCancel">Cancel</button>
+                    <button type="button" class="av-btn primary" id="svSave">Save survey</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Responses -->
+    <div id="respModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="respTitle">
+        <div class="modal-card sv-xwide">
+            <h2 class="modal-title" id="respTitle">Responses</h2>
+            <div class="sv-summary" id="respSummary"></div>
+            <div id="respBody"></div>
+            <div class="modal-actions" style="margin-top:1rem;">
+                <button type="button" class="av-btn" id="respExport">Export CSV</button>
+                <button type="button" class="modal-btn modal-btn-cancel" id="respClose">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm -->
+    <div id="confirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <div class="modal-card">
+            <h2 class="modal-title" id="confirmTitle">Confirm</h2>
+            <p class="modal-text" id="confirmText"></p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="confirmCancelBtn">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-confirm" id="confirmOkBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="av-toast" role="status" aria-live="polite"></div>
+
+    <div id="logoutModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+        <div class="modal-card">
+            <h2 class="modal-title" id="logoutModalTitle">Confirm Logout</h2>
+            <p class="modal-text">Are you sure you want to logout?</p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="logoutCancelBtn">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-confirm" id="logoutConfirmBtn">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/routes.js"></script>
+    <script src="../shared/live-refresh.js"></script>
+    <script src="../shared/maintenance-check.js"></script>
+    <script>
+        const API_BASE_URL = (typeof window.API_BASE_URL === "string" && window.API_BASE_URL.trim()) || "";
+        const STAFF_ROUTES = window.APP_ROUTES?.staff || { login: "../login.html", dashboard: "staff-dashboard.html" };
+        const COMMON_ROUTES = window.APP_ROUTES?.common || { landing: "index.html" };
+        function applyStaffRouteLinks() {
+            document.querySelectorAll('a[href="staff-dashboard.html"]').forEach((link) => {
+                link.href = STAFF_ROUTES.dashboard;
+            });
+            document.querySelectorAll('a[href="index.html"]').forEach((link) => {
+                link.href = COMMON_ROUTES.landing;
+            });
+        }
+        applyStaffRouteLinks();
+
+        function initialsFromName(name) {
+            if (!name || typeof name !== "string") return "—";
+            const parts = name.trim().split(/\s+/).filter(Boolean);
+            if (!parts.length) return "—";
+            if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+
+        function roleLabel(role) {
+            if (role === "system-admin") return "System Admin";
+            if (role === "staff") return "Barangay Secretary";
+            return role || "Secretary";
+        }
+
+        async function verifyBackendRole(requiredRole, accessToken) {
+            const response = await fetch(`${API_BASE_URL}/auth/admin/authorize/${encodeURIComponent(requiredRole)}`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${accessToken}`
+                }
+            });
+            if (!response.ok) throw new Error("Role authorization failed");
+        }
+
+        async function applySessionSidebar() {
+            try {
+                const raw = sessionStorage.getItem("adminAuth");
+                if (!raw) {
+                    window.location.href = STAFF_ROUTES.login;
+                    return;
+                }
+                const { user, session } = JSON.parse(raw);
+                if (!user || user.role !== "staff") {
+                    window.location.href = STAFF_ROUTES.login;
+                    return;
+                }
+                const accessToken = session?.accessToken;
+                if (!accessToken) {
+                    window.location.href = STAFF_ROUTES.login;
+                    return;
+                }
+                await verifyBackendRole("staff", accessToken);
+                if (await window.SB_MAINTENANCE?.redirectStaffPortalFromMaintenanceIfNeeded?.()) return;
+                const welcomeEl = document.getElementById("welcomeHeading");
+                const display = user.fullName || user.email || "Secretary";
+                if (welcomeEl) welcomeEl.textContent = user.fullName ? `Welcome, ${user.fullName}!` : "Welcome!";
+            } catch (_e) {
+                window.location.href = STAFF_ROUTES.login;
+            }
+        }
+
+        const adminLogoutBtn = document.getElementById("adminLogoutBtn");
+        const logoutModal = document.getElementById("logoutModal");
+        const logoutCancelBtn = document.getElementById("logoutCancelBtn");
+        const logoutConfirmBtn = document.getElementById("logoutConfirmBtn");
+
+        function openLogoutModal() {
+            if (logoutModal) logoutModal.classList.add("show");
+        }
+
+        function closeLogoutModal() {
+            if (logoutModal) logoutModal.classList.remove("show");
+        }
+
+        adminLogoutBtn?.addEventListener("click", (event) => {
+            event.preventDefault();
+            openLogoutModal();
+        });
+
+        logoutCancelBtn?.addEventListener("click", closeLogoutModal);
+        logoutModal?.addEventListener("click", (event) => {
+            if (event.target === logoutModal) closeLogoutModal();
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") closeLogoutModal();
+        });
+        logoutConfirmBtn?.addEventListener("click", () => {
+            if (window.APP_NAV?.logout) {
+                window.APP_NAV.logout();
+                return;
+            }
+            sessionStorage.removeItem("adminAuth");
+            window.location.href = COMMON_ROUTES.landing;
+        });
+
+        applySessionSidebar();
+
+
+        // ===================== Surveys =====================
+        const $ = (id) => document.getElementById(id);
+
+        function authHeaders() {
+            try {
+                const raw = sessionStorage.getItem("adminAuth");
+                const t = raw ? JSON.parse(raw).session?.accessToken : null;
+                return t ? { Authorization: `Bearer ${t}` } : {};
+            } catch (_e) { return {}; }
+        }
+
+        async function api(path, options = {}) {
+            const headers = { ...authHeaders(), ...(options.body ? { "Content-Type": "application/json" } : {}) };
+            const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json?.ok === false) throw new Error(json?.message || `Request failed (${res.status}).`);
+            return json;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+        }
+
+        let toastTimer = null;
+        function toast(message, isError) {
+            const el = $("toast");
+            el.textContent = message;
+            el.classList.toggle("err", Boolean(isError));
+            el.classList.add("show");
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove("show"), 3600);
+        }
+
+        function fmtDate(v) {
+            const d = v ? new Date(v) : null;
+            return d && !Number.isNaN(d.getTime()) ? d.toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" }) : "";
+        }
+
+        const TYPE_LABEL = { text: "Short answer", yesno: "Yes / No", choice: "Multiple choice", number: "Number" };
+        const KIND_LABEL = { pets: "Pet survey", custom: "Custom survey" };
+
+        let surveys = [];
+        let editing = null;       // survey being edited, or null when creating
+        let formKind = null;      // "pets" | "custom"
+        let draft = [];           // question drafts: { label, type, required, optionsText }
+        let questionsLocked = false;
+        let confirmAction = null;
+        let openResp = null;      // { survey, responses } shown in the responses modal
+
+        // ---------- list ----------
+        async function loadSurveys() {
+            try {
+                const json = await api("/staff/surveys");
+                surveys = json.surveys || [];
+                renderList();
+            } catch (e) {
+                $("surveyList").innerHTML = `<div class="av-empty">${escapeHtml(e.message || "Unable to load surveys.")}</div>`;
+            }
+        }
+
+        function renderList() {
+            const host = $("surveyList");
+            if (!surveys.length) {
+                host.innerHTML = '<div class="av-empty">No surveys yet. Click <strong>+ New Survey</strong> to post your first one.</div>';
+                return;
+            }
+            host.innerHTML = surveys.map((s) => {
+                const qInfo = s.kind === "pets" ? "Ready-made pet questions" : `${s.questions.length} question${s.questions.length === 1 ? "" : "s"}`;
+                return `
+                <div class="sv-card ${s.isActive ? "on" : ""}" data-id="${escapeHtml(s.id)}">
+                    <div>
+                        <div class="sv-title">${escapeHtml(s.title)}</div>
+                        <div class="sv-meta">
+                            <span class="av-badge ${s.kind === "pets" ? "soon" : "none"}">${escapeHtml(KIND_LABEL[s.kind] || s.kind)}</span>
+                            <span>${escapeHtml(qInfo)}</span><span>•</span>
+                            <span>${s.responseCount} response${s.responseCount === 1 ? "" : "s"}</span><span>•</span>
+                            <span>Created ${escapeHtml(fmtDate(s.createdAt))}</span>
+                        </div>
+                        ${s.description ? `<div class="sv-desc">${escapeHtml(s.description)}</div>` : ""}
+                    </div>
+                    <div class="sv-side">
+                        <label class="sv-switch">
+                            <input type="checkbox" data-act="toggle" ${s.isActive ? "checked" : ""} aria-label="Show this survey to residents">
+                            <span class="track"></span>
+                            <span class="txt ${s.isActive ? "on" : "off"}">${s.isActive ? "ON" : "OFF"}</span>
+                        </label>
+                    </div>
+                    <div class="sv-actions">
+                        <button type="button" class="av-btn small" data-act="responses">View responses</button>
+                        <button type="button" class="av-btn small" data-act="edit">Edit</button>
+                        <button type="button" class="av-btn small danger" data-act="delete">Delete</button>
+                    </div>
+                </div>`;
+            }).join("");
+        }
+
+        $("surveyList").addEventListener("change", async (event) => {
+            const input = event.target.closest('input[data-act="toggle"]');
+            if (!input) return;
+            const id = input.closest(".sv-card")?.dataset.id;
+            const survey = surveys.find((s) => s.id === id);
+            if (!survey) return;
+            const turnOn = input.checked;
+            input.disabled = true;
+            try {
+                const json = await api(`/staff/surveys/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ isActive: turnOn }) });
+                Object.assign(survey, json.survey);
+                toast(turnOn ? "Survey is ON. Residents will see it when they open their dashboard." : "Survey is OFF. Residents will no longer see it.");
+            } catch (e) {
+                toast(e.message, true);
+            }
+            renderList();
+        });
+
+        $("surveyList").addEventListener("click", async (event) => {
+            const btn = event.target.closest("button[data-act]");
+            if (!btn) return;
+            const id = btn.closest(".sv-card")?.dataset.id;
+            const survey = surveys.find((s) => s.id === id);
+            if (!survey) return;
+            const act = btn.dataset.act;
+            if (act === "edit") openForm(survey);
+            else if (act === "responses") openResponses(survey);
+            else if (act === "delete") {
+                askConfirm(`Delete "${survey.title}"?`, `This removes the survey and its ${survey.responseCount} response(s). Pet records already added to the Animal Vaccine Tracker will stay. This can't be undone.`, async () => {
+                    await api(`/staff/surveys/${encodeURIComponent(id)}`, { method: "DELETE" });
+                    toast("Survey deleted.");
+                    await loadSurveys();
+                });
+            }
+        });
+
+        // ---------- confirm modal ----------
+        function askConfirm(title, text, action) {
+            $("confirmTitle").textContent = title;
+            $("confirmText").textContent = text;
+            confirmAction = action;
+            $("confirmModal").classList.add("show");
+        }
+        function closeConfirm() { $("confirmModal").classList.remove("show"); confirmAction = null; }
+        $("confirmCancelBtn").addEventListener("click", closeConfirm);
+        $("confirmOkBtn").addEventListener("click", async () => {
+            const run = confirmAction;
+            if (!run) return;
+            $("confirmOkBtn").disabled = true;
+            try { await run(); } catch (e) { toast(e.message, true); }
+            $("confirmOkBtn").disabled = false;
+            closeConfirm();
+        });
+
+        // ---------- create / edit form ----------
+        const TEMPLATE_INFO_UPDATE = [
+            { label: "Current mobile number", type: "text", required: true, optionsText: "" },
+            { label: "Current home address (house no., street, purok)", type: "text", required: true, optionsText: "" },
+            { label: "Are you currently employed?", type: "yesno", required: true, optionsText: "" },
+            { label: "What is your occupation or source of income?", type: "text", required: false, optionsText: "" },
+            { label: "How many people live in your household?", type: "number", required: true, optionsText: "" },
+            { label: "Has your civil status changed since your last update?", type: "yesno", required: true, optionsText: "" }
+        ];
+
+        function openForm(survey) {
+            editing = survey || null;
+            formKind = survey ? survey.kind : null;
+            $("surveyModalTitle").textContent = survey ? "Edit survey" : "New survey";
+            $("svMsg").textContent = "";
+            if (!survey) {
+                $("svStepType").hidden = false;
+                $("svForm").hidden = true;
+            } else {
+                showFormFor(survey.kind, survey);
+            }
+            $("surveyModal").classList.add("show");
+        }
+
+        function showFormFor(kind, survey) {
+            formKind = kind;
+            $("svStepType").hidden = true;
+            $("svForm").hidden = false;
+            $("svTitle").value = survey ? survey.title : (kind === "pets" ? "Household Pet Survey" : "");
+            $("svDesc").value = survey
+                ? (survey.description || "")
+                : (kind === "pets" ? "The barangay is updating its record of household pets for anti-rabies and vaccination programs. Please answer a few quick questions." : "");
+            $("svActive").checked = survey ? survey.isActive : false;
+            $("svActive").closest("label").hidden = Boolean(survey); // when editing, use the ON/OFF switch on the list
+            $("svQuestionsWrap").hidden = kind !== "custom";
+            questionsLocked = Boolean(survey && survey.responseCount > 0 && kind === "custom");
+            $("svLocked").hidden = !questionsLocked;
+            $("svTemplateRow").hidden = questionsLocked;
+            $("svAddQ").hidden = questionsLocked;
+            draft = kind === "custom"
+                ? (survey ? survey.questions.map((q) => ({ label: q.label, type: q.type, required: q.required !== false, optionsText: (q.options || []).join(", ") })) : [{ label: "", type: "text", required: true, optionsText: "" }])
+                : [];
+            renderQuestions();
+            setTimeout(() => $("svTitle").focus(), 30);
+        }
+
+        function closeForm() { $("surveyModal").classList.remove("show"); }
+
+        document.querySelectorAll("#svStepType .sv-type-btn").forEach((b) => {
+            b.addEventListener("click", () => showFormFor(b.dataset.kind, null));
+        });
+        $("svTypeCancel").addEventListener("click", closeForm);
+        $("svCancel").addEventListener("click", closeForm);
+        $("newSurveyBtn").addEventListener("click", () => openForm(null));
+        $("refreshBtn").addEventListener("click", loadSurveys);
+
+        $("svTemplateBtn").addEventListener("click", () => {
+            const hasContent = draft.some((q) => q.label.trim());
+            const apply = () => {
+                draft = TEMPLATE_INFO_UPDATE.map((q) => ({ ...q }));
+                if (!$("svTitle").value.trim()) $("svTitle").value = "Resident Information Update";
+                if (!$("svDesc").value.trim()) $("svDesc").value = "Please help the barangay keep your information up to date.";
+                renderQuestions();
+            };
+            if (!hasContent) { apply(); return; }
+            if (window.confirm("Replace the questions you've written with the template?")) apply();
+        });
+
+        $("svAddQ").addEventListener("click", () => {
+            if (draft.length >= 20) { toast("A survey can have at most 20 questions.", true); return; }
+            draft.push({ label: "", type: "text", required: true, optionsText: "" });
+            renderQuestions();
+            const rows = $("svQuestions").querySelectorAll('input[data-f="label"]');
+            rows[rows.length - 1]?.focus();
+        });
+
+        function renderQuestions() {
+            const host = $("svQuestions");
+            host.innerHTML = draft.map((q, i) => `
+                <div class="sv-qrow" data-i="${i}">
+                    <input type="text" data-f="label" maxlength="200" placeholder="Question ${i + 1}" value="${escapeHtml(q.label)}" ${questionsLocked ? "disabled" : ""} aria-label="Question ${i + 1} text">
+                    <select data-f="type" ${questionsLocked ? "disabled" : ""} aria-label="Question ${i + 1} type">
+                        ${Object.entries(TYPE_LABEL).map(([v, t]) => `<option value="${v}" ${q.type === v ? "selected" : ""}>${t}</option>`).join("")}
+                    </select>
+                    <button type="button" class="av-btn small danger" data-f="remove" ${questionsLocked || draft.length <= 1 ? "disabled" : ""} aria-label="Remove question ${i + 1}">Remove</button>
+                    ${q.type === "choice" ? `<div class="opts"><input type="text" data-f="options" maxlength="400" placeholder="Choices, separated by commas (e.g. Owned, Renting, Living with relatives)" value="${escapeHtml(q.optionsText)}" ${questionsLocked ? "disabled" : ""} aria-label="Choices for question ${i + 1}"></div>` : ""}
+                    <div class="foot">
+                        <label><input type="checkbox" data-f="required" ${q.required ? "checked" : ""} ${questionsLocked ? "disabled" : ""}> Required</label>
+                    </div>
+                </div>`).join("");
+        }
+
+        $("svQuestions").addEventListener("input", (event) => {
+            const row = event.target.closest(".sv-qrow");
+            if (!row) return;
+            const q = draft[Number(row.dataset.i)];
+            const f = event.target.dataset.f;
+            if (f === "label") q.label = event.target.value;
+            else if (f === "options") q.optionsText = event.target.value;
+        });
+        $("svQuestions").addEventListener("change", (event) => {
+            const row = event.target.closest(".sv-qrow");
+            if (!row) return;
+            const q = draft[Number(row.dataset.i)];
+            const f = event.target.dataset.f;
+            if (f === "type") { q.type = event.target.value; renderQuestions(); }
+            else if (f === "required") q.required = event.target.checked;
+        });
+        $("svQuestions").addEventListener("click", (event) => {
+            const btn = event.target.closest('button[data-f="remove"]');
+            if (!btn) return;
+            const i = Number(btn.closest(".sv-qrow").dataset.i);
+            draft.splice(i, 1);
+            renderQuestions();
+        });
+
+        $("svSave").addEventListener("click", async () => {
+            $("svMsg").textContent = "";
+            const title = $("svTitle").value.trim();
+            if (!title) { $("svMsg").textContent = "Please enter a survey title."; return; }
+            const body = { title, description: $("svDesc").value.trim() };
+            if (formKind === "custom" && !questionsLocked) {
+                const questions = [];
+                for (let i = 0; i < draft.length; i += 1) {
+                    const q = draft[i];
+                    if (!q.label.trim()) { $("svMsg").textContent = `Question ${i + 1} needs some text.`; return; }
+                    const item = { label: q.label.trim(), type: q.type, required: q.required };
+                    if (q.type === "choice") {
+                        item.options = q.optionsText.split(",").map((o) => o.trim()).filter(Boolean);
+                        if (new Set(item.options).size < 2) { $("svMsg").textContent = `Question ${i + 1} needs at least 2 different choices.`; return; }
+                    }
+                    questions.push(item);
+                }
+                body.questions = questions;
+            }
+            $("svSave").disabled = true;
+            try {
+                if (editing) {
+                    await api(`/staff/surveys/${encodeURIComponent(editing.id)}`, { method: "PATCH", body: JSON.stringify(body) });
+                    toast("Survey updated.");
+                } else {
+                    body.kind = formKind;
+                    body.isActive = $("svActive").checked;
+                    await api("/staff/surveys", { method: "POST", body: JSON.stringify(body) });
+                    toast(body.isActive ? "Survey created and ON. Residents will see it on their dashboard." : "Survey created (OFF). Switch it ON when you're ready.");
+                }
+                closeForm();
+                await loadSurveys();
+            } catch (e) {
+                $("svMsg").textContent = e.message;
+            }
+            $("svSave").disabled = false;
+        });
+
+        // ---------- responses ----------
+        function petText(p) {
+            const kind = p.species === "Other" ? (p.speciesOther || "Other") : p.species;
+            return `${p.name} (${kind}, ${p.vaccinated ? "vaccinated" : "not vaccinated"})`;
+        }
+
+        function answerText(q, a) {
+            const v = a[q.id];
+            return v === undefined || v === null ? "" : String(v);
+        }
+
+        async function openResponses(survey) {
+            $("respTitle").textContent = `Responses: ${survey.title}`;
+            $("respSummary").innerHTML = "";
+            $("respBody").innerHTML = '<div class="av-empty">Loading…</div>';
+            $("respModal").classList.add("show");
+            try {
+                const json = await api(`/staff/surveys/${encodeURIComponent(survey.id)}/responses`);
+                openResp = { survey: json.survey, responses: json.responses };
+                renderResponses();
+            } catch (e) {
+                $("respBody").innerHTML = `<div class="av-empty">${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        function renderResponses() {
+            const { survey, responses } = openResp;
+            const pills = [`${responses.length} response${responses.length === 1 ? "" : "s"}`];
+            if (survey.kind === "pets") {
+                const withPets = responses.filter((r) => r.answers.hasPets);
+                const pets = withPets.flatMap((r) => r.answers.pets || []);
+                pills.push(`${withPets.length} with pets`, `${responses.length - withPets.length} without pets`, `${pets.length} pet${pets.length === 1 ? "" : "s"} registered`, `${pets.filter((p) => p.vaccinated).length} vaccinated`);
+            }
+            $("respSummary").innerHTML = pills.map((p) => `<span class="sv-pill">${escapeHtml(p)}</span>`).join("");
+            $("respExport").disabled = !responses.length;
+            if (!responses.length) { $("respBody").innerHTML = '<div class="av-empty">No responses yet.</div>'; return; }
+
+            let head; let rows;
+            if (survey.kind === "pets") {
+                head = ["Resident", "Has pets", "Pets", "Answered"];
+                rows = responses.map((r) => [
+                    `${escapeHtml(r.residentName)}${r.residentId ? `<span class="av-sub">${escapeHtml(r.residentId)}</span>` : ""}`,
+                    r.answers.hasPets ? "Yes" : "No",
+                    (r.answers.pets || []).map((p) => escapeHtml(petText(p))).join("<br>") || "-",
+                    escapeHtml(fmtDate(r.createdAt))
+                ]);
+            } else {
+                head = ["Resident", ...survey.questions.map((q) => q.label), "Answered"];
+                rows = responses.map((r) => [
+                    `${escapeHtml(r.residentName)}${r.residentId ? `<span class="av-sub">${escapeHtml(r.residentId)}</span>` : ""}`,
+                    ...survey.questions.map((q) => escapeHtml(answerText(q, r.answers)) || "-"),
+                    escapeHtml(fmtDate(r.createdAt))
+                ]);
+            }
+            $("respBody").innerHTML = `<div class="sv-resp-wrap"><table><thead><tr>${head.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+        }
+
+        function csvCell(value) {
+            let s = String(value ?? "");
+            if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; // stop spreadsheet formula injection
+            return `"${s.replaceAll('"', '""')}"`;
+        }
+
+        $("respExport").addEventListener("click", () => {
+            if (!openResp) return;
+            const { survey, responses } = openResp;
+            let head; let rows;
+            if (survey.kind === "pets") {
+                head = ["Resident", "Resident ID", "Contact number", "Has pets", "Number of pets", "Pets", "Answered"];
+                rows = responses.map((r) => [r.residentName, r.residentId, r.contactNumber, r.answers.hasPets ? "Yes" : "No", (r.answers.pets || []).length, (r.answers.pets || []).map(petText).join("; "), fmtDate(r.createdAt)]);
+            } else {
+                head = ["Resident", "Resident ID", "Contact number", ...survey.questions.map((q) => q.label), "Answered"];
+                rows = responses.map((r) => [r.residentName, r.residentId, r.contactNumber, ...survey.questions.map((q) => answerText(q, r.answers)), fmtDate(r.createdAt)]);
+            }
+            const csv = "\ufeff" + [head, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `${survey.title.replace(/[^\w\-]+/g, "_").slice(0, 60) || "survey"}-responses.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        });
+        $("respClose").addEventListener("click", () => { $("respModal").classList.remove("show"); openResp = null; });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            ["surveyModal", "respModal", "confirmModal"].forEach((id) => $(id)?.classList.remove("show"));
+        });
+
+        loadSurveys();
+    </script>
+</body>
+</html>

@@ -517,8 +517,9 @@
             }
             tbody.innerHTML = profiles
                 .map((p) => {
-                    const email = String(p.email || "").trim();
-                    const name = String(p.fullName || "").trim() || email || "—";
+                    const email = String(p.email || "").trim();   // row key for suspend / reactivate
+                    const noEmail = !!p.emailIsPlaceholder;        // resident added without an email
+                    const name = String(p.fullName || "").trim() || (noEmail ? "" : email) || "—";
                     const role = String(p.role || "").trim();
                     const label = roleUiLabel(role);
                     const badgeStyle = roleBadgeStyle(role);
@@ -541,7 +542,7 @@
                     return `
                 <tr data-user-email="${escapeAttr(email)}">
                     <td style="padding: 16px 12px; font-weight: 600;">${escapeHtml(name)}</td>
-                    <td style="padding: 16px 12px; color: var(--text-muted);">${escapeHtml(email)}</td>
+                    <td style="padding: 16px 12px; color: var(--text-muted);">${noEmail ? "No email" : escapeHtml(email)}</td>
                     <td style="padding: 16px 12px;"><span class="badge" style="${badgeStyle}">${escapeHtml(label)}</span></td>
                     <td style="padding: 16px 12px; font-size: 0.8rem; color: var(--text-muted);">${perms}</td>
                     <td style="padding: 16px 12px; color: var(--text-muted);">${escapeHtml(joined)}</td>

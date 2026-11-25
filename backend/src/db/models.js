@@ -85,6 +85,7 @@ const ServiceCatalog = defineModel({
   table: 'service_catalog',
   fields: {
     serviceName: 'text', requiredDocuments: S, processingTime: 'text', status: 'text',
+    templateHtml: S, templateFileName: S, templateUpdatedAt: 'ts',
     archivedAt: 'ts', createdAt: 'ts', updatedAt: 'ts',
   },
 });
@@ -184,8 +185,20 @@ const SmsLog = defineModel({
   },
 });
 
+const Survey = defineModel({
+  name: 'Survey',
+  table: 'surveys',
+  fields: { kind: 'text', title: 'text', description: S, questions: 'jsonb', isActive: 'bool', createdByEmail: S, createdAt: 'ts' },
+});
+
+const SurveyResponse = defineModel({
+  name: 'SurveyResponse',
+  table: 'survey_responses',
+  fields: { surveyId: 'uuid', residentUserId: 'uuid', answers: 'jsonb', createdAt: 'ts' },
+});
+
 module.exports = {
   User, Appointment, ServiceRequest, ServiceCatalog, AppointmentSlot, AppointmentSlotOverride,
   AppointmentPurposeCatalog, CommunityAnnouncement, AnnouncementDraft, FaqEntry, PasswordResetCode,
-  AuthAuditEvent, PortalAuditEvent, SystemSettings, AnimalRecord, SmsLog,
+  AuthAuditEvent, PortalAuditEvent, SystemSettings, AnimalRecord, SmsLog, Survey, SurveyResponse,
 };

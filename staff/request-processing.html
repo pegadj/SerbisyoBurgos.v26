@@ -880,7 +880,20 @@
             return purposeLine || "Appointment";
         }
 
+        // Services the Secretary uploaded a Word template for (Portal Configuration); matched by exact service name.
+        let customTemplateNames = [];
+        async function loadCustomTemplateNames() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/admin/service-templates?namesOnly=1`, { headers: staffApiHeaders() });
+                const json = await res.json().catch(() => ({}));
+                if (res.ok && json?.ok) customTemplateNames = (json.templates || []).map((x) => x.name);
+            } catch (_e) { /* the two built-in certificates still work */ }
+        }
+
         function documentTemplateFor(r) {
+            const svcName = String((r && (r.serviceType || r.title)) || "").trim().toLowerCase();
+            const custom = customTemplateNames.find((n) => String(n).trim().toLowerCase() === svcName);
+            if (custom) return custom;
             if (r && r.documentTemplate) return r.documentTemplate;
             const t = String((r && (r.serviceType || r.title)) || "").toLowerCase();
             if (/business/.test(t)) return null;
@@ -1385,7 +1398,8 @@
         document.getElementById("rpPrevBtn").addEventListener("click", () => { rpPage = Math.max(1, rpPage - 1); renderRequestList(); });
         document.getElementById("rpNextBtn").addEventListener("click", () => { rpPage += 1; renderRequestList(); });
 
-        window.onload = function () {
+        window.onload = async function () {
+            await loadCustomTemplateNames();
             bindReviewActions();
             loadRequestFromQuery();
         };

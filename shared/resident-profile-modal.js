@@ -189,6 +189,13 @@
     };
   }
 
+  // Residents added by the barangay get an internal placeholder address so the login system can identify them.
+  // It is never shown to the resident, whatever the server sends.
+  function visibleEmail(value) {
+    const v = String(value == null ? "" : value).trim();
+    return /^[^@\s]+@residents\.serbisyoburgos\.local$/i.test(v) ? "" : v;
+  }
+
   function normalizeProfileEmail(value) {
     return String(value || "")
       .trim()
@@ -220,7 +227,14 @@
         throw new Error(result?.message || "Unable to load profile.");
       }
       if (inputs.fullNameInput) inputs.fullNameInput.value = result.fullName || "";
-      if (inputs.emailInput) inputs.emailInput.value = result.email || "";
+      if (inputs.emailInput) {
+        const shownEmail = visibleEmail(result.email);
+        inputs.emailInput.value = shownEmail;
+        // Residents added by the barangay without an email have none on file: the field is optional for them.
+        const noEmail = result.hasEmail === false || !shownEmail;
+        inputs.emailInput.dataset.noEmail = noEmail ? "1" : "";
+        inputs.emailInput.placeholder = noEmail ? "No email on file (optional)" : "user@gmail.com";
+      }
       if (inputs.telInput) inputs.telInput.value = result.contactNumber != null ? String(result.contactNumber) : "";
       applyProfileModalAvatar(result.avatarUrl, result.fullName);
     } catch (err) {
@@ -334,11 +348,12 @@
         const contactRaw = String(inputs.telInput.value || "").trim();
         const newPassword = String(inputs.passwordInput?.value || "");
 
-        if (!email) {
+        const noEmailOnFile = inputs.emailInput.dataset.noEmail === "1";
+        if (!email && !noEmailOnFile) {
           globalScope.alert("Email address is required.");
           return;
         }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
           globalScope.alert("Please enter a valid email address.");
           return;
         }
@@ -379,9 +394,9 @@
           if (profileProgressText) profileProgressText.textContent = "Saving your profile…";
 
           const patchBody = {
-            email: email || inputs.emailInput.value.trim(),
             contactNumber: contactRaw === "" ? null : contactRaw
           };
+          if (email) patchBody.email = email;   // left out when the resident has no email on file
           const patchRes = await globalScope.residentApiFetch(`${API_BASE_URL}/resident/profile`, {
             method: "PATCH",
             headers: jsonHeaders,
@@ -393,7 +408,7 @@
             throw new Error(parts.length ? parts.join(" — ") : "Unable to save profile.");
           }
           mergeResidentAuthUser({
-            email: patchResult.email,
+            email: visibleEmail(patchResult.email),
             fullName: patchResult.fullName,
             avatarUrl: patchResult.avatarUrl
           });

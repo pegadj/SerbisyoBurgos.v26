@@ -540,8 +540,8 @@
         <p class="subtitle">Log in to your SerbisyoBurgos account.</p>
 
         <div class="input-group">
-            <label>Email or Resident ID</label>
-            <input type="text" id="resident-login-email" placeholder="Email or Resident ID" maxlength="254" autocomplete="username">
+            <label> Username </label>
+            <input type="text" id="resident-login-email" placeholder="" maxlength="254" autocomplete="username">
         </div>
 
         <div class="input-group">
@@ -568,12 +568,12 @@
 
     <div id="forgot-form" class="hidden">
         <h2>Forgot password?</h2>
-        <p class="subtitle" id="forgot-subtitle">Enter your Resident ID or email. We will text a 6-digit code to the mobile number the barangay has on file for you.</p>
+        <p class="subtitle" id="forgot-subtitle">Enter your Resident ID. We will text a 6-digit code to the mobile number the barangay has on file for you.</p>
 
         <div id="forgot-step-1">
             <div class="input-group">
-                <label>Email or Resident ID</label>
-                <input type="text" id="forgot-identifier" placeholder="Email or Resident ID (e.g. SB-00001)" maxlength="254" autocomplete="username">
+                <label>Resident ID</label>
+                <input type="text" id="forgot-identifier" placeholder="Resident ID (e.g. SB00021)" maxlength="254" autocomplete="username">
             </div>
             <button type="button" class="btn-submit" id="forgot-send-btn" onclick="sendResetCode()">
                 <span class="btn-submit-inner">
@@ -868,6 +868,10 @@
 
     function persistResidentAuth(result) {
         const payload = { user: result.user, session: result.session };
+        // never keep the internal placeholder address (given to residents without an email) in the browser
+        if (payload.user && /@residents\.serbisyoburgos\.local$/i.test(String(payload.user.email || ""))) {
+            payload.user = { ...payload.user, email: "" };
+        }
         sessionStorage.setItem("residentAuth", JSON.stringify(payload));
         if (result?.user?.residentUserId) {
             const residentUserId = String(result.user.residentUserId);
@@ -1013,7 +1017,7 @@
         const password = String(passInput?.value || "");
 
         if (!email || !password) {
-            if (errorEl) errorEl.innerText = "Please enter your email or Resident ID and password.";
+            if (errorEl) errorEl.innerText = "Please enter your Resident ID and password.";
             return;
         }
         if (email.includes("@") && !isClientEmailValid(email)) {
@@ -1249,7 +1253,7 @@
     async function sendResetCode(isResend) {
         const identifier = (document.getElementById("forgot-identifier").value || "").trim();
         if (!identifier) {
-            setForgotMessage("Please enter your Resident ID or email.", false);
+            setForgotMessage("Please enter your Resident ID.", false);
             return;
         }
         setForgotMessage("", true);

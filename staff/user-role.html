@@ -208,6 +208,23 @@
             border-color: var(--brand-green);
         }
 
+        /* TOOLBAR BUTTONS (same look as Resident Profiling) */
+        .tb-group { display:flex; gap:.75rem; align-items:center; }
+        .tb-btn { width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #cbd5e1; border-radius:10px; background:#fff; color:#334155; cursor:pointer; position:relative; padding:0; }
+        .tb-btn:hover, .tb-btn:focus-visible { background:#f0fdf4; border-color:#16a34a; color:#166534; }
+        .tb-btn.tb-primary { background:var(--brand-green); border-color:var(--brand-green); color:#fff; }
+        .tb-btn.tb-primary:hover, .tb-btn.tb-primary:focus-visible { background:var(--brand-dark); border-color:var(--brand-dark); color:#fff; }
+        .tb-btn:disabled { opacity:.5; cursor:not-allowed; }
+        .tb-btn[data-tip]:hover::after, .tb-btn[data-tip]:focus-visible::after { content:attr(data-tip); position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); background:#0f172a; color:#fff; font-size:.75rem; font-weight:500; padding:.3rem .6rem; border-radius:6px; white-space:nowrap; z-index:60; pointer-events:none; }
+        #sortBtn[aria-expanded="true"]::after { display:none; }
+        .tb-badge { position:absolute; top:-7px; right:-7px; min-width:20px; height:20px; padding:0 5px; border-radius:99px; background:#dc2626; color:#fff; font-size:.7rem; font-weight:700; display:inline-flex; align-items:center; justify-content:center; border:2px solid #fff; box-sizing:border-box; }
+        .tb-menu-wrap { position:relative; }
+        .tb-menu { position:absolute; top:calc(100% + 6px); right:0; background:#fff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 30px rgba(15,23,42,.15); min-width:190px; z-index:70; padding:.25rem; }
+        .tb-menu[hidden] { display:none; }
+        .tb-menu button { display:block; width:100%; text-align:left; font:inherit; font-size:.9rem; padding:.55rem .75rem; border:0; background:none; border-radius:8px; cursor:pointer; color:#0f172a; }
+        .tb-menu button:hover, .tb-menu button.on { background:#f0fdf4; color:#166534; font-weight:600; }
+        .card-header .search-bar { height:44px; border:1px solid #cbd5e1; border-radius:10px; box-sizing:border-box; }
+
         /* TABLE STYLING */
         .table-container {
             width: 100%;
@@ -425,12 +442,13 @@
 
     <script src="../shared/sidebar.js" data-portal="staff"></script>
     <script src="../shared/user-badge.js"></script>
+    <script src="../shared/resident-credentials.js"></script>
 
     <main>
         <div class="top-bar">
             <div>
                 <h1 style="color: var(--brand-dark); font-weight: 800; font-size: 1.75rem;">Resident Account Management</h1>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Review resident registrations and manage resident accounts.</p>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Review registrations, manage account status, and issue logins or reset passwords for residents.</p>
             </div>
 
             <user-badge></user-badge>
@@ -445,13 +463,33 @@
                     </svg>
                     <input type="text" id="searchStaff" class="search-bar" placeholder="Search by name or email..." style="max-width: 300px; padding-left: 36px;" onkeyup="searchStaff()">
                 </div>
+                <div class="tb-group">
+                    <input type="hidden" id="sortUsers" value="newest">
+                    <div class="tb-menu-wrap">
+                        <button class="tb-btn" id="sortBtn" type="button" data-tip="Sort: Newest first" aria-label="Sort residents" aria-haspopup="true" aria-expanded="false"></button>
+                        <div class="tb-menu" id="sortMenu" hidden>
+                            <button type="button" data-sort="name-asc">Name A–Z</button>
+                            <button type="button" data-sort="name-desc">Name Z–A</button>
+                            <button type="button" data-sort="rid-asc">Resident ID 1 → 9</button>
+                            <button type="button" data-sort="rid-desc">Resident ID 9 → 1</button>
+                            <button type="button" data-sort="newest">Newest first</button>
+                        </div>
+                    </div>
+                    <button class="tb-btn" id="bulkClearBtn" type="button" onclick="clearSelection()" data-tip="Clear selection" aria-label="Clear selection" style="display:none;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                    <button class="tb-btn tb-primary" id="bulkIssueBtn" type="button" onclick="openBulkDialog()" data-tip="Issue logins" aria-label="Issue logins">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                        <span class="tb-badge" id="bulkBadge" style="display:none;"></span>
+                    </button>
+                </div>
             </div>
 
             <div class="table-container">
                 <table>
                     <thead>
 <tr>
-                            <th>User Name</th>
+                            <th><input type="checkbox" id="selAll" onchange="toggleSelectAll(this)" title="Select all shown residents who have no login yet" aria-label="Select all shown residents who have no login yet" style="margin-right:8px; vertical-align:middle;">User Name</th>
                             <th>Email Address</th>
                             <th>Portal Access</th>
                             <th>Account Status</th>
@@ -510,6 +548,17 @@
                             <option value="Deactivated" title="Resident cannot log in or use the resident portal">Deactivated</option>
                             <option value="Rejected" title="Registration was declined; resident cannot log in">Rejected</option>
                         </select>
+                    </div>
+
+                    <!-- Login access: issue a login / reset password (moved here from Resident Profiling) -->
+                    <div id="loginAccessBox" style="margin-top: 1rem; padding: 0.9rem 1rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:200px;">
+                                <label style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">Login Access</label>
+                                <p id="loginAccessText" style="margin:2px 0 0; color: var(--text-muted); font-size: 0.82rem; line-height:1.45;"></p>
+                            </div>
+                            <button type="button" id="loginAccessBtn" onclick="openLoginDialog()" style="padding:9px 16px; border:1px solid #cbd5e1; background:#fff; border-radius:8px; cursor:pointer; font-weight:600; white-space:nowrap;">Issue login…</button>
+                        </div>
                     </div>
 
                 </div>
@@ -576,6 +625,52 @@
             </div>
         </div>
 
+        <div class="modal-overlay" id="loginDlg" role="dialog" aria-modal="true" aria-labelledby="loginDlgTitle">
+            <div class="user-modal" style="max-width:460px;">
+                <div class="modal-header">
+                    <h2 id="loginDlgTitle" style="color: var(--brand-dark);">Issue login</h2>
+                </div>
+                <p id="loginDlgFor" style="color: var(--text-muted); font-size:0.9rem; font-weight:600;"></p>
+                <div style="margin-top:1rem;">
+                    <label for="loginDlgPw" style="font-weight:700; font-size:0.85rem; color: var(--text-main);">Password <small style="font-weight:400; color:#64748b;">(leave blank to generate a random one)</small></label>
+                    <input id="loginDlgPw" maxlength="128" placeholder="Auto: random, e.g. K7MQ-X4PD" autocomplete="new-password" style="width:100%; margin-top:6px; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+                </div>
+                <label style="display:flex; gap:8px; align-items:flex-start; margin-top:0.9rem; font-size:0.85rem; color: var(--text-main); cursor:pointer;">
+                    <input type="checkbox" id="loginDlgSms" style="margin-top:3px;">
+                    <span><strong>Text the Resident ID and password</strong> to the resident's mobile number on file. The password is also shown to you once.</span>
+                </label>
+                <p id="loginDlgHint" style="color: var(--text-muted); font-size:0.82rem; line-height:1.5; margin-top:0.75rem;"></p>
+                <p id="loginDlgMsg" style="margin-top:0.75rem; font-size:0.85rem; color:#b91c1c; min-height:1em;"></p>
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:1rem;">
+                    <button type="button" onclick="closeLoginDialog()" style="padding:10px 20px; border:none; background:#e2e8f0; border-radius:8px; cursor:pointer;">Cancel</button>
+                    <button type="button" id="loginDlgSubmit" onclick="submitLoginDialog()" style="padding:10px 20px; border:none; background:var(--brand-green); color:white; border-radius:8px; cursor:pointer;">Issue login</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="bulkDlg" role="dialog" aria-modal="true" aria-labelledby="bulkDlgTitle">
+            <div class="user-modal" style="max-width:500px;">
+                <div class="modal-header">
+                    <h2 id="bulkDlgTitle" style="color: var(--brand-dark);">Issue logins</h2>
+                </div>
+                <p id="bulkDlgText" style="color: var(--text-muted); font-size:0.9rem; line-height:1.55;"></p>
+                <div id="bulkDlgBar" style="display:none; height:8px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin-top:1rem;">
+                    <div id="bulkDlgFill" style="height:100%; width:0; background:var(--brand-green); transition:width .2s;"></div>
+                </div>
+                <label id="bulkDlgSmsWrap" style="display:none; gap:8px; align-items:flex-start; margin-top:1rem; font-size:0.85rem; color: var(--text-main); cursor:pointer;">
+                    <input type="checkbox" id="bulkDlgSms" style="margin-top:3px;">
+                    <span><strong>Also text each resident</strong> their Resident ID and password (needs a valid mobile number on file and SMS set up). Texts go out one by one, so it takes a little longer.</span>
+                </label>
+                <p id="bulkDlgNote" style="margin-top:0.75rem; font-size:0.85rem; color:#b91c1c;"></p>
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:1.25rem; flex-wrap:wrap;">
+                    <button type="button" id="bulkDlgCsv" onclick="bulkDownloadCsv()" style="display:none; padding:10px 16px; border:1px solid #cbd5e1; background:#fff; border-radius:8px; cursor:pointer; font-weight:600;">Download CSV</button>
+                    <button type="button" id="bulkDlgPrint" onclick="bulkPrintSlips()" style="display:none; padding:10px 16px; border:1px solid #cbd5e1; background:#fff; border-radius:8px; cursor:pointer; font-weight:600;">Print slips</button>
+                    <button type="button" id="bulkDlgClose" onclick="closeBulkDialog()" style="padding:10px 20px; border:none; background:#e2e8f0; border-radius:8px; cursor:pointer;">Cancel</button>
+                    <button type="button" id="bulkDlgStart" onclick="startBulkIssue()" style="padding:10px 20px; border:none; background:var(--brand-green); color:white; border-radius:8px; cursor:pointer;">Issue logins</button>
+                </div>
+            </div>
+        </div>
+
         <div class="modal-overlay" id="appDialogModal" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
             <div class="user-modal" style="max-width:430px;">
                 <div class="modal-header">
@@ -629,6 +724,7 @@
         /** Same key as login.html — emails registered through the resident portal. */
         const RESIDENT_PORTAL_SELF_REG_EMAILS_KEY = "SB_RESIDENT_PORTAL_SELF_REG_EMAILS";
         let targetUserRow = null;
+        const selectedUids = new Set(); // residents ticked for "Issue logins"
 
         function getAdminAccessToken() {
             try {
@@ -675,7 +771,8 @@
         function permissionsCellHtmlForProfile(p) {
             const r = String(p.role || "").trim().toLowerCase();
             if (r === "resident") {
-                if (isResidentPortalSelfRegisteredProfile(p)) {
+                if (p.loginIssued === false) return noLoginBadgeHtml();
+                if (isResidentPortalSelfRegisteredProfile(p) || p.loginIssued === true) {
                     return "<small>Resident portal access</small>";
                 }
                 return '<small style="color:#94a3b8;">—</small>';
@@ -683,6 +780,25 @@
             if (r === "staff") return "<small>Full barangay access</small>";
             if (r === "system-admin") return "<small>System administration</small>";
             return "<small>—</small>";
+        }
+
+        /** Resident is in the records (e.g. imported RBI) but staff have not issued a login yet. */
+        function noLoginBadgeHtml() {
+            return '<span style="background:#f1f5f9; color:#475569; padding:3px 9px; border-radius:20px; font-size:0.75rem; font-weight:600;">No login yet</span>';
+        }
+
+        /** Email cell: residents added without an email only have an internal placeholder address. */
+        function emailCellHtml(p) {
+            if (p.emailIsPlaceholder) {
+                return `<span style="color:#94a3b8;">No email</span>${p.residentId ? `<br><small style="color:#64748b;">ID ${escapeHtml(p.residentId)}</small>` : ""}`;
+            }
+            return escapeHtml(p.email || "");
+        }
+
+        /** The email used to look an account up (the real address, or the internal placeholder for residents without one). */
+        function rowEmail(row) {
+            if (!row) return "";
+            return String(row.dataset.email || row.querySelector("td:nth-child(2)")?.textContent || "").trim();
         }
 
         function accountStatusBadgeHtml(statusLabel) {
@@ -713,7 +829,7 @@
         }
 
         function profileSearchHaystack(p) {
-            return `${String(p.fullName || "").trim()} ${String(p.email || "").trim()}`.trim().toLowerCase();
+            return `${String(p.fullName || "").trim()} ${String(p.email || "").trim()} ${String(p.residentId || "").trim()}`.trim().toLowerCase();
         }
 
 
@@ -755,12 +871,20 @@
                         const nameAttr = escapeHtml(p.fullName || "");
                         const searchAttr = escapeHtml(profileSearchHaystack(p));
                         const perms = permissionsCellHtmlForProfile(p);
-                        const portalAttr = residentPortalDatasetAttr(p);
+                        const portalAttr =
+                            residentPortalDatasetAttr(p) +
+                            ` data-email="${escapeHtml(p.email || "")}" data-no-email="${p.emailIsPlaceholder ? "1" : ""}"` +
+                            ` data-uid="${escapeHtml(p.id || "")}" data-resident-id="${escapeHtml(p.residentId || "")}"` +
+                            ` data-login-issued="${p.loginIssued === false ? "false" : "true"}" data-order="${idx}"`;
                         const accLabel = String(p.accountStatus || "Active").trim();
                         const accAttr = escapeHtml(accLabel);
+                        const canIssue = !!p.id && p.loginIssued === false && accLabel !== "Pending Approval" && accLabel !== "Rejected";
+                        const selBox = canIssue
+                            ? `<input type="checkbox" class="rowSel" data-uid="${escapeHtml(p.id)}" onchange="onRowSelect(this)" aria-label="Select ${nameAttr}" ${selectedUids.has(p.id) ? "checked" : ""} style="margin-right:8px; vertical-align:middle;">`
+                            : '<span style="display:inline-block; width:21px;"></span>';
                         return `<tr id="${rowId}" data-user-name="${nameAttr}" data-user-role="${roleAttr}" data-search="${searchAttr}" data-account-status="${accAttr}"${portalAttr}>
-                            <td style="font-weight: 600;">${name}</td>
-                            <td>${email}</td>
+                            <td style="font-weight: 600;">${selBox}${name}</td>
+                            <td>${emailCellHtml(p)}</td>
                             <td>${perms}</td>
                             <td data-cell="account-status">${accountStatusBadgeHtml(accLabel)}</td>
                             <td>
@@ -770,6 +894,10 @@
                     })
                     .join("");
                 tbody.innerHTML = rowsHtml;
+                const stillEligible = new Set(Array.from(tbody.querySelectorAll(".rowSel")).map((c) => c.dataset.uid));
+                Array.from(selectedUids).forEach((u) => { if (!stillEligible.has(u)) selectedUids.delete(u); });
+                updateSelectionUi();
+                applySort();
                 syncResidentPortalRowMarkers();
                 applyResidentPortalTableCells();
             } catch (err) {
@@ -861,7 +989,7 @@
         function isResidentPortalRow(row) {
             if (!row) return false;
             if (String(row.dataset.accountSource || "").trim() === "resident-login") return true;
-            const email = row.querySelector("td:nth-child(2)")?.textContent?.trim().toLowerCase();
+            const email = rowEmail(row).toLowerCase();
             if (!email) return false;
             return loadResidentPortalSelfRegEmails().includes(email);
         }
@@ -873,7 +1001,7 @@
         function syncResidentPortalRowMarkers() {
             const emails = new Set(loadResidentPortalSelfRegEmails());
             document.querySelectorAll("table tbody tr").forEach((row) => {
-                const email = row.querySelector("td:nth-child(2)")?.textContent?.trim().toLowerCase();
+                const email = rowEmail(row).toLowerCase();
                 if (email && emails.has(email)) {
                     row.dataset.accountSource = "resident-login";
                 }
@@ -883,6 +1011,7 @@
         function applyResidentPortalTableCells() {
             document.querySelectorAll("table tbody tr").forEach((row) => {
                 if (!isResidentPortalRow(row)) return;
+                if (row.dataset.loginIssued === "false") return;
                 const permCell = row.querySelector("td:nth-child(3)");
                 if (permCell) {
                     permCell.innerHTML = "<small>Resident portal access</small>";
@@ -891,7 +1020,7 @@
         }
 
         function getRowProfileEmail(row) {
-            return row?.querySelector("td:nth-child(2)")?.textContent?.trim() || "";
+            return rowEmail(row);
         }
 
 
@@ -1301,6 +1430,7 @@ logoutConfirmBtn?.addEventListener("click", () => {
 
 // Search Staff Function
         function searchStaff() {
+            setTimeout(updateSelectionUi, 0);
             const input = document.getElementById('searchStaff');
             const filter = input.value.toLowerCase();
             const table = document.querySelector('table tbody');
@@ -1364,10 +1494,10 @@ logoutConfirmBtn?.addEventListener("click", () => {
             const row = document.getElementById(rowId);
             if (!row) return;
             const name = row.querySelector("td:first-child")?.textContent?.trim() || "";
-            const email = row.querySelector("td:nth-child(2)")?.textContent?.trim() || "";
+            const email = rowEmail(row);
 
             document.getElementById("viewProfileName").value = name;
-            document.getElementById("viewProfileEmail").value = email;
+            document.getElementById("viewProfileEmail").value = row.dataset.noEmail === "1" ? "" : email;
             document.getElementById("viewProfileContact").value = "";
             document.getElementById("viewProfileAvatar").textContent = getInitials(name);
             document.getElementById("viewProfileAvatar").style.display = "inline-flex";
@@ -1380,6 +1510,7 @@ logoutConfirmBtn?.addEventListener("click", () => {
             const allowedStatuses = new Set(["Pending Approval", "Active", "Suspended", "Deactivated", "Rejected"]);
             const currentStatus = readRowAccountStatus(row);
             document.getElementById("userStatusSelect").value = allowedStatuses.has(currentStatus) ? currentStatus : "Active";
+            refreshLoginAccessBox(row);
 
             document.getElementById("viewProfileModal").style.display = "flex";
 
@@ -1440,6 +1571,388 @@ logoutConfirmBtn?.addEventListener("click", () => {
             } catch (_err) {
                 showDocSection("empty");
             }
+        }
+
+        // ---- Login access: issue a login / reset a resident's password ----
+        function loginTargetRow() {
+            return targetUserRow ? document.getElementById(targetUserRow) : null;
+        }
+
+        /** Shows the resident's login state inside the account modal and sets up the button. */
+        function refreshLoginAccessBox(row) {
+            const box = document.getElementById("loginAccessBox");
+            const text = document.getElementById("loginAccessText");
+            const btn = document.getElementById("loginAccessBtn");
+            if (!box || !row) return;
+            const status = readRowAccountStatus(row);
+            const hasLogin = row.dataset.loginIssued !== "false";
+            if (!row.dataset.uid) {
+                box.style.display = "none";
+                return;
+            }
+            box.style.display = "";
+            if (status === "Pending Approval" || status === "Rejected") {
+                text.textContent = status === "Pending Approval"
+                    ? "Approve this registration first. A login can be issued or reset once the account is approved."
+                    : "This registration was rejected, so no login can be issued.";
+                btn.style.display = "none";
+                return;
+            }
+            btn.style.display = "";
+            btn.textContent = hasLogin ? "Reset password…" : "Issue login…";
+            text.textContent = hasLogin
+                ? "This resident can log in. Reset the password if they forgot it or lost their slip."
+                : "No login yet. This resident is in the records but cannot use the online system until you issue a login.";
+        }
+
+        function openLoginDialog() {
+            const row = loginTargetRow();
+            if (!row || !row.dataset.uid) return;
+            const issuing = row.dataset.loginIssued === "false";
+            const name = row.querySelector("td:first-child")?.textContent?.trim() || "this resident";
+            const rid = row.dataset.residentId || "no Resident ID";
+            document.getElementById("loginDlgTitle").textContent = issuing ? "Issue login" : "Reset password";
+            document.getElementById("loginDlgSubmit").textContent = issuing ? "Issue login" : "Reset password";
+            document.getElementById("loginDlgFor").textContent = `${name} (${rid})`;
+            document.getElementById("loginDlgHint").textContent = issuing
+                ? "The resident logs in with their Resident ID and this password, then is asked to choose their own."
+                : "The resident will be signed out everywhere and must log in with this password, then choose their own.";
+            document.getElementById("loginDlgPw").value = "";
+            document.getElementById("loginDlgSms").checked = false;
+            document.getElementById("loginDlgMsg").textContent = "";
+            document.getElementById("loginDlg").classList.add("show");
+            document.getElementById("loginDlgPw").focus();
+        }
+
+        function closeLoginDialog() {
+            document.getElementById("loginDlg").classList.remove("show");
+        }
+
+        async function submitLoginDialog() {
+            const row = loginTargetRow();
+            if (!row || !row.dataset.uid) return;
+            const uid = row.dataset.uid;
+            const name = row.querySelector("td:first-child")?.textContent?.trim() || "";
+            const msg = document.getElementById("loginDlgMsg");
+            const submit = document.getElementById("loginDlgSubmit");
+            const pw = document.getElementById("loginDlgPw").value;
+            if (pw && (pw.length < 8 || pw.length > 128)) {
+                msg.style.color = "#b91c1c";
+                msg.textContent = "Password must be 8–128 characters long, or leave it blank.";
+                return;
+            }
+            submit.disabled = true;
+            msg.style.color = "#64748b";
+            msg.textContent = "Working…";
+            try {
+                const res = await adminFetch(`/staff/residents/${encodeURIComponent(uid)}/reset-password`, {
+                    method: "POST",
+                    body: JSON.stringify({ password: pw, sendSms: document.getElementById("loginDlgSms").checked })
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json?.ok) {
+                    throw new Error(json?.message || "Unable to update the login.");
+                }
+                closeLoginDialog();
+                row.dataset.loginIssued = "true";
+                const permCell = row.querySelector("td:nth-child(3)");
+                if (permCell) permCell.innerHTML = "<small>Resident portal access</small>";
+                row.querySelector(".rowSel")?.remove();
+                selectedUids.delete(uid);
+                updateSelectionUi();
+                refreshLoginAccessBox(row);
+                if (window.SB_CREDS) {
+                    SB_CREDS.show(json.credentials, name, json.firstLogin ? "Login issued" : "New password issued", json.sms);
+                }
+                loadUsersTable({ silent: true });
+            } catch (err) {
+                msg.style.color = "#b91c1c";
+                msg.textContent = err?.message || "Unable to update the login.";
+            } finally {
+                submit.disabled = false;
+            }
+        }
+
+        // ---- Bulk: issue logins to every resident that has none yet ----
+        let bulkResults = [];      // [{ id, residentId, fullName, password }] kept in memory only until the dialog closes
+        let bulkRunning = false;
+        let bulkSaved = false;     // CSV downloaded or slips printed
+
+        // ---- Sort menu (same icon style as Resident Profiling) ----
+        const SORT_LABELS = { newest: "Newest first", "name-asc": "Name A–Z", "name-desc": "Name Z–A", "rid-asc": "Resident ID 1 → 9", "rid-desc": "Resident ID 9 → 1" };
+        const SORT_ICON_ATTRS = 'viewBox="0 0 28 28" width="26" height="26" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+        const SORT_GLYPH = (ch, y) => `<text x="3" y="${y}" font-size="12" font-weight="700" fill="#0b6b3a" font-family="Arial,sans-serif">${ch}</text>`;
+        const ARROW_DOWN = '<path d="M21 4v19M16.5 18.5 21 23l4.5-4.5" stroke="#2563eb" stroke-width="2.2"/>';
+        const ARROW_UP = '<path d="M21 24V5M16.5 9.5 21 5l4.5 4.5" stroke="#2563eb" stroke-width="2.2"/>';
+        const SORT_ICONS = {
+            "name-asc": `<svg ${SORT_ICON_ATTRS}>${SORT_GLYPH("A", 12)}${SORT_GLYPH("Z", 25)}${ARROW_DOWN}</svg>`,
+            "name-desc": `<svg ${SORT_ICON_ATTRS}>${SORT_GLYPH("Z", 12)}${SORT_GLYPH("A", 25)}${ARROW_UP}</svg>`,
+            "rid-asc": `<svg ${SORT_ICON_ATTRS}>${SORT_GLYPH("1", 12)}${SORT_GLYPH("9", 25)}${ARROW_DOWN}</svg>`,
+            "rid-desc": `<svg ${SORT_ICON_ATTRS}>${SORT_GLYPH("9", 12)}${SORT_GLYPH("1", 25)}${ARROW_UP}</svg>`,
+            newest: `<svg ${SORT_ICON_ATTRS}><circle cx="14" cy="14" r="9" stroke="#0b6b3a" stroke-width="2.2"/><path d="M14 8v6l4 2.5" stroke="#2563eb" stroke-width="2.2"/></svg>`
+        };
+        function applySortUi() {
+            const mode = document.getElementById("sortUsers").value;
+            const btn = document.getElementById("sortBtn");
+            btn.innerHTML = SORT_ICONS[mode] || SORT_ICONS.newest;
+            btn.dataset.tip = "Sort: " + (SORT_LABELS[mode] || SORT_LABELS.newest);
+            document.querySelectorAll("#sortMenu button").forEach((b) => b.classList.toggle("on", b.dataset.sort === mode));
+        }
+        function setSortMenu(open) {
+            document.getElementById("sortMenu").hidden = !open;
+            document.getElementById("sortBtn").setAttribute("aria-expanded", String(open));
+        }
+        document.getElementById("sortBtn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            setSortMenu(document.getElementById("sortMenu").hidden);
+        });
+        document.getElementById("sortMenu").addEventListener("click", (e) => {
+            const b = e.target.closest("button[data-sort]");
+            if (!b) return;
+            document.getElementById("sortUsers").value = b.dataset.sort;
+            applySortUi();
+            setSortMenu(false);
+            applySort();
+        });
+        document.addEventListener("click", () => setSortMenu(false));
+        document.addEventListener("keydown", (e) => { if (e.key === "Escape") setSortMenu(false); });
+        applySortUi();
+
+        /** Reorders the rows in the table (client side) by the option picked in the Sort menu. */
+        function applySort() {
+            const tbody = document.getElementById("usersTableBody");
+            const mode = document.getElementById("sortUsers")?.value || "newest";
+            if (!tbody) return;
+            const rows = Array.from(tbody.querySelectorAll("tr[data-order]"));
+            if (!rows.length) return;
+            const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+            const byName = (a, b) => collator.compare(a.dataset.userName || "", b.dataset.userName || "");
+            const byRid = (a, b) => {
+                const ra = a.dataset.residentId || "";
+                const rb = b.dataset.residentId || "";
+                if (!ra && !rb) return byName(a, b);
+                if (!ra) return 1;     // no Resident ID: always last
+                if (!rb) return -1;
+                return collator.compare(ra, rb) || byName(a, b);
+            };
+            const sorters = {
+                newest: (a, b) => Number(a.dataset.order) - Number(b.dataset.order),
+                "name-asc": byName,
+                "name-desc": (a, b) => byName(b, a),
+                "rid-asc": byRid,
+                "rid-desc": (a, b) => {
+                    const ra = a.dataset.residentId || "";
+                    const rb = b.dataset.residentId || "";
+                    if (!ra || !rb) return byRid(a, b);   // keep "no ID" rows last in both directions
+                    return collator.compare(rb, ra) || byName(a, b);
+                }
+            };
+            rows.sort(sorters[mode] || sorters.newest).forEach((row) => tbody.appendChild(row));
+        }
+
+        function isIssuableRow(row) {
+            if (!row.dataset.uid || row.dataset.loginIssued !== "false") return false;
+            const status = readRowAccountStatus(row);
+            return status !== "Pending Approval" && status !== "Rejected";
+        }
+
+        function onRowSelect(cb) {
+            if (cb.checked) selectedUids.add(cb.dataset.uid);
+            else selectedUids.delete(cb.dataset.uid);
+            updateSelectionUi();
+        }
+
+        /** Header checkbox: ticks / unticks every shown resident that can be issued a login. */
+        function toggleSelectAll(master) {
+            document.querySelectorAll("#usersTableBody tr").forEach((row) => {
+                if (row.style.display === "none") return;
+                const cb = row.querySelector(".rowSel");
+                if (!cb) return;
+                cb.checked = master.checked;
+                if (master.checked) selectedUids.add(cb.dataset.uid);
+                else selectedUids.delete(cb.dataset.uid);
+            });
+            updateSelectionUi();
+        }
+
+        function clearSelection() {
+            selectedUids.clear();
+            document.querySelectorAll("#usersTableBody .rowSel").forEach((cb) => { cb.checked = false; });
+            updateSelectionUi();
+        }
+
+        function updateSelectionUi() {
+            const n = selectedUids.size;
+            const btn = document.getElementById("bulkIssueBtn");
+            if (btn) {
+                const label = n ? `Issue logins (${n} selected)` : "Issue logins";
+                btn.dataset.tip = label;
+                btn.setAttribute("aria-label", label);
+            }
+            const badge = document.getElementById("bulkBadge");
+            if (badge) {
+                badge.textContent = String(n);
+                badge.style.display = n ? "" : "none";
+            }
+            const clr = document.getElementById("bulkClearBtn");
+            if (clr) clr.style.display = n ? "inline-flex" : "none";
+            const all = document.getElementById("selAll");
+            if (all) {
+                const boxes = Array.from(document.querySelectorAll("#usersTableBody tr"))
+                    .filter((r) => r.style.display !== "none")
+                    .map((r) => r.querySelector(".rowSel"))
+                    .filter(Boolean);
+                const ticked = boxes.filter((b) => b.checked).length;
+                all.checked = boxes.length > 0 && ticked === boxes.length;
+                all.indeterminate = ticked > 0 && ticked < boxes.length;
+                all.disabled = boxes.length === 0;
+            }
+        }
+
+        /**
+         * Who "Issue logins" applies to: the residents you ticked; if none are ticked, every shown resident
+         * with "No login yet" (respects the search box).
+         */
+        function bulkCandidates() {
+            const rows = Array.from(document.querySelectorAll("#usersTableBody tr")).filter(isIssuableRow);
+            if (selectedUids.size) return rows.filter((r) => selectedUids.has(r.dataset.uid));
+            return rows.filter((r) => r.style.display !== "none");
+        }
+
+        function bulkSetButtons({ start, csv, print, closeLabel }) {
+            document.getElementById("bulkDlgStart").style.display = start ? "" : "none";
+            document.getElementById("bulkDlgSmsWrap").style.display = start ? "flex" : "none";
+            document.getElementById("bulkDlgCsv").style.display = csv ? "" : "none";
+            document.getElementById("bulkDlgPrint").style.display = print ? "" : "none";
+            document.getElementById("bulkDlgClose").textContent = closeLabel;
+        }
+
+        function openBulkDialog() {
+            const n = bulkCandidates().length;
+            const searching = document.getElementById("searchStaff")?.value.trim();
+            const picked = selectedUids.size > 0;
+            bulkResults = [];
+            bulkSaved = false;
+            document.getElementById("bulkDlgSms").checked = false;
+            document.getElementById("bulkDlgBar").style.display = "none";
+            document.getElementById("bulkDlgFill").style.width = "0";
+            document.getElementById("bulkDlgNote").textContent = "";
+            document.getElementById("bulkDlgTitle").textContent = "Issue logins";
+            if (!n) {
+                document.getElementById("bulkDlgText").textContent = picked
+                    ? "None of the selected residents can be issued a login."
+                    : searching
+                        ? "No residents with “No login yet” match your search."
+                        : "Every approved resident in the list already has a login.";
+                bulkSetButtons({ start: false, csv: false, print: false, closeLabel: "Close" });
+            } else {
+                document.getElementById("bulkDlgText").textContent =
+                    `Issue a login to ${picked ? `the ${n} resident${n === 1 ? "" : "s"} you selected` : `${n} resident${n === 1 ? "" : "s"} with no login yet${searching ? " (matching your search)" : ""}`}? ` +
+                    "Each gets a random password and must choose their own at first login. Passwords are shown only once, " +
+                    "so you will get a CSV and printable slips to hand out. Residents who already have a login are never changed.";
+                document.getElementById("bulkDlgStart").textContent = `Issue ${n} login${n === 1 ? "" : "s"}`;
+                bulkSetButtons({ start: true, csv: false, print: false, closeLabel: "Cancel" });
+            }
+            document.getElementById("bulkDlg").classList.add("show");
+        }
+
+        async function closeBulkDialog() {
+            if (bulkRunning) return;
+            if (bulkResults.length && !bulkSaved) {
+                const ok = await showDialog({
+                    title: "Close without saving?",
+                    message: "The passwords are shown only once. If you close now without downloading the CSV or printing the slips, you will have to reset each password to get a new one.",
+                    confirmLabel: "Close anyway",
+                    cancelLabel: "Go back",
+                    danger: true
+                });
+                if (!ok) return;
+            }
+            bulkResults = [];
+            document.getElementById("bulkDlg").classList.remove("show");
+        }
+
+        function bulkDownloadCsv() {
+            if (!bulkResults.length || !window.SB_CREDS) return;
+            SB_CREDS.downloadCsv(bulkResults, `resident-logins-${new Date().toISOString().slice(0, 10)}.csv`);
+            bulkSaved = true;
+        }
+
+        function bulkPrintSlips() {
+            if (!bulkResults.length || !window.SB_CREDS) return;
+            SB_CREDS.printMany(bulkResults);
+            bulkSaved = true;
+        }
+
+        async function startBulkIssue() {
+            if (bulkRunning) return;
+            const rows = bulkCandidates();
+            const ids = rows.map((r) => r.dataset.uid);
+            if (!ids.length) return;
+            bulkRunning = true;
+            bulkResults = [];
+            bulkSaved = false;
+            const text = document.getElementById("bulkDlgText");
+            const note = document.getElementById("bulkDlgNote");
+            note.textContent = "";
+            document.getElementById("bulkDlgBar").style.display = "";
+            bulkSetButtons({ start: false, csv: false, print: false, closeLabel: "Please wait…" });
+            document.getElementById("bulkDlgClose").disabled = true;
+
+            const sendSms = document.getElementById("bulkDlgSms").checked;
+            document.getElementById("bulkDlgSmsWrap").style.display = "none";
+            const BATCH = sendSms ? 10 : 25;
+            let skipped = 0;
+            let failure = "";
+            for (let i = 0; i < ids.length; i += BATCH) {
+                text.textContent = `Issuing logins… ${Math.min(i, ids.length)} of ${ids.length}`;
+                document.getElementById("bulkDlgFill").style.width = `${Math.round((i / ids.length) * 100)}%`;
+                try {
+                    const res = await adminFetch("/staff/residents/issue-logins", {
+                        method: "POST",
+                        body: JSON.stringify({ ids: ids.slice(i, i + BATCH), sendSms })
+                    });
+                    const json = await res.json().catch(() => ({}));
+                    if (Array.isArray(json.issued)) bulkResults.push(...json.issued);   // keep even on a partial failure
+                    if (Array.isArray(json.skipped)) skipped += json.skipped.length;
+                    if (!res.ok || !json?.ok) {
+                        failure = json?.message || "Something went wrong.";
+                        break;
+                    }
+                } catch (err) {
+                    failure = err?.message || "Network error.";
+                    break;
+                }
+            }
+            bulkRunning = false;
+            document.getElementById("bulkDlgClose").disabled = false;
+            document.getElementById("bulkDlgFill").style.width = "100%";
+
+            // reflect the new state in the table
+            const issuedIds = new Set(bulkResults.map((x) => x.id));
+            rows.forEach((row) => {
+                if (!issuedIds.has(row.dataset.uid)) return;
+                row.dataset.loginIssued = "true";
+                const permCell = row.querySelector("td:nth-child(3)");
+                if (permCell) permCell.innerHTML = "<small>Resident portal access</small>";
+                row.querySelector(".rowSel")?.remove();
+            });
+            issuedIds.forEach((u) => selectedUids.delete(u));
+            updateSelectionUi();
+
+            const n = bulkResults.length;
+            document.getElementById("bulkDlgTitle").textContent = n ? "Logins issued" : "Nothing issued";
+            text.textContent = n
+                ? `${n} login${n === 1 ? "" : "s"} issued${skipped ? `, ${skipped} skipped (already had a login)` : ""}. ` +
+                  (sendSms ? `Texted: ${bulkResults.filter((x) => x.sms === "sent").length} of ${n}` +
+                      (bulkResults.some((x) => x.sms !== "sent") ? " (the CSV shows why the others were not texted)" : "") + ". " : "") +
+                  "Download the CSV or print the slips now: these passwords are not stored anywhere and cannot be shown again."
+                : "No logins were issued.";
+            if (failure) {
+                note.textContent = `Stopped early: ${failure} ${n ? "The logins above were still issued; run Issue logins again for the rest." : ""}`;
+            }
+            bulkSetButtons({ start: false, csv: n > 0, print: n > 0, closeLabel: "Close" });
+            loadUsersTable({ silent: true });
         }
 
         function closeViewProfileModal() {

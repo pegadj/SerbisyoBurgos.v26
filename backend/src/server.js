@@ -41,6 +41,7 @@ const { Appointment, APPOINTMENT_STATUSES } = require("./models/Appointment");
 const { ServiceRequest, SERVICE_REQUEST_STATUSES } = require("./models/ServiceRequest");
 const { SystemSettings, SINGLETON_ID } = require("./models/SystemSettings");
 const { AnimalRecord, ANIMAL_SPECIES } = require("./models/AnimalRecord");
+const { Survey, SurveyResponse } = require("./db/models");
 
 let intentionalShutdown = false;
 
@@ -101,7 +102,11 @@ app.use(
     })()
   })
 );
-app.use(express.json({ limit: "48kb" }));
+const defaultJsonParser = express.json({ limit: "48kb" });
+// Service template uploads carry the converted Word body, so they get a larger (but still bounded) limit.
+app.use((req, res, next) =>
+  /^\/admin\/service-catalog\/[^/]+\/template$/.test(req.path) ? next() : defaultJsonParser(req, res, next)
+);
 
 // Never send technical error text (database messages, file paths) to the browser. Many routes attach the
 // raw error as `detail`; log it on the server instead and strip it from the response.
@@ -259,6 +264,14 @@ const residentChangePasswordLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { ok: false, message: "Too many password change attempts. Please try again later." }
+});
+
+const residentSurveyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, message: "Too many attempts. Please try again later." }
 });
 
 const forgotPasswordLimiter = rateLimit({
@@ -557,7 +570,8 @@ const PLACEHOLDER_EMAIL_DOMAIN = "@residents.serbisyoburgos.local";
 
 function normalizeResidentId(raw) {
   const v = String(raw || "").trim().toUpperCase();
-  return /^[A-Z0-9][A-Z0-9-]{3,19}$/.test(v) ? v : "";
+  // Resident IDs look like "SB00021": "SB" followed by at least 5 digits, no dash or spaces.
+  return /^SB\d{5,15}$/.test(v) ? v : "";
 }
 
 function placeholderResidentEmail(residentId) {
@@ -568,10 +582,25 @@ function isPlaceholderResidentEmail(email) {
   return String(email || "").toLowerCase().endsWith(PLACEHOLDER_EMAIL_DOMAIN);
 }
 
+/**
+ * Residents added without an email only hold an internal placeholder address (the login system needs one to
+ * identify the account). It is never shown to anyone: use this for every email that goes into a response.
+ */
+function publicEmail(email) {
+  const e = String(email || "");
+  return isPlaceholderResidentEmail(e) ? "" : e;
+}
+
+/** For audit lists: show the Resident ID instead of the internal placeholder address (sb00001@... -> SB00001). */
+function maskAuditEmail(email) {
+  const e = String(email || "");
+  return isPlaceholderResidentEmail(e) ? e.split("@")[0].toUpperCase().replace(/^SB-/, "SB") : e;
+}
+
 async function generateResidentId() {
   // Atomic: concurrent requests can never receive the same number (db/migrations/001_schema.sql).
   const { rows } = await pool.query("SELECT nextval('resident_id_seq') AS n");
-  return "SB-" + String(rows[0].n).padStart(5, "0");
+  return "SB" + String(rows[0].n).padStart(5, "0");
 }
 
 function generateTemporaryPassword() {
@@ -580,24 +609,46 @@ function generateTemporaryPassword() {
 }
 
 /**
- * Default password staff-issued resident accounts get when no password is typed in:
- * the resident's last name in lowercase + "SB" + the current year, e.g. "delacruzSB2026".
- * Spaces, punctuation and accents are dropped ("Dela Cruz" -> "delacruz", "Niño" -> "nino").
- * The resident is still forced to choose their own password at first login (mustChangePassword).
- * Falls back to a random password if there is no usable last name.
+ * Password staff-issued resident logins get when no password is typed in: 8 random characters shown as
+ * two groups of four, e.g. "K7MQ-X4PD" (about 40 bits). Look-alike characters (0/O, 1/I) and vowels are
+ * left out so it is easy to read off a slip and cannot spell a word. The resident is still forced to
+ * choose their own password at first login (mustChangePassword).
  */
-function residentDefaultPassword(lastName, fullNameFallback = "") {
-  let source = String(lastName || "").trim();
-  if (!source) {
-    // no last name on file: use the last word of the full name ("Juan Dela Cruz" -> "Cruz")
-    const words = String(fullNameFallback || "").trim().split(/\s+/).filter(Boolean);
-    source = words.length > 1 ? words[words.length - 1] : "";
+const RESIDENT_PASSWORD_ALPHABET = "23456789BCDFGHJKLMNPQRSTVWXZ";
+function generateResidentPassword() {
+  let out = "";
+  for (let i = 0; i < 8; i += 1) {
+    if (i === 4) out += "-";
+    out += RESIDENT_PASSWORD_ALPHABET[crypto.randomInt(RESIDENT_PASSWORD_ALPHABET.length)];
   }
-  const base = source.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (!base) return generateTemporaryPassword();
-  let password = `${base}SB${new Date().getFullYear()}`;
-  while (password.length < 8) password += "0";   // passwords must be at least 8 characters
-  return password.slice(0, MAX_PASSWORD_LEN);
+  return out;
+}
+
+/**
+ * Texts a resident their Resident ID + password (staff ticked "text the credentials").
+ * Never throws. Returns a short status: "sent" or a plain-English reason it was not sent.
+ * The stored SMS log hides the password.
+ */
+async function textResidentCredentials({ userId, contactNumber, smsOptOut, residentId, password, firstLogin, staffEmail }) {
+  if (!isSmsConfigured()) return "SMS is not configured";
+  const phone = normalizePhNumber(contactNumber);
+  if (!phone) return "no valid mobile number";
+  if (smsOptOut) return "opted out of texts";
+  const lead = firstLogin ? "Your account is ready." : "Your password was reset.";
+  const body = (pw) => `SerbisyoBurgos: ${lead} Resident ID: ${residentId}  Temporary password: ${pw}  Log in and change your password right away. Do not share this text.`;
+  try {
+    const sent = await sendSmsBatch([phone], body(password), {
+      purpose: "account_issued",
+      relatedType: "user",
+      relatedId: String(userId),
+      userIds: { [phone]: String(userId) },
+      createdByEmail: staffEmail || null,
+      logMessage: body("****** (hidden)")
+    });
+    return sent.sent ? "sent" : `failed${sent.errors[0] ? ": " + sent.errors[0] : ""}`;
+  } catch (e) {
+    return `failed: ${e.message}`;
+  }
 }
 
 const STAFF_PORTAL_ROLES = new Set(["staff", "system-admin"]);
@@ -859,10 +910,27 @@ async function countBookedAppointmentsForSlot(slotId, dateISO) {
       appointmentDate: safeDate,
       status: { $nin: ["Rejected", "Cancelled"] }
     });
-    return count;
+    // Appointments and request pickups share the same slots, so requests that chose this slot count too.
+    const slot = await AppointmentSlot.findById(slotIdStr).select("slotCode").lean();
+    const requestCounts = await countRequestsBySlotCode(safeDate);
+    return count + (slot ? (requestCounts.get(String(slot.slotCode)) || 0) : 0);
   } catch (_error) {
     return null;
   }
+}
+
+/** Map of slotCode -> number of active service requests whose preferred time slot is that slot on the given date. */
+async function countRequestsBySlotCode(dateISO) {
+  const rows = await ServiceRequest.find({
+    preferredDate: dateISO,
+    status: { $nin: ["Rejected", "Cancelled"] }
+  }).select("preferredTimeSlot").lean();
+  const byCode = new Map();
+  for (const row of rows) {
+    const code = slotCodeFromTimeLabel(row.preferredTimeSlot);
+    if (code) byCode.set(code, (byCode.get(code) || 0) + 1);
+  }
+  return byCode;
 }
 
 // ---------------------------------------------------------------------------
@@ -949,10 +1017,10 @@ function isSlotWithinServiceHours(slot) {
 
 /** The slots the office offers. Run at startup so existing databases get the 8 AM and 2 PM slots too. */
 const SERVICE_SLOT_DEFAULTS = [
-  { slotCode: "0800", label: "08:00 AM - 09:00 AM", phaseLabel: "Phase 1", isMorningPickupOnly: true, defaultCapacity: 10 },
-  { slotCode: "0900", label: "09:00 AM - 10:00 AM", phaseLabel: "Phase 2", isMorningPickupOnly: true, defaultCapacity: 10 },
-  { slotCode: "1000", label: "10:00 AM - 11:00 AM", phaseLabel: "Phase 3", isMorningPickupOnly: true, defaultCapacity: 10 },
-  { slotCode: "1100", label: "11:00 AM - 12:00 PM", phaseLabel: "Phase 4", isMorningPickupOnly: true, defaultCapacity: 10 },
+  { slotCode: "0800", label: "08:00 AM - 09:00 AM", phaseLabel: "Phase 1", isMorningPickupOnly: false, defaultCapacity: 10 },
+  { slotCode: "0900", label: "09:00 AM - 10:00 AM", phaseLabel: "Phase 2", isMorningPickupOnly: false, defaultCapacity: 10 },
+  { slotCode: "1000", label: "10:00 AM - 11:00 AM", phaseLabel: "Phase 3", isMorningPickupOnly: false, defaultCapacity: 10 },
+  { slotCode: "1100", label: "11:00 AM - 12:00 PM", phaseLabel: "Phase 4", isMorningPickupOnly: false, defaultCapacity: 10 },
   { slotCode: "0100", label: "01:00 PM - 02:00 PM", phaseLabel: "Phase 5", isMorningPickupOnly: false, defaultCapacity: 15 },
   { slotCode: "0200", label: "02:00 PM - 03:00 PM", phaseLabel: "Phase 6", isMorningPickupOnly: false, defaultCapacity: 15 },
   { slotCode: "0300", label: "03:00 PM - 04:00 PM", phaseLabel: "Phase 7", isMorningPickupOnly: false, defaultCapacity: 15 },
@@ -967,7 +1035,7 @@ async function ensureServiceHourSlots() {
         await AppointmentSlot.create({ ...def, isActive: true });
         console.log(`[backend] Added appointment slot ${def.label}.`);
       } else if (existing.phaseLabel !== def.phaseLabel) {
-        await AppointmentSlot.updateOne({ _id: existing._id }, { $set: { phaseLabel: def.phaseLabel } });
+        await AppointmentSlot.updateOne({ _id: existing._id }, { $set: { phaseLabel: def.phaseLabel, isMorningPickupOnly: false } });
       }
     }
     // Anything outside 8-12 / 1-5 (e.g. a lunch-hour slot added by hand) is switched off.
@@ -1090,11 +1158,27 @@ function normalizeServiceCatalogRow(row) {
     requiredDocuments: row.requiredDocuments,
     processingTime: row.processingTime,
     status: row.status,
+    hasTemplate: Boolean(row.templateHtml),
+    templateFileName: row.templateFileName || "",
+    templateUpdatedAt: row.templateUpdatedAt || null,
     archivedAt: row.archivedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt
   };
 }
+
+/** A service the secretary uploaded a Word template for (matched by exact service name), or null. */
+async function findCustomTemplateForServiceType(serviceType) {
+  const want = String(serviceType || "").trim().toLowerCase();
+  if (!want) return null;
+  try {
+    const rows = await ServiceCatalog.find({ archivedAt: null }).lean();
+    return rows.find((r) => r.templateHtml && String(r.serviceName || "").trim().toLowerCase() === want) || null;
+  } catch (_e) {
+    return null;
+  }
+}
+
 
 function normalizeAppointmentPurposeCatalogRow(row) {
   return {
@@ -1632,7 +1716,7 @@ app.post("/auth/admin/login", authResidentLoginLimiter, loginFailureLimiter, asy
   }
 
   const userPayload = {
-    email: userDoc.email,
+    email: publicEmail(userDoc.email),
     fullName: userDoc.fullName,
     role: userDoc.role
   };
@@ -1692,7 +1776,7 @@ app.post("/auth/admin/refresh", async (req, res) => {
 
   return res.json({
     ok: true,
-    user: { email: userDoc.email, role: userDoc.role },
+    user: { email: publicEmail(userDoc.email), role: userDoc.role },
     session: {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
@@ -1734,7 +1818,7 @@ app.get("/auth/admin/authorize/:requiredRole", async (req, res) => {
   return res.json({
     ok: true,
     user: {
-      email: profile.email,
+      email: publicEmail(profile.email),
       fullName: profile.full_name,
       role: profile.role
     }
@@ -2293,31 +2377,25 @@ app.post(
 
 app.post("/auth/resident/login", authResidentLoginLimiter, loginFailureLimiter, async (req, res) => {
   const body = req.body || {};
-  const loginId = String(body.identifier ?? body.residentId ?? body.email ?? "").trim();
+  // Residents sign in with their Resident ID only (e.g. SB00021) - never an email address.
+  const loginId = String(body.identifier ?? body.residentId ?? "").trim();
   const safePassword = String(body.password || "");
 
   if (!loginId || !safePassword) {
     return res.status(400).json({
       ok: false,
-      message: "Resident ID (or email) and password are required."
+      message: "Resident ID and password are required."
     });
   }
 
-  const badCreds = { ok: false, message: "Invalid Resident ID/email or password." };
+  const badCreds = { ok: false, message: "Invalid Resident ID or password." };
   if (safePassword.length > MAX_PASSWORD_LEN || loginId.length > 254) {
     return res.status(400).json(badCreds);
   }
 
-  let lookup;
-  if (loginId.includes("@")) {
-    const normalizedEmail = normalizeEmail(loginId);
-    if (!isValidEmailFormat(normalizedEmail)) return res.status(400).json(badCreds);
-    lookup = { email: normalizedEmail };
-  } else {
-    const rid = normalizeResidentId(loginId);
-    if (!rid) return res.status(400).json(badCreds);
-    lookup = { residentId: rid };
-  }
+  const rid = normalizeResidentId(loginId);
+  if (!rid) return res.status(400).json(badCreds);
+  const lookup = { residentId: rid };
 
   const userDoc = await User.findOne(lookup).select("+passwordHash");
   if (!userDoc) {
@@ -2355,7 +2433,7 @@ app.post("/auth/resident/login", authResidentLoginLimiter, loginFailureLimiter, 
     ok: true,
     message: "Login successful.",
     user: {
-      email: userDoc.email,
+      email: publicEmail(userDoc.email),
       fullName: userDoc.fullName,
       role: userDoc.role,
       residentUserId: String(userDoc._id),
@@ -2391,7 +2469,8 @@ app.post("/auth/login", authResidentLoginLimiter, loginFailureLimiter, async (re
   if (loginId.includes("@")) {
     const normalizedEmail = normalizeEmail(loginId);
     if (!isValidEmailFormat(normalizedEmail)) return res.status(400).json(badCreds);
-    lookup = { email: normalizedEmail };
+    // Email login is for staff / system admins only. Residents must use their Resident ID.
+    lookup = { email: normalizedEmail, role: { $ne: "resident" } };
   } else {
     const rid = normalizeResidentId(loginId);
     if (!rid) return res.status(400).json(badCreds);
@@ -2436,7 +2515,7 @@ app.post("/auth/login", authResidentLoginLimiter, loginFailureLimiter, async (re
   let userPayload;
   if (isResident) {
     userPayload = {
-      email: userDoc.email,
+      email: publicEmail(userDoc.email),
       fullName: userDoc.fullName,
       role,
       residentUserId: String(userDoc._id),
@@ -2445,7 +2524,7 @@ app.post("/auth/login", authResidentLoginLimiter, loginFailureLimiter, async (re
       mustChangePassword: Boolean(userDoc.mustChangePassword)
     };
   } else {
-    userPayload = { email: userDoc.email, fullName: userDoc.fullName, role };
+    userPayload = { email: publicEmail(userDoc.email), fullName: userDoc.fullName, role };
   }
 
   const accessToken = signAccessToken(userDoc);
@@ -2485,17 +2564,9 @@ function safeEqualHex(a, b) {
 async function findResidentForPasswordReset(identifierRaw) {
   const loginId = String(identifierRaw || "").trim();
   if (!loginId || loginId.length > 254) return null;
-  let lookup;
-  if (loginId.includes("@")) {
-    const e = normalizeEmail(loginId);
-    if (!isValidEmailFormat(e)) return null;
-    lookup = { email: e };
-  } else {
-    const rid = normalizeResidentId(loginId);
-    if (!rid) return null;
-    lookup = { residentId: rid };
-  }
-  const user = await User.findOne(lookup).select("+passwordHash");
+  const rid = normalizeResidentId(loginId);
+  if (!rid) return null;
+  const user = await User.findOne({ residentId: rid }).select("+passwordHash");
   if (!user || user.role !== "resident") return null;
   if (residentPortalAccountBlockMessage(user.accountStatus)) return null;
   if (user.loginIssued === false) return null; // staff have not issued a login for this record yet
@@ -2628,7 +2699,7 @@ app.get("/auth/resident/authorize", async (req, res) => {
   return res.json({
     ok: true,
     user: {
-      email: profile.email,
+      email: publicEmail(profile.email),
       fullName: profile.full_name,
       role: profile.role,
       residentUserId,
@@ -2645,7 +2716,7 @@ app.get("/resident/context", async (req, res) => {
     ok: true,
     residentUserId: auth.residentUserId,
     fullName: auth.profile?.full_name || null,
-    email: auth.profile?.email || null,
+    email: publicEmail(auth.profile?.email) || null,
     contactNumber: auth.profile?.contact_number ?? null,
     avatarUrl: auth.profile?.avatar_url ?? null
   });
@@ -2667,7 +2738,8 @@ app.get("/resident/profile", async (req, res) => {
   const p = auth.profile;
   return res.json({
     ok: true,
-    email: p.email,
+    email: publicEmail(p.email),
+    hasEmail: !isPlaceholderResidentEmail(p.email),
     fullName: p.full_name || "",
     contactNumber: p.contact_number ?? null,
     smsOptOut: Boolean(p.sms_opt_out),
@@ -2682,7 +2754,10 @@ app.patch("/resident/profile", async (req, res) => {
   if (!auth) return;
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const hasContact = Object.prototype.hasOwnProperty.call(body, "contactNumber");
-  const hasEmail = Object.prototype.hasOwnProperty.call(body, "email");
+  // A resident with no email on file may leave the email blank; that simply means "no change".
+  const hasEmail =
+    Object.prototype.hasOwnProperty.call(body, "email") &&
+    !(isPlaceholderResidentEmail(auth.profile.email) && !String(body.email || "").trim());
   const hasSmsOptOut = typeof body.smsOptOut === "boolean";
   if (!hasContact && !hasEmail && !hasSmsOptOut) {
     return res.status(400).json({
@@ -2698,6 +2773,9 @@ app.patch("/resident/profile", async (req, res) => {
     nextEmailNorm = normalizeEmail(body.email);
     if (!nextEmailNorm || !isValidEmailFormat(nextEmailNorm)) {
       return res.status(400).json({ ok: false, message: "A valid email address is required." });
+    }
+    if (isPlaceholderResidentEmail(nextEmailNorm) && nextEmailNorm !== oldEmailNorm) {
+      return res.status(400).json({ ok: false, message: "That email address cannot be used." });
     }
   }
 
@@ -2723,7 +2801,7 @@ app.patch("/resident/profile", async (req, res) => {
     const p = auth.profile;
     return res.json({
       ok: true,
-      email: p.email,
+      email: publicEmail(p.email),
       fullName: p.full_name || "",
       contactNumber: p.contact_number ?? null,
       smsOptOut: Boolean(p.sms_opt_out),
@@ -2759,7 +2837,7 @@ app.patch("/resident/profile", async (req, res) => {
 
   return res.json({
     ok: true,
-    email: updated.email,
+    email: publicEmail(updated.email),
     fullName: updated.fullName || "",
     contactNumber: updated.contactNumber ?? null,
     smsOptOut: Boolean(updated.smsOptOut),
@@ -3100,6 +3178,7 @@ app.get("/appointment-slots", async (req, res) => {
   }
 
   let slots, overrides, bookedRows;
+  let requestCountByCode = new Map();
   try {
     slots = await AppointmentSlot.find({ isActive: true }).lean();
     slots = slots
@@ -3112,6 +3191,7 @@ app.get("/appointment-slots", async (req, res) => {
     })
       .select("slotId")
       .lean();
+    requestCountByCode = await countRequestsBySlotCode(dateISO);
   } catch (error) {
     return res.status(500).json({ ok: false, message: "Unable to load appointment slots.", detail: error.message });
   }
@@ -3132,7 +3212,8 @@ app.get("/appointment-slots", async (req, res) => {
     const overrideCap = overrideMap.get(slotId);
     const capacity =
       Number.isInteger(overrideCap) && overrideCap > 0 ? overrideCap : Number(slot.defaultCapacity || 0);
-    const booked = bookedCountBySlot.get(slotId) || 0;
+    // Appointments and request pickups share each slot's capacity.
+    const booked = (bookedCountBySlot.get(slotId) || 0) + (requestCountByCode.get(String(slot.slotCode)) || 0);
     const remaining = Math.max(0, capacity - booked);
     const closure = computeSlotClosure(slot, overrideDocBySlot.get(slotId), dateISO, nowInfo);
     const isFull = capacity > 0 ? booked >= capacity : true;
@@ -3587,10 +3668,16 @@ app.post("/requests", async (req, res) => {
   const safePreferredDate = parseLocalDateString(preferredDate);
   const safeTimeSlot = sanitizePlainTextField(preferredTimeSlot, MAX_TIME_SLOT_LEN);
 
-  if (!safeTitle || !safeServiceType || !safePreferredDate || !safeTimeSlot) {
+  if (!safeTitle || !safeServiceType) {
+    return res.status(400).json({ ok: false, message: "title and serviceType are required." });
+  }
+  // The preferred date / time slot are optional (staff text the resident when the document is ready).
+  // Send both or neither; a date that is sent must be written as YYYY-MM-DD.
+  const wantsSlot = String(preferredDate ?? "").trim() !== "" || String(preferredTimeSlot ?? "").trim() !== "";
+  if (wantsSlot && (!safePreferredDate || !safeTimeSlot)) {
     return res.status(400).json({
       ok: false,
-      message: "title, serviceType, preferredDate, and preferredTimeSlot are required. Use YYYY-MM-DD for dates."
+      message: "Choose both a preferred date and a time slot, or leave both empty. Use YYYY-MM-DD for dates."
     });
   }
   if (!safePurpose) {
@@ -3600,14 +3687,16 @@ app.post("/requests", async (req, res) => {
     });
   }
 
-  let slotCheck;
-  try {
-    slotCheck = await validateRequestTimeSlot(safeTimeSlot, safePreferredDate);
-  } catch (error) {
-    return res.status(500).json({ ok: false, message: "Unable to validate the time slot.", detail: error.message });
-  }
-  if (!slotCheck.ok) {
-    return res.status(slotCheck.status).json({ ok: false, code: slotCheck.code, message: slotCheck.message });
+  if (wantsSlot) {
+    let slotCheck;
+    try {
+      slotCheck = await validateRequestTimeSlot(safeTimeSlot, safePreferredDate);
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: "Unable to validate the time slot.", detail: error.message });
+    }
+    if (!slotCheck.ok) {
+      return res.status(slotCheck.status).json({ ok: false, code: slotCheck.code, message: slotCheck.message });
+    }
   }
 
   let catalogRow;
@@ -3639,8 +3728,8 @@ app.post("/requests", async (req, res) => {
     referenceNo,
     title: safeTitle,
     serviceType: safeServiceType,
-    preferredDate: safePreferredDate,
-    preferredTimeSlot: safeTimeSlot,
+    preferredDate: wantsSlot ? safePreferredDate : null,
+    preferredTimeSlot: wantsSlot ? safeTimeSlot : null,
     status: "Pending"
   };
   if (resolvedResidentUserId) {
@@ -3697,7 +3786,8 @@ app.get("/requests/:id/document-data", async (req, res) => {
     const row = await ServiceRequest.findById(id).lean();
     if (!row) return res.status(404).json({ ok: false, message: "Request not found." });
 
-    const template = documentTemplateForServiceType(row.serviceType);
+    const customTemplateRow = await findCustomTemplateForServiceType(row.serviceType);
+    const template = customTemplateRow ? customTemplateRow.serviceName : documentTemplateForServiceType(row.serviceType);
     if (!template) {
       return res.status(422).json({
         ok: false,
@@ -3714,7 +3804,7 @@ app.get("/requests/:id/document-data", async (req, res) => {
         const birth = rp.birthDate ? new Date(rp.birthDate) : null;
         resident = {
           fullName: String(u.fullName || "").trim(),
-          email: u.email || "",
+          email: publicEmail(u.email),
           contactNumber: u.contactNumber || "",
           sex: rp.sex || "",
           birthDate: birth && !Number.isNaN(birth.getTime()) ? birth.toISOString().slice(0, 10) : "",
@@ -5470,6 +5560,13 @@ function mapDirectoryProfileRow(row) {
     residentSelfRegistered: row.role === "resident" && Boolean(row.residentSelfRegistered),
     accountStatus: mapAccountStatusToUiLabel(row.accountStatus)
   };
+  if (row.role === "resident") {
+    // Resident Accounts page: needed to issue a login / reset a password for this resident.
+    profile.id = String(row._id);
+    profile.residentId = row.residentId || "";
+    profile.loginIssued = row.loginIssued !== false;
+    profile.emailIsPlaceholder = isPlaceholderResidentEmail(row.email);
+  }
   if (row.role === "staff") {
     profile.staffPermissions = normalizeStaffPermissionsFromDb(row.staffPermissions);
   }
@@ -5812,9 +5909,10 @@ app.get("/staff/residents/stats", async (req, res) => {
 });
 
 /**
- * Staff issues a resident account: a unique Resident ID + password the resident uses to log in.
- * Resident ID and password are auto-generated unless staff provides them. The password is only
- * ever returned in this response — it is stored hashed.
+ * Staff adds a resident to the records (RBI). By default this creates the record only (no login),
+ * exactly like the RBI import. Send `issueLogin: true` to also issue a login in the same step:
+ * then a unique Resident ID + password the resident uses to log in are returned once (the password
+ * is stored hashed). Logins can also be issued later from the Resident Accounts page.
  */
 app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
   const auth = await requireResidentProfilingAccess(req, res);
@@ -5848,12 +5946,17 @@ app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
     if (!customId) {
       return res.status(400).json({
         ok: false,
-        message: "Resident ID must be 4–20 characters: letters, numbers and dashes only."
+        message: "Resident ID must look like SB00021 (SB followed by at least 5 digits)."
       });
     }
   }
 
-  const customPassword = String(body.password || "");
+  const issueLogin = body.issueLogin === true || body.issueLogin === "true";
+  const sendSms = issueLogin && (body.sendSms === true || body.sendSms === "true");
+  if (sendSms && !isSmsConfigured()) {
+    return res.status(503).json({ ok: false, message: "SMS is not configured, so the credentials cannot be texted. Untick the text option, or set up SMS first." });
+  }
+  const customPassword = issueLogin ? String(body.password || "") : "";
   if (customPassword) {
     if (customPassword.length < 8) {
       return res.status(400).json({ ok: false, message: "Password must be at least 8 characters long." });
@@ -5862,7 +5965,7 @@ app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
       return res.status(400).json({ ok: false, message: `Password must be at most ${MAX_PASSWORD_LEN} characters.` });
     }
   }
-  const password = customPassword || residentDefaultPassword(parsed.value.lastName, fullName);
+  const password = issueLogin ? customPassword || generateResidentPassword() : "";
 
   try {
     if (email && (await User.findOne({ email }).select("_id").lean())) {
@@ -5872,7 +5975,8 @@ app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
       return res.status(409).json({ ok: false, message: `Resident ID ${customId} is already assigned to someone else.` });
     }
 
-    const passwordHash = await hashPassword(password);
+    // Record-only residents get a random, unknown password hash: they cannot log in until staff issue a login.
+    const passwordHash = await hashPassword(issueLogin ? password : crypto.randomBytes(24).toString("hex"));
     let created = null;
     let residentId = customId;
     for (let attempt = 0; attempt < 5 && !created; attempt += 1) {
@@ -5888,8 +5992,9 @@ app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
           isActive: true,
           accountStatus: "active",
           residentSelfRegistered: false,
+          loginIssued: issueLogin,
           // staff chose/know this password, so the resident must replace it at first login
-          mustChangePassword: true,
+          ...(issueLogin ? { mustChangePassword: true } : {}),
           ...(contactNumber ? { contactNumber } : {}),
           residentProfile: parsed.value
         });
@@ -5904,16 +6009,22 @@ app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
 
     void insertPortalAuditEvent({
       action: "Updated Record",
-      description: `Barangay Secretary issued resident account ${residentId} for "${fullName}".`,
+      description: issueLogin
+        ? `Barangay Secretary added resident ${residentId} for "${fullName}" and issued a login.`
+        : `Barangay Secretary added resident record ${residentId} for "${fullName}" (no login issued).`,
       profile: auth.profile,
-      metadata: { entity: "resident_account", residentId }
+      metadata: { entity: issueLogin ? "resident_account" : "resident_record", residentId, loginIssued: issueLogin }
     });
 
     const row = await User.findById(created._id).select(RESIDENT_SELECT).lean();
+    const sms = sendSms
+      ? await textResidentCredentials({ userId: created._id, contactNumber: contactNumber || row?.contactNumber, smsOptOut: false, residentId, password, firstLogin: true, staffEmail: auth.profile.email })
+      : "not requested";
     return res.status(201).json({
       ok: true,
       resident: mapResidentProfilingRow(row),
-      credentials: { residentId, password }
+      sms,
+      credentials: issueLogin ? { residentId, password } : null
     });
   } catch (error) {
     if (error?.code === 11000) {
@@ -5923,7 +6034,10 @@ app.post("/staff/residents", adminStaffCreateLimiter, async (req, res) => {
   }
 });
 
-/** Staff issues a new password for a resident (forgotten password / lost slip). Signs them out everywhere. */
+/**
+ * Staff issues a login (first time, for a record that has none) or a new password (forgotten password /
+ * lost slip) for a resident. Used by the Resident Accounts page. Signs them out everywhere.
+ */
 app.post("/staff/residents/:id/reset-password", adminStaffCreateLimiter, async (req, res) => {
   const auth = await requireResidentProfilingAccess(req, res);
   if (!auth) return;
@@ -5935,27 +6049,36 @@ app.post("/staff/residents/:id/reset-password", adminStaffCreateLimiter, async (
   if (custom && (custom.length < 8 || custom.length > MAX_PASSWORD_LEN)) {
     return res.status(400).json({ ok: false, message: "Password must be 8–128 characters long." });
   }
-  let password = custom;
-  if (!password) {
-    const current = await User.findOne(confirmedResidentQuery({ _id: id })).select("fullName residentProfile").lean().catch(() => null);
-    if (!current) return res.status(404).json({ ok: false, message: "Resident not found." });
-    password = residentDefaultPassword(current.residentProfile?.lastName, current.fullName);
+  const sendSms = req.body?.sendSms === true;
+  if (sendSms && !isSmsConfigured()) {
+    return res.status(503).json({ ok: false, message: "SMS is not configured, so the credentials cannot be texted. Untick the text option, or set up SMS first." });
   }
+  const current = await User.findOne(confirmedResidentQuery({ _id: id })).select("fullName loginIssued").lean().catch(() => null);
+  if (!current) return res.status(404).json({ ok: false, message: "Resident not found." });
+  const firstLogin = current.loginIssued === false;
+  const password = custom || generateResidentPassword();
   try {
     const updated = await User.findOneAndUpdate(
       confirmedResidentQuery({ _id: id }),
       { $set: { passwordHash: await hashPassword(password), loginIssued: true, mustChangePassword: true, failedLoginCount: 0, lockedUntil: null }, $inc: { tokenVersion: 1 } },
       { new: true }
-    ).select("residentId email fullName").lean();
+    ).select("residentId email fullName contactNumber smsOptOut").lean();
     if (!updated) return res.status(404).json({ ok: false, message: "Resident not found." });
+    const sms = sendSms
+      ? await textResidentCredentials({ userId: updated._id, contactNumber: updated.contactNumber, smsOptOut: updated.smsOptOut, residentId: updated.residentId, password, firstLogin, staffEmail: auth.profile.email })
+      : "not requested";
     void insertPortalAuditEvent({
       action: "Updated Record",
-      description: `Barangay Secretary reset the password of resident ${updated.residentId || updated.email}.`,
+      description: firstLogin
+        ? `Barangay Secretary issued a login for resident ${updated.residentId || updated.email}.`
+        : `Barangay Secretary reset the password of resident ${updated.residentId || updated.email}.`,
       profile: auth.profile,
-      metadata: { entity: "resident_password_reset", residentId: updated.residentId || null }
+      metadata: { entity: firstLogin ? "resident_login_issued" : "resident_password_reset", residentId: updated.residentId || null }
     });
     return res.json({
       ok: true,
+      firstLogin,
+      sms,
       credentials: {
         residentId: updated.residentId || "",
         email: isPlaceholderResidentEmail(updated.email) ? "" : updated.email,
@@ -5969,9 +6092,65 @@ app.post("/staff/residents/:id/reset-password", adminStaffCreateLimiter, async (
 });
 
 /**
+ * Bulk "Issue logins": gives a random password to residents that are in the records but have no login yet
+ * (loginIssued=false). The page sends the ids in small batches. Passwords are returned once, in this response
+ * only (they are stored hashed), so the page must let staff download / print them right away.
+ * Residents that already have a login are skipped, never reset.
+ */
+app.post("/staff/residents/issue-logins", residentImportLimiter, async (req, res) => {
+  const auth = await requireResidentProfilingAccess(req, res);
+  if (!auth) return;
+  const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : [];
+  const ids = [...new Set(rawIds.map((x) => String(x || "")).filter((x) => isValidId(x)))];
+  if (ids.length === 0) return res.status(400).json({ ok: false, message: "No residents selected." });
+  if (ids.length > 25) return res.status(400).json({ ok: false, message: "Send at most 25 residents per request." });
+  const sendSms = req.body?.sendSms === true;
+  if (sendSms && !isSmsConfigured()) {
+    return res.status(503).json({ ok: false, message: "SMS is not configured, so the credentials cannot be texted. Issue without texting instead." });
+  }
+
+  const issued = [];
+  const skipped = [];
+  try {
+    const found = await User.find(confirmedResidentQuery({ _id: { $in: ids } })).select("residentId email fullName loginIssued contactNumber smsOptOut").lean();
+    const byId = new Map(found.map((r) => [String(r._id), r]));
+    for (const id of ids) {
+      const r = byId.get(id);
+      if (!r) { skipped.push({ id, reason: "Not found, or registration not approved" }); continue; }
+      if (r.loginIssued !== false) { skipped.push({ id, fullName: r.fullName, residentId: r.residentId || "", reason: "Already has a login" }); continue; }
+      const password = generateResidentPassword();
+      const updated = await User.findOneAndUpdate(
+        confirmedResidentQuery({ _id: id, loginIssued: false }),
+        { $set: { passwordHash: await hashPassword(password), loginIssued: true, mustChangePassword: true, failedLoginCount: 0, lockedUntil: null }, $inc: { tokenVersion: 1 } },
+        { new: true }
+      ).select("residentId fullName").lean();
+      if (!updated) { skipped.push({ id, fullName: r.fullName, residentId: r.residentId || "", reason: "Already has a login" }); continue; }
+      const entry = { id, residentId: updated.residentId || "", fullName: updated.fullName, password, sms: "not requested" };
+      if (sendSms) {
+        entry.sms = await textResidentCredentials({ userId: id, contactNumber: r.contactNumber, smsOptOut: r.smsOptOut, residentId: entry.residentId, password, firstLogin: true, staffEmail: auth.profile.email });
+        await new Promise((resolve) => setTimeout(resolve, 600)); // do not flood the phone that sends the texts
+      }
+      issued.push(entry);
+    }
+    if (issued.length) {
+      void insertPortalAuditEvent({
+        action: "Updated Record",
+        description: `Barangay Secretary issued logins for ${issued.length} resident(s) in bulk.`,
+        profile: auth.profile,
+        metadata: { entity: "resident_login_issued_bulk", count: issued.length, residentIds: issued.map((x) => x.residentId) }
+      });
+    }
+    return res.json({ ok: true, issued, skipped });
+  } catch (error) {
+    // Anything issued before the failure was already saved: hand those passwords back so they are not lost.
+    return res.status(500).json({ ok: false, message: "Unable to issue all logins.", detail: error.message, issued, skipped });
+  }
+});
+
+/**
  * Bulk import of RBI (Record of Barangay Inhabitants) rows, sent in small batches by the page.
  * Each row becomes a resident record with an auto-assigned Resident ID but NO usable password
- * (loginIssued=false). Staff issue a login later from the resident drawer.
+ * (loginIssued=false). Staff issue a login later from the Resident Accounts page.
  */
 async function findImportDuplicate({ fullName, email, birthDate, purok, philsysId }) {
   if (email && (await User.exists({ email }))) return "Email already registered";
@@ -6201,7 +6380,7 @@ app.get("/admin/profiles", async (req, res) => {
       [total, data] = await Promise.all([
         User.countDocuments(roleFilter),
         User.find(roleFilter)
-          .select("email fullName role createdAt staffPermissions residentSelfRegistered accountStatus")
+          .select("email fullName role createdAt staffPermissions residentSelfRegistered accountStatus residentId loginIssued")
           .sort({ createdAt: -1, fullName: 1 })
           .skip(pageOffset)
           .limit(pageLimit)
@@ -6227,7 +6406,7 @@ app.get("/admin/profiles", async (req, res) => {
   let data;
   try {
     data = await User.find(roleFilter)
-      .select("email fullName role createdAt staffPermissions residentSelfRegistered accountStatus")
+      .select("email fullName role createdAt staffPermissions residentSelfRegistered accountStatus residentId loginIssued")
       .sort({ createdAt: -1, fullName: 1 })
       .lean();
   } catch (error) {
@@ -6584,7 +6763,7 @@ app.post("/admin/profiles/approve-link", async (req, res) => {
 
     return res.json({
       ok: true,
-      resident: { residentId: linked.residentId || "", fullName: linked.fullName, email: linked.email }
+      resident: { residentId: linked.residentId || "", fullName: linked.fullName, email: publicEmail(linked.email) }
     });
   } catch (error) {
     return res.status(500).json({ ok: false, message: "Unable to link the registration.", detail: error.message });
@@ -6876,7 +7055,7 @@ app.post("/admin/profiles/delete", async (req, res) => {
 
   void insertPortalAuditEvent({
     action: "Deleted Record",
-    description: `Permanently deleted user account for email ${email}. Prior profile role: ${profile.role}.`,
+    description: `Permanently deleted user account for ${maskAuditEmail(email) || "a resident"}. Prior profile role: ${profile.role}.`,
     profile: auth.profile,
     metadata: {
       entity: "profile",
@@ -6931,9 +7110,9 @@ app.get("/admin/service-dashboard/summary", async (req, res) => {
         ServiceCatalog.countDocuments({ archivedAt: null }),
         User.countDocuments({ role: "staff" }),
         User.countDocuments(confirmedResidentQuery()),
-        // Use preferredDate (always present); appointments below use createdAt for month-of-booking instead.
+        // Requests may have no preferred date, so count them by the day they were submitted (like appointments below).
         ServiceRequest.countDocuments({
-          preferredDate: { $gte: monthStartDate, $lte: monthEndDate }
+          createdAt: { $gte: new Date(monthStartIso), $lte: new Date(monthEndIso) }
         }),
         Appointment.countDocuments({
           createdAt: { $gte: new Date(monthStartIso), $lte: new Date(monthEndIso) }
@@ -7099,6 +7278,88 @@ app.patch("/admin/service-catalog/:id", async (req, res) => {
     ok: true,
     service: svcPatched
   });
+});
+
+// ---- Service document templates (uploaded Word body, converted to HTML in the browser) ----
+const templateJsonParser = express.json({ limit: "300kb" });
+const MAX_TEMPLATE_HTML_CHARS = 250000;
+
+app.get("/admin/service-templates", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  let rows;
+  try {
+    rows = await ServiceCatalog.find({ archivedAt: null }).sort({ createdAt: 1 }).lean();
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to load service templates." });
+  }
+  const namesOnly = String(req.query?.namesOnly || "") === "1";
+  const templates = rows
+    .filter((r) => r.templateHtml)
+    .map((r) => ({
+      id: String(r._id),
+      name: r.serviceName,
+      fileName: r.templateFileName || "",
+      ...(namesOnly ? {} : { html: r.templateHtml })
+    }));
+  return res.json({ ok: true, templates });
+});
+
+app.put("/admin/service-catalog/:id/template", templateJsonParser, async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!isValidId(id)) return res.status(400).json({ ok: false, message: "Invalid service id." });
+
+  const html = typeof req.body?.html === "string" ? req.body.html.trim() : "";
+  const fileName = String(req.body?.fileName || "template.docx").replace(/[\u0000-\u001f]/g, "").slice(0, 200);
+  if (!html) return res.status(400).json({ ok: false, message: "The template is empty." });
+  if (html.length > MAX_TEMPLATE_HTML_CHARS) {
+    return res.status(413).json({ ok: false, message: "The template is too large. Keep it to the body text of the document." });
+  }
+  let updated;
+  try {
+    updated = await ServiceCatalog.findByIdAndUpdate(
+      id,
+      { $set: { templateHtml: html, templateFileName: fileName, templateUpdatedAt: new Date() } },
+      { new: true }
+    ).lean();
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to save the template." });
+  }
+  if (!updated) return res.status(404).json({ ok: false, message: "Service not found." });
+  void insertPortalAuditEvent({
+    action: "Updated Record",
+    description: `Uploaded document template "${fileName}" for service "${updated.serviceName}".`,
+    profile: auth.profile,
+    metadata: { entity: "service_catalog", serviceId: id, field: "template", fileName }
+  });
+  return res.json({ ok: true, service: normalizeServiceCatalogRow(updated) });
+});
+
+app.delete("/admin/service-catalog/:id/template", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!isValidId(id)) return res.status(400).json({ ok: false, message: "Invalid service id." });
+  let updated;
+  try {
+    updated = await ServiceCatalog.findByIdAndUpdate(
+      id,
+      { $set: { templateHtml: "", templateFileName: "", templateUpdatedAt: null } },
+      { new: true }
+    ).lean();
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to remove the template." });
+  }
+  if (!updated) return res.status(404).json({ ok: false, message: "Service not found." });
+  void insertPortalAuditEvent({
+    action: "Updated Record",
+    description: `Removed the document template for service "${updated.serviceName}".`,
+    profile: auth.profile,
+    metadata: { entity: "service_catalog", serviceId: id, field: "template" }
+  });
+  return res.json({ ok: true, service: normalizeServiceCatalogRow(updated) });
 });
 
 app.post("/admin/service-catalog/:id/archive", async (req, res) => {
@@ -7768,7 +8029,7 @@ async function insertPortalAuditEvent({
   performedByRole,
   metadata
 }) {
-  const email = performedByEmail ?? profile?.email ?? null;
+  const email = maskAuditEmail(performedByEmail ?? profile?.email ?? "") || null;
   const name = performedByName ?? profile?.full_name ?? null;
   const role = performedByRole ?? profile?.role ?? null;
   try {
@@ -7790,7 +8051,7 @@ async function insertAuthAuditEvent({ action, email, role, req }) {
   try {
     await AuthAuditEvent.create({
       action,
-      email: String(email || "").toLowerCase().trim(),
+      email: maskAuditEmail(String(email || "").toLowerCase().trim()),
       role: role || null,
       ip: req?.ip || req?.headers?.["x-forwarded-for"] || null
     });
@@ -7803,7 +8064,8 @@ async function insertAuthAuditEvent({ action, email, role, req }) {
 async function fetchAuthAuditRowsForSystemAdmin(limit, query = {}) {
   const lim = Math.min(500, Math.max(1, limit));
   try {
-    const rows = await AuthAuditEvent.find(query).sort({ createdAt: -1 }).limit(lim).lean();
+    const found = await AuthAuditEvent.find(query).sort({ createdAt: -1 }).limit(lim).lean();
+    const rows = found.map((r) => ({ ...r, email: maskAuditEmail(r.email) })); // rows saved before the mask existed
     return { rows, error: null, via: "postgres" };
   } catch (error) {
     return { rows: [], error: error.message || "Could not load auth audit log.", via: null };
@@ -7871,7 +8133,8 @@ const SMS_LOG_PURPOSE_LABELS = {
   request_status: "Request Update",
   announcement: "Announcement",
   password_reset: "Password Reset Code",
-  password_changed: "Password Changed Alert"
+  password_changed: "Password Changed Alert",
+  account_issued: "Account Issued (Resident ID)"
 };
 
 app.get("/system-admin/sms-logs", async (req, res) => {
@@ -7999,7 +8262,7 @@ app.get("/system-admin/audit-logs", async (req, res) => {
       const action = String(row.action || "Updated Record").trim();
       if (action === "New Service Request") continue;
       const badgeClass = portalAuditBadgeForFilterAction(action);
-      const who = String(row.performedByName || row.performedByEmail || "").trim() || "Unknown";
+      const who = String(row.performedByName || maskAuditEmail(row.performedByEmail) || "").trim() || "Unknown";
       rows.push({
         id: `portal:${row._id}`,
         source: "portal",
@@ -8401,6 +8664,358 @@ function animalAuditDescription(verb, animal) {
   return `${verb} pet record ${animal.animalCode} (${animal.name}, ${animal.species}) owned by ${animal.ownerName} - ${animal.status}.`;
 }
 
+// ---------------------------------------------------------------------------
+// Resident surveys (pop-ups on the resident dashboard)
+//   - The secretary creates a survey and switches it ON/OFF (staff routes below).
+//   - A resident sees every ON survey they have not answered yet, one at a time, and answers each once.
+//   - kind "pets": the built-in pet survey; "yes" answers create animal records (Animal Vaccine Tracker).
+//   - kind "custom": the secretary's own questions (text / yes-no / choice / number); answers are viewable
+//     and exportable from the staff Surveys page.
+// ---------------------------------------------------------------------------
+const SURVEY_KINDS = ["pets", "custom"];
+const SURVEY_QUESTION_TYPES = ["text", "yesno", "choice", "number"];
+const SURVEY_MAX_QUESTIONS = 20;
+const SURVEY_MAX_PETS = 10;
+
+function sanitizeSurveyQuestions(raw) {
+  const list = Array.isArray(raw) ? raw : [];
+  if (list.length < 1) return { error: "Add at least one question." };
+  if (list.length > SURVEY_MAX_QUESTIONS) return { error: `A survey can have at most ${SURVEY_MAX_QUESTIONS} questions.` };
+  const out = [];
+  for (let i = 0; i < list.length; i += 1) {
+    const q = list[i] && typeof list[i] === "object" ? list[i] : {};
+    const n = i + 1;
+    const label = sanitizePlainTextField(q.label, 200);
+    if (!label) return { error: `Question ${n} needs some text.` };
+    const type = String(q.type || "");
+    if (!SURVEY_QUESTION_TYPES.includes(type)) return { error: `Question ${n} has an invalid type.` };
+    const item = { id: `q${n}`, type, label, required: q.required !== false };
+    if (type === "choice") {
+      const opts = (Array.isArray(q.options) ? q.options : [])
+        .map((o) => sanitizePlainTextField(o, 80))
+        .filter(Boolean);
+      const unique = [...new Set(opts)];
+      if (unique.length < 2 || unique.length > 8) return { error: `Question ${n} needs 2 to 8 different choices.` };
+      item.options = unique;
+    }
+    out.push(item);
+  }
+  return { value: out };
+}
+
+function normalizeSurveyRow(row, responseCount) {
+  return {
+    id: String(row._id),
+    kind: row.kind,
+    title: row.title,
+    description: row.description || "",
+    questions: Array.isArray(row.questions) ? row.questions : [],
+    isActive: Boolean(row.isActive),
+    createdByEmail: row.createdByEmail || "",
+    createdAt: row.createdAt,
+    ...(responseCount === undefined ? {} : { responseCount })
+  };
+}
+
+// ----- staff: manage surveys -----
+app.get("/staff/surveys", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  try {
+    const rows = await Survey.find({}).sort({ createdAt: -1 }).lean();
+    const surveys = await Promise.all(
+      rows.map(async (r) => normalizeSurveyRow(r, await SurveyResponse.countDocuments({ surveyId: r._id })))
+    );
+    return res.json({ ok: true, surveys });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to load surveys." });
+  }
+});
+
+app.post("/staff/surveys", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const b = req.body && typeof req.body === "object" ? req.body : {};
+  const kind = String(b.kind || "");
+  if (!SURVEY_KINDS.includes(kind)) return res.status(400).json({ ok: false, message: "Choose a survey type." });
+  const title = sanitizePlainTextField(b.title, 120);
+  if (!title) return res.status(400).json({ ok: false, message: "Please enter a survey title." });
+  const description = sanitizePlainTextField(b.description, 500);
+  let questions = [];
+  if (kind === "custom") {
+    const parsed = sanitizeSurveyQuestions(b.questions);
+    if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
+    questions = parsed.value;
+  }
+  try {
+    const row = await Survey.create({
+      kind,
+      title,
+      description,
+      questions,
+      isActive: b.isActive === true,
+      createdByEmail: auth.profile.email || ""
+    });
+    void insertPortalAuditEvent({
+      action: "Created Survey",
+      description: `Created resident survey "${title}" (${kind === "pets" ? "pet survey" : "custom survey"}).`,
+      profile: auth.profile,
+      metadata: { entity: "survey", surveyId: String(row._id), kind, isActive: b.isActive === true }
+    });
+    return res.status(201).json({ ok: true, survey: normalizeSurveyRow(row, 0) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to create the survey." });
+  }
+});
+
+app.patch("/staff/surveys/:id", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!isValidId(id)) return res.status(400).json({ ok: false, message: "Invalid survey id." });
+  const b = req.body && typeof req.body === "object" ? req.body : {};
+  try {
+    const existing = await Survey.findById(id).lean();
+    if (!existing) return res.status(404).json({ ok: false, message: "Survey not found." });
+    const set = {};
+    if (b.title !== undefined) {
+      const title = sanitizePlainTextField(b.title, 120);
+      if (!title) return res.status(400).json({ ok: false, message: "Please enter a survey title." });
+      set.title = title;
+    }
+    if (b.description !== undefined) set.description = sanitizePlainTextField(b.description, 500);
+    if (b.isActive !== undefined) {
+      if (typeof b.isActive !== "boolean") return res.status(400).json({ ok: false, message: "Invalid on/off value." });
+      set.isActive = b.isActive;
+    }
+    if (b.questions !== undefined && existing.kind === "custom") {
+      const parsed = sanitizeSurveyQuestions(b.questions);
+      if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
+      const answered = await SurveyResponse.countDocuments({ surveyId: id });
+      if (answered > 0 && JSON.stringify(parsed.value) !== JSON.stringify(existing.questions || [])) {
+        return res.status(409).json({ ok: false, message: "Questions can't be changed after residents have answered. Create a new survey instead." });
+      }
+      set.questions = parsed.value;
+    }
+    if (!Object.keys(set).length) return res.status(400).json({ ok: false, message: "Nothing to update." });
+    const row = await Survey.findOneAndUpdate({ _id: id }, { $set: set }, { new: true }).lean();
+    const onlyToggle = Object.keys(set).length === 1 && set.isActive !== undefined;
+    void insertPortalAuditEvent({
+      action: onlyToggle ? (set.isActive ? "Turned On Survey" : "Turned Off Survey") : "Updated Survey",
+      description: onlyToggle
+        ? `Turned ${set.isActive ? "on" : "off"} resident survey "${row.title}".`
+        : `Updated resident survey "${row.title}".`,
+      profile: auth.profile,
+      metadata: { entity: "survey", surveyId: id, ...(set.isActive !== undefined ? { isActive: set.isActive } : {}) }
+    });
+    return res.json({ ok: true, survey: normalizeSurveyRow(row, await SurveyResponse.countDocuments({ surveyId: id })) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to update the survey." });
+  }
+});
+
+app.delete("/staff/surveys/:id", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!isValidId(id)) return res.status(400).json({ ok: false, message: "Invalid survey id." });
+  try {
+    const row = await Survey.findById(id).lean();
+    if (!row) return res.status(404).json({ ok: false, message: "Survey not found." });
+    await Survey.deleteOne({ _id: id }); // responses are removed with it (ON DELETE CASCADE); pet records already created stay
+    void insertPortalAuditEvent({
+      action: "Deleted Survey",
+      description: `Deleted resident survey "${row.title}" and its responses.`,
+      profile: auth.profile,
+      metadata: { entity: "survey", surveyId: id }
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to delete the survey." });
+  }
+});
+
+app.get("/staff/surveys/:id/responses", async (req, res) => {
+  const auth = await requireStaffPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!isValidId(id)) return res.status(400).json({ ok: false, message: "Invalid survey id." });
+  try {
+    const survey = await Survey.findById(id).lean();
+    if (!survey) return res.status(404).json({ ok: false, message: "Survey not found." });
+    const rows = await SurveyResponse.find({ surveyId: id }).sort({ createdAt: -1 }).lean();
+    const userIds = [...new Set(rows.map((r) => String(r.residentUserId)))];
+    const users = userIds.length
+      ? await User.find({ _id: { $in: userIds } }).select("fullName residentId contactNumber").lean()
+      : [];
+    const byId = new Map(users.map((u) => [String(u._id), u]));
+    const responses = rows.map((r) => {
+      const u = byId.get(String(r.residentUserId)) || {};
+      return {
+        id: String(r._id),
+        residentName: u.fullName || "(removed resident)",
+        residentId: u.residentId || "",
+        contactNumber: u.contactNumber || "",
+        answers: r.answers || {},
+        createdAt: r.createdAt
+      };
+    });
+    return res.json({ ok: true, survey: normalizeSurveyRow(survey, responses.length), responses });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to load responses." });
+  }
+});
+
+// ----- resident: answer surveys -----
+app.get("/resident/surveys/pending", async (req, res) => {
+  const auth = await requireResidentPortalUser(req, res);
+  if (!auth) return;
+  try {
+    const active = await Survey.find({ isActive: true }).sort({ createdAt: 1 }).lean();
+    if (!active.length) return res.json({ ok: true, surveys: [] });
+    const mine = await SurveyResponse.find({ residentUserId: auth.residentUserId }).select("surveyId").lean();
+    const done = new Set(mine.map((r) => String(r.surveyId)));
+    const pending = active.filter((s) => !done.has(String(s._id)));
+    let existingPets = null;
+    const surveys = [];
+    for (const s of pending) {
+      const item = {
+        id: String(s._id),
+        kind: s.kind,
+        title: s.title,
+        description: s.description || "",
+        questions: s.kind === "custom" && Array.isArray(s.questions) ? s.questions : []
+      };
+      if (s.kind === "pets") {
+        if (existingPets === null) {
+          const rows = await AnimalRecord.find({ ownerUserId: auth.residentUserId, archivedAt: null }).sort({ createdAt: 1 }).lean();
+          existingPets = rows.map((r) => String(r.name || ""));
+        }
+        item.existingPets = existingPets;
+      }
+      surveys.push(item);
+    }
+    return res.json({ ok: true, surveys });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to load surveys." });
+  }
+});
+
+function parsePetSurveyAnswers(b) {
+  if (typeof b.hasPets !== "boolean") return { error: "Please answer whether you have pets." };
+  if (!b.hasPets) return { value: { hasPets: false, pets: [] } };
+  const list = Array.isArray(b.pets) ? b.pets : [];
+  if (list.length < 1 || list.length > SURVEY_MAX_PETS) {
+    return { error: `Please list between 1 and ${SURVEY_MAX_PETS} pets.` };
+  }
+  const pets = [];
+  for (let i = 0; i < list.length; i += 1) {
+    const p = list[i] && typeof list[i] === "object" ? list[i] : {};
+    const n = i + 1;
+    const name = sanitizePlainTextField(p.name, 80);
+    if (!name) return { error: `Please enter the name of pet ${n}.` };
+    const species = String(p.species || "").trim();
+    if (!ANIMAL_SPECIES.includes(species)) return { error: `Pet ${n}: type must be Dog, Cat or Other.` };
+    const speciesOther = species === "Other" ? sanitizePlainTextField(p.speciesOther, 60) : "";
+    if (species === "Other" && !speciesOther) return { error: `Pet ${n}: please say what kind of pet it is.` };
+    const vaccinated = parseVaccinatedFlag(p.vaccinated);
+    if (vaccinated === null) return { error: `Pet ${n}: please say if it is vaccinated.` };
+    pets.push({ name, species, speciesOther, vaccinated });
+  }
+  return { value: { hasPets: true, pets } };
+}
+
+function parseCustomSurveyAnswers(questions, rawAnswers) {
+  const given = rawAnswers && typeof rawAnswers === "object" ? rawAnswers : {};
+  const answers = {};
+  for (const q of questions) {
+    const raw = given[q.id];
+    const blank = raw === undefined || raw === null || String(raw).trim() === "";
+    if (blank) {
+      if (q.required) return { error: `Please answer: ${q.label}` };
+      continue;
+    }
+    if (q.type === "text") {
+      answers[q.id] = sanitizePlainTextField(raw, 500);
+    } else if (q.type === "yesno") {
+      const v = String(raw).toLowerCase();
+      if (v !== "yes" && v !== "no") return { error: `Please choose Yes or No: ${q.label}` };
+      answers[q.id] = v === "yes" ? "Yes" : "No";
+    } else if (q.type === "choice") {
+      const v = String(raw);
+      if (!(q.options || []).includes(v)) return { error: `Please pick one of the choices: ${q.label}` };
+      answers[q.id] = v;
+    } else if (q.type === "number") {
+      const num = Number(raw);
+      if (!Number.isFinite(num) || Math.abs(num) > 1e9) return { error: `Please enter a valid number: ${q.label}` };
+      answers[q.id] = num;
+    }
+  }
+  return { value: answers };
+}
+
+app.post("/resident/surveys/:id/respond", residentSurveyLimiter, async (req, res) => {
+  const auth = await requireResidentPortalUser(req, res);
+  if (!auth) return;
+  const id = String(req.params.id || "");
+  if (!isValidId(id)) return res.status(400).json({ ok: false, message: "Invalid survey." });
+  const b = req.body && typeof req.body === "object" ? req.body : {};
+
+  try {
+    const survey = await Survey.findById(id).lean();
+    if (!survey || !survey.isActive) {
+      return res.status(404).json({ ok: false, message: "This survey is no longer available." });
+    }
+    const parsed = survey.kind === "pets"
+      ? parsePetSurveyAnswers(b)
+      : parseCustomSurveyAnswers(Array.isArray(survey.questions) ? survey.questions : [], b.answers);
+    if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
+
+    if (await SurveyResponse.exists({ surveyId: id, residentUserId: auth.residentUserId })) {
+      return res.status(409).json({ ok: false, message: "You have already answered this survey." });
+    }
+    // Saving the response first doubles as the lock against a double submit (unique survey + resident).
+    let saved;
+    try {
+      saved = await SurveyResponse.create({ surveyId: id, residentUserId: auth.residentUserId, answers: parsed.value });
+    } catch (err) {
+      if (err && err.code === "23505") {
+        return res.status(409).json({ ok: false, message: "You have already answered this survey." });
+      }
+      throw err;
+    }
+
+    if (survey.kind === "pets" && parsed.value.hasPets) {
+      try {
+        const owner = await User.findById(auth.residentUserId)
+          .select("fullName contactNumber residentId residentProfile.address residentProfile.purok")
+          .lean();
+        const ownerName = owner?.fullName || auth.profile.full_name || auth.profile.email || "Resident";
+        const ownerAddress = [owner?.residentProfile?.purok, owner?.residentProfile?.address].filter(Boolean).join(", ");
+        for (const pet of parsed.value.pets) {
+          // eslint-disable-next-line no-await-in-loop
+          await AnimalRecord.create({
+            ...pet,
+            animalCode: await generateAnimalCode(),
+            ownerUserId: auth.residentUserId,
+            ownerResidentId: owner?.residentId || "",
+            ownerName,
+            ownerContact: owner?.contactNumber || "",
+            ownerAddress,
+            createdByEmail: auth.profile.email || ""
+          });
+        }
+      } catch (err) {
+        await SurveyResponse.deleteOne({ _id: saved._id }); // let the resident try again
+        throw err;
+      }
+    }
+    return res.status(201).json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Unable to save your answers. Please try again." });
+  }
+});
+
 // Owner lookup for the "Add animal" form (confirmed residents only, minimal fields).
 app.get("/staff/animals/owners", async (req, res) => {
   const auth = await requireStaffPortalUser(req, res);
@@ -8628,7 +9243,27 @@ connectPg()
     pool.query("ALTER TABLE resident_profiles ADD COLUMN IF NOT EXISTS is_household_head boolean NOT NULL DEFAULT false")
       .then(() => pool.query("ALTER TABLE resident_profiles ADD COLUMN IF NOT EXISTS household_no text NOT NULL DEFAULT ''"))
       .then(() => pool.query("CREATE INDEX IF NOT EXISTS resident_profiles_household_no_idx ON resident_profiles (household_no)"))
-      .catch((err) => console.error("[backend] Could not add household columns on resident_profiles:", err.message))
+      // Resident survey pop-ups (same as db/migrations/060_surveys.sql).
+      .then(() => pool.query(`CREATE TABLE IF NOT EXISTS surveys (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        kind text NOT NULL DEFAULT 'custom' CHECK (kind IN ('pets','custom')),
+        title text NOT NULL,
+        description text NOT NULL DEFAULT '',
+        questions jsonb NOT NULL DEFAULT '[]'::jsonb,
+        is_active boolean NOT NULL DEFAULT false,
+        created_by_email text NOT NULL DEFAULT '',
+        created_at timestamptz NOT NULL DEFAULT now()
+      )`))
+      .then(() => pool.query(`CREATE TABLE IF NOT EXISTS survey_responses (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        survey_id uuid NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
+        resident_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        answers jsonb NOT NULL DEFAULT '{}'::jsonb,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (survey_id, resident_user_id)
+      )`))
+      .then(() => pool.query("CREATE INDEX IF NOT EXISTS idx_survey_responses_survey ON survey_responses (survey_id)"))
+      .catch((err) => console.error("[backend] Could not add household / survey tables:", err.message))
   )
   .then(() => ensureServiceHourSlots())
   .then(() => {

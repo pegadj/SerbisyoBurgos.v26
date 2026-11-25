@@ -591,7 +591,14 @@
                 } catch (_e) {
                     label = enc.trim() || "this service";
                 }
-                openRepeatConfirm("request", { label });
+                let purpose = "";
+                try {
+                    const encP = btn.getAttribute("data-repeat-purpose") || "";
+                    purpose = encP ? decodeURIComponent(encP).trim() : "";
+                } catch (_e) {
+                    purpose = "";
+                }
+                openRepeatConfirm("request", { label, purpose });
             }
         }
 
@@ -630,6 +637,7 @@
                                 : escapeHtml(r.preferredTimeSlot || "—");
                             const docs = supportingDocsLine(r.referenceNo);
                             const labelAttr = encodeURIComponent(labelPlain);
+                            const purposeAttr = encodeURIComponent(String(r.purpose || "").trim());
                             return `
                                 <div class="history-item">
                                     <div class="service-info">
@@ -647,7 +655,7 @@
                                     </div>
                                     <div>${docs}</div>
                                     <div style="display:flex; justify-content:flex-end; padding-right:8px;">
-                                        <button type="button" class="action-btn btn-repeat" data-repeat-kind="request" data-repeat-label="${labelAttr}" title="Request this service again">
+                                        <button type="button" class="action-btn btn-repeat" data-repeat-kind="request" data-repeat-label="${labelAttr}" data-repeat-purpose="${purposeAttr}" title="Request this service again">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M17 1l4 4-4 4"></path>
                                                 <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
@@ -760,7 +768,7 @@
                 try {
                     sessionStorage.setItem(
                         "sb_resident_service_request_repeat_v1",
-                        JSON.stringify({ serviceName: String(payload.label).trim() })
+                        JSON.stringify({ serviceName: String(payload.label).trim(), purpose: String(payload.purpose || "").trim() })
                     );
                 } catch (_e) {
                     openFeedbackModal("Notice", "Could not save service selection. Try again.");

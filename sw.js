@@ -15,7 +15,7 @@
  *
  * To release a new version of the app shell, change VERSION below.
  */
-const VERSION = "v7";
+const VERSION = "v8";
 const STATIC_CACHE = "sb-static-" + VERSION; // precached files, scripts, images
 const PAGES_CACHE = "sb-pages-" + VERSION;   // pages the user has opened
 const FONT_CACHE = "sb-fonts-" + VERSION;    // Google Fonts

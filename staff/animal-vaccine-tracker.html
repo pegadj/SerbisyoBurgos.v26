@@ -347,6 +347,18 @@ color: white;
         .av-btn.danger:hover { background: #fef2f2; }
         .av-btn.small { padding: 0.35rem 0.7rem; font-size: 0.8rem; border-radius: 8px; }
         .av-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        /* Icon-only row actions with an instant hover/focus tooltip */
+        .av-actions-cell { display: inline-flex; gap: 0.35rem; justify-content: flex-end; }
+        .av-icon-btn { position: relative; width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; background: #fff; color: #334155; border-radius: 9px; cursor: pointer; }
+        .av-icon-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+        .av-icon-btn:hover, .av-icon-btn:focus-visible { background: #f8fafc; border-color: #cbd5e1; }
+        .av-icon-btn:focus-visible { outline: 3px solid rgba(22, 163, 74, 0.35); outline-offset: 1px; }
+        .av-icon-btn.ok { color: #15803d; }
+        .av-icon-btn.ok:hover { background: #f0fdf4; border-color: #86efac; }
+        .av-icon-btn.danger { color: #b91c1c; border-color: #fecaca; }
+        .av-icon-btn.danger:hover { background: #fef2f2; }
+        .av-icon-btn[data-tip]::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 7px); right: 0; background: #0f172a; color: #fff; font-size: 0.72rem; font-weight: 600; line-height: 1; white-space: nowrap; padding: 0.45rem 0.6rem; border-radius: 7px; opacity: 0; transform: translateY(3px); pointer-events: none; transition: opacity .12s, transform .12s; z-index: 20; }
+        .av-icon-btn[data-tip]:hover::after, .av-icon-btn[data-tip]:focus-visible::after { opacity: 1; transform: none; }
         .av-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.9rem; margin-bottom: 1.25rem; }
         .av-stat { background: white; border: 1px solid #e2e8f0; border-radius: 14px; padding: 0.9rem 1rem; text-align: left; cursor: pointer; font-family: inherit; }
         .av-stat:hover, .av-stat.active { border-color: var(--brand-green); box-shadow: 0 0 0 3px rgba(22,163,74,0.12); }
@@ -704,6 +716,21 @@ color: white;
             return a.species === "Other" ? (a.speciesOther || "Other") : a.species;
         }
 
+        const ICONS = {
+            shieldCheck: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>',
+            shieldOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.7 14a8.6 8.6 0 0 0 .3-2V5l-8-3-3.2 1.2"/><path d="M4.7 4.7 4 5v7c0 6 8 10 8 10a20.3 20.3 0 0 0 5.6-4.3"/><line x1="1" y1="1" x2="23" y2="23"/></svg>',
+            edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
+            paw: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5.5" cy="11" r="1.8"/><circle cx="9.5" cy="6.5" r="1.8"/><circle cx="14.5" cy="6.5" r="1.8"/><circle cx="18.5" cy="11" r="1.8"/><path d="M12 11.5c-2.6 0-5 2.7-5 5 0 1.7 1.3 2.5 2.7 2.5 1 0 1.6-.4 2.3-.4s1.3.4 2.3.4c1.4 0 2.7-.8 2.7-2.5 0-2.3-2.4-5-5-5z"/></svg>',
+            archive: '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
+            restore: '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2.1-9.4L1 10"/></svg>'
+        };
+
+        // Icon-only action button: the label shows as an instant tooltip and is read by screen readers.
+        function iconBtn(attr, id, label, icon, extraClass) {
+            const safe = escapeHtml(label);
+            return `<button type="button" class="av-icon-btn ${extraClass || ""}" ${attr}="${escapeHtml(id)}" data-tip="${safe}" aria-label="${safe}">${icon}</button>`;
+        }
+
         function statusBadge(a) {
             return a.vaccinated
                 ? '<span class="av-badge ok">Vaccinated</span>'
@@ -771,12 +798,14 @@ color: white;
                         <td>${escapeHtml(a.ownerName)}<span class="av-sub">${escapeHtml(a.ownerContact || a.ownerAddress || "")}</span></td>
                         <td>${statusBadge(a)}</td>
                         <td style="text-align:right; white-space:nowrap;">
+                            <div class="av-actions-cell">
                             ${showArchived
-                                ? `<button type="button" class="av-btn small" data-restore="${escapeHtml(a.id)}">Restore</button>`
-                                : `<button type="button" class="av-btn small" data-toggle="${escapeHtml(a.id)}">${a.vaccinated ? "Mark not vaccinated" : "Mark vaccinated"}</button>
-                                   <button type="button" class="av-btn small" data-edit="${escapeHtml(a.id)}">Edit</button>
-                                   <button type="button" class="av-btn small" data-add-pet="${escapeHtml(a.id)}" title="Add another pet for ${escapeHtml(a.ownerName)}">+ Pet</button>
-                                   <button type="button" class="av-btn small danger" data-archive="${escapeHtml(a.id)}">Archive</button>`}
+                                ? iconBtn("data-restore", a.id, "Restore pet record", ICONS.restore)
+                                : `${iconBtn("data-toggle", a.id, a.vaccinated ? "Mark as not vaccinated" : "Mark as vaccinated", a.vaccinated ? ICONS.shieldOff : ICONS.shieldCheck, a.vaccinated ? "" : "ok")}
+                                   ${iconBtn("data-edit", a.id, "Edit pet details", ICONS.edit)}
+                                   ${iconBtn("data-add-pet", a.id, `Add another pet for ${a.ownerName}`, ICONS.paw)}
+                                   ${iconBtn("data-archive", a.id, "Archive pet record", ICONS.archive, "danger")}`}
+                            </div>
                         </td>
                     </tr>`).join("");
             }

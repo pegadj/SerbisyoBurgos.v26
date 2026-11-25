@@ -558,13 +558,13 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Preferred Date *</label>
-                        <input type="date" id="reqDate" required autocomplete="off">
+                        <label>Preferred Date <span style="font-weight:400;color:var(--text-muted);">(optional)</span></label>
+                        <input type="date" id="reqDate" autocomplete="off">
                     </div>
                     <div class="form-group">
-                        <label>Preferred Time Slot *</label>
-                        <select id="reqTime" required>
-                            <option value="" disabled selected>Select a date first...</option>
+                        <label>Preferred Time Slot <span style="font-weight:400;color:var(--text-muted);">(optional)</span></label>
+                        <select id="reqTime">
+                            <option value="" selected>Select a date first (optional)</option>
                         </select>
                     </div>
                 </div>
@@ -750,12 +750,12 @@
             return `${y}-${m}-${day}`;
         }
 
-        // Morning pickup slots (8 AM-12 NN) for service requests come from the server so closed / full / past slots are shown as unavailable.
-        const REQUEST_SLOT_CODES = new Set(["0800", "0900", "1000", "1100"]);   // 8 AM-12 NN; lunch break 12-1 PM has no slots
+        // Pickup time slots for service requests come from the server, so closed / full / past slots are shown as unavailable.
+        // The server offers every slot across office hours (8 AM-12 NN and 1-5 PM) and never the 12-1 PM lunch break.
 
         function resetRequestSlotOptions() {
             const sel = document.getElementById("reqTime");
-            if (sel) sel.innerHTML = '<option value="" disabled selected>Select a date first...</option>';
+            if (sel) sel.innerHTML = '<option value="" selected>Select a date first (optional)</option>';
         }
 
         async function refreshRequestSlotsForDate(dateValue) {
@@ -773,8 +773,7 @@
                 if (!response.ok || !result?.ok || !Array.isArray(result.slots)) {
                     throw new Error(result?.message || "Unable to load slots.");
                 }
-                const morning = result.slots.filter((s) => REQUEST_SLOT_CODES.has(String(s?.code || "")));
-                const options = morning.map((slot) => {
+                const options = result.slots.map((slot) => {
                     const unavailable = Boolean(slot.isClosed || slot.isFull);
                     const suffix = slot.isClosed ? " (Closed)" : slot.isFull ? " (Full)" : "";
                     const label = String(slot.label || "Time");
@@ -950,7 +949,11 @@ async function populateResidentNameField() {
             applyServicePreferredDateMin();
             document.getElementById("requestModal").style.display = "flex";
         }
-        function closeModal() { document.getElementById('requestModal').style.display = 'none'; }
+        function closeModal() {
+            document.getElementById('requestModal').style.display = 'none';
+            const purposeEl = document.getElementById('reqPurpose'); // do not keep a "Request again" purpose for the next new request
+            if (purposeEl) purposeEl.value = '';
+        }
         function openUploadSuccessModal(message) {
             if (uploadSuccessText) uploadSuccessText.textContent = message;
             if (uploadSuccessModal) uploadSuccessModal.style.display = 'flex';
@@ -1303,11 +1306,13 @@ async function populateResidentNameField() {
 
         async function tryConsumeRepeatServiceRequestDraft() {
             let want = null;
+            let wantPurpose = "";
             let hadSession = false;
             try {
                 const raw = sessionStorage.getItem(RESIDENT_SERVICE_REQUEST_REPEAT_KEY);
                 if (raw) {
                     const d = JSON.parse(raw);
+                    wantPurpose = d?.purpose != null ? String(d.purpose).trim() : "";
                     const n = d?.serviceName != null ? String(d.serviceName).trim() : "";
                     if (n) {
                         want = n;
@@ -1347,6 +1352,10 @@ async function populateResidentNameField() {
             const reqTime = document.getElementById("reqTime");
             if (reqDate) reqDate.value = "";
             if (reqTime) resetRequestSlotOptions();
+            // "Request again" keeps the service and the purpose. The preferred date / time slot is left empty on
+            // purpose: staff text the resident when the document is ready, so an old slot would mean nothing.
+            const reqPurposeEl = document.getElementById("reqPurpose");
+            if (reqPurposeEl && wantPurpose) reqPurposeEl.value = wantPurpose.slice(0, 160);
             const modal = document.getElementById("requestModal");
             if (modal) modal.style.display = "flex";
             applyServicePreferredDateMin();
@@ -1479,9 +1488,18 @@ function isCancellableRequest(status) {
             const preferredDate = document.getElementById('reqDate').value;
             const preferredTimeSlot = document.getElementById('reqTime').value;
             const todayISO = localDateISO();
-            if (!preferredDate || preferredDate < todayISO) {
-                openFeedbackModal("Invalid date", "Preferred date must be today or a future date.");
+            // The date / time slot are optional: staff text the resident when the document is ready.
+            if (preferredDate && preferredDate < todayISO) {
+                openFeedbackModal("Invalid date", "Preferred date must be today or a future date. You can also leave it empty.");
                 applyServicePreferredDateMin();
+                return;
+            }
+            if (preferredDate && !preferredTimeSlot) {
+                openFeedbackModal("Time slot needed", "Pick a time slot for that date, or clear the date.");
+                return;
+            }
+            if (!preferredDate && preferredTimeSlot) {
+                openFeedbackModal("Date needed", "Pick a date for that time slot, or clear the time slot.");
                 return;
             }
             const purposeValue = (document.getElementById('reqPurpose')?.value || '').trim();
@@ -1493,8 +1511,8 @@ function isCancellableRequest(status) {
             const payload = {
                 title: serviceType,
                 serviceType,
-                preferredDate,
-                preferredTimeSlot,
+                preferredDate: preferredDate || "",
+                preferredTimeSlot: preferredDate ? preferredTimeSlot : "",
                 purpose: purposeValue,
                 supportingDocumentNames: selectedSupportingFiles.map((file) => file.name)
             };

@@ -406,6 +406,12 @@
                             <label class="form-label">Available Time Slots</label>
                             <select class="form-input" id="aptTime" name="slotId" required>
                                 <option value="" disabled selected>Select Time...</option>
+                                <optgroup label="Morning">
+                                    <option value="8">08:00 AM - 09:00 AM</option>
+                                    <option value="9">09:00 AM - 10:00 AM</option>
+                                    <option value="10">10:00 AM - 11:00 AM</option>
+                                    <option value="11">11:00 AM - 12:00 PM</option>
+                                </optgroup>
                                 <optgroup label="Afternoon">
                                     <option value="1">01:00 PM - 02:00 PM</option>
                                     <option value="2">02:00 PM - 03:00 PM</option>
@@ -846,17 +852,22 @@ function renderAppointments(appointments) {
                     throw new Error(result?.message || "Unable to load slots.");
                 }
 
-                const afternoonCodes = new Set(["0100", "0200", "0300", "0400"]);   // 1-5 PM; nothing during the 12-1 PM lunch break
-                const afternoon = result.slots.filter((s) => afternoonCodes.has(String(s?.code || "")));
-                const options = afternoon.map((slot) => {
+                // The server returns every slot across office hours (8 AM-12 NN, 1-5 PM) and never the 12-1 PM lunch break.
+                const morningCodes = new Set(["0800", "0900", "1000", "1100"]);
+                const toOption = (slot) => {
                     // Closed = staff closed it, or its time has already passed. Full = no places left.
                     const unavailable = Boolean(slot.isClosed || slot.isFull);
                     const disabled = unavailable ? "disabled" : "";
                     const suffix = slot.isClosed ? " (Closed)" : slot.isFull ? " (Full)" : "";
                     return `<option value="${escapeHtmlText(slot.id)}" ${disabled}>${escapeHtmlText(slot.label || "Time")}${suffix}</option>`;
-                });
+                };
+                const morningOptions = result.slots.filter((s) => morningCodes.has(String(s?.code || ""))).map(toOption);
+                const afternoonOptions = result.slots.filter((s) => !morningCodes.has(String(s?.code || ""))).map(toOption);
 
-                aptTimeEl.innerHTML = `<option value="" disabled selected>Select Time...</option><optgroup label="Afternoon">${options.join("")}</optgroup>`;
+                let groups = "";
+                if (morningOptions.length) groups += `<optgroup label="Morning">${morningOptions.join("")}</optgroup>`;
+                if (afternoonOptions.length) groups += `<optgroup label="Afternoon">${afternoonOptions.join("")}</optgroup>`;
+                aptTimeEl.innerHTML = `<option value="" disabled selected>Select Time...</option>${groups}`;
             } catch (_error) {
                 aptTimeEl.innerHTML = `<option value="" disabled selected>Select Time...</option>`;
             }

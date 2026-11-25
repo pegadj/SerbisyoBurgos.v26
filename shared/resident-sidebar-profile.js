@@ -13,8 +13,14 @@
     return (letter + letter).toUpperCase();
   }
 
+  // The internal placeholder address given to residents without an email must never be shown.
+  function visibleEmail(email) {
+    const v = String(email == null ? "" : email).trim();
+    return /^[^@\s]+@residents\.serbisyoburgos\.local$/i.test(v) ? "" : v;
+  }
+
   function initialsFromEmail(email) {
-    const local = String(email || "").split("@")[0] || "";
+    const local = visibleEmail(email).split("@")[0] || "";
     if (local.length >= 2) return local.slice(0, 2).toUpperCase();
     if (local.length === 1) return (local + local).toUpperCase();
     return "?";
@@ -30,7 +36,7 @@
     if (!user) return "Resident";
     const n = String(user.fullName || "").trim();
     if (n) return n;
-    const e = String(user.email || "").trim();
+    const e = visibleEmail(user.email);
     return e || "Resident";
   }
 
@@ -100,7 +106,7 @@
       const prev = parsed.user || {};
       parsed.user = {
         ...prev,
-        email: data.email != null ? data.email : prev.email,
+        email: visibleEmail(data.email != null ? data.email : prev.email),
         fullName: data.fullName != null ? data.fullName : prev.fullName,
         avatarUrl: data.avatarUrl !== undefined ? data.avatarUrl : prev.avatarUrl
       };
